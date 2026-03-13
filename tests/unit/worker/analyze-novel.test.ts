@@ -11,11 +11,17 @@ const prismaMock = vi.hoisted(() => ({
   novelPromotionEpisode: { findFirst: vi.fn() },
   novelPromotionCharacter: {
     create: vi.fn(async () => ({ id: 'char-new-1' })),
-    createManyAndReturn: vi.fn(async ({ data }) => data.map((item: any, index: number) => ({ ...item, id: `char-new-${index + 1}` }))),
+    createMany: vi.fn(async ({ data }) => {
+      return { count: data.length }
+    }),
+    findMany: vi.fn(async () => [{ id: 'char-new-1' }]),
   },
   novelPromotionLocation: {
     create: vi.fn(async () => ({ id: 'loc-new-1' })),
-    createManyAndReturn: vi.fn(async ({ data }) => data.map((item: any, index: number) => ({ ...item, id: `loc-new-${index + 1}` }))),
+    createMany: vi.fn(async ({ data }) => {
+      return { count: data.length }
+    }),
+    findMany: vi.fn(async () => [{ id: 'loc-new-1', name: '新地点' }]),
   },
   locationImage: {
     create: vi.fn(async () => ({})),
@@ -142,15 +148,16 @@ describe('worker analyze-novel behavior', () => {
   it('success path -> creates character/location and persists cleaned location descriptions', async () => {
     const result = await handleAnalyzeNovelTask(buildJob())
 
-    expect(result).toEqual({
-      success: true,
-      characters: [{ id: 'char-new-1' }],
-      locations: [{ id: 'loc-new-1' }],
-      characterCount: 1,
-      locationCount: 1,
-    })
+    expect(result.success).toBe(true)
+    expect(result.characters.length).toBe(1)
+    expect(result.locations.length).toBe(1)
+    expect(result.characterCount).toBe(1)
+    expect(result.locationCount).toBe(1)
 
-    expect(prismaMock.novelPromotionCharacter.createManyAndReturn).toHaveBeenCalledWith(
+    const createdCharId = result.characters[0].id
+    const createdLocId = result.locations[0].id
+
+    expect(prismaMock.novelPromotionCharacter.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.arrayContaining([
           expect.objectContaining({
@@ -162,7 +169,7 @@ describe('worker analyze-novel behavior', () => {
       }),
     )
 
-    expect(prismaMock.novelPromotionLocation.createManyAndReturn).toHaveBeenCalledWith(
+    expect(prismaMock.novelPromotionLocation.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.arrayContaining([
           expect.objectContaining({
@@ -178,7 +185,7 @@ describe('worker analyze-novel behavior', () => {
       expect.objectContaining({
         data: expect.arrayContaining([
           expect.objectContaining({
-            locationId: 'loc-new-1',
+            locationId: createdLocId,
             imageIndex: 0,
             description: '雨夜街道',
           }),
