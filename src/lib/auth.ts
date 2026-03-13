@@ -1,11 +1,16 @@
+import { NextAuthOptions } from "next-auth"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { logAuthAction } from './logging/semantic'
 import { prisma } from './prisma'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const authOptions: any = {
+interface ExtendedAuthOptions extends NextAuthOptions {
+  trustHost?: boolean
+  useSecureCookies?: boolean
+}
+
+export const authOptions: ExtendedAuthOptions = {
   adapter: PrismaAdapter(prisma),
   // 🔥 允许从任意 Host 访问（解决局域网访问问题）
   trustHost: true,
@@ -60,15 +65,13 @@ export const authOptions: any = {
     signIn: "/auth/signin",
   },
   callbacks: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async jwt({ token, user }: any) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id
       }
       return token
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async session({ session, token }: any) {
+    async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string
       }
