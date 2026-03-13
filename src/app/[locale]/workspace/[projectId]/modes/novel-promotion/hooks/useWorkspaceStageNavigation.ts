@@ -46,10 +46,10 @@ export function useWorkspaceStageNavigation({
       case 'storyboard':
         return episodeStoryboards.some((sb) => sb.panels?.length) ? 'ready' : 'empty'
       case 'videos':
-      case 'editor':
-        return episodeStoryboards.some((sb) => sb.panels?.some((panel) => panel.videoUrl)) ? 'ready' : 'empty'
       case 'voice':
         return (episode?.voiceLines?.length || 0) > 0 ? 'ready' : 'empty'
+      case 'editor':
+        return episodeStoryboards.some((sb) => sb.panels?.some((panel) => panel.videoUrl)) ? 'ready' : 'empty'
       default:
         return 'empty'
     }
@@ -60,13 +60,6 @@ export function useWorkspaceStageNavigation({
     { id: 'script', icon: 'A', label: t('stages.script'), status: getStageStatus('assets') },
     { id: 'storyboard', icon: 'B', label: t('stages.storyboard'), status: getStageStatus('storyboard') },
     { id: 'videos', icon: 'V', label: t('stages.video'), status: getStageStatus('videos') },
-    {
-      id: 'editor',
-      icon: 'E',
-      label: t('stages.editor'),
-      status: 'empty',
-      disabled: true,
-      disabledLabel: t('stages.editorComingSoon'),
-    },
+    { id: 'editor', icon: 'E', label: t('stages.editor'), status: getStageStatus('editor') },
   ]
 }

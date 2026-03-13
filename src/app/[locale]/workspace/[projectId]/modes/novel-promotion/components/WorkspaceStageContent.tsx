@@ -1,5 +1,6 @@
 'use client'
 
+import EditorStageRoute from './EditorStageRoute'
 import ConfigStage from './ConfigStage'
 import ScriptStage from './ScriptStage'
 import StoryboardStage from './StoryboardStage'
@@ -24,6 +25,8 @@ export default function WorkspaceStageContent({
       {currentStage === 'videos' && <VideoStageRoute />}
 
       {currentStage === 'voice' && <VoiceStageRoute />}
+
+      {currentStage === 'editor' && <EditorStageRoute />}
     </div>
   )
 }

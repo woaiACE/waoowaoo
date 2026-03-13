@@ -4,11 +4,14 @@ import { useEpisodeData } from '@/lib/query/hooks'
 import type { NovelPromotionClip, NovelPromotionStoryboard } from '@/types/project'
 import { useWorkspaceProvider } from '../WorkspaceProvider'
 
+import type { VoiceLine } from '@/lib/query/hooks/useVoiceLines'
+
 interface EpisodeStagePayload {
   name?: string
   novelText?: string | null
   clips?: NovelPromotionClip[]
   storyboards?: NovelPromotionStoryboard[]
+  voiceLines?: VoiceLine[]
 }
 
 export function useWorkspaceEpisodeStageData() {
@@ -21,5 +24,6 @@ export function useWorkspaceEpisodeStageData() {
     novelText: payload?.novelText || '',
     clips: payload?.clips || [],
     storyboards: payload?.storyboards || [],
+    voiceLines: payload?.voiceLines || [],
   }
 }
