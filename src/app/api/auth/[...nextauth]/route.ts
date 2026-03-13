@@ -1,11 +1,10 @@
-import NextAuth from "next-auth"
+import NextAuth, { NextAuthOptions } from "next-auth"
 import { NextRequest, NextResponse } from "next/server"
 import { authOptions } from "@/lib/auth"
 import { checkRateLimit, getClientIp, AUTH_LOGIN_LIMIT } from '@/lib/rate-limit'
 import { logAuthAction } from '@/lib/logging/semantic'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const nextAuthHandler = (NextAuth as any)(authOptions)
+const nextAuthHandler = NextAuth(authOptions as NextAuthOptions)
 
 /**
  * 登录 POST 请求加 IP 限流保护。
