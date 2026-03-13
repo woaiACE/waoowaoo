@@ -10,6 +10,8 @@ const bailianMock = vi.hoisted(() => ({
 
 const apiConfigMock = vi.hoisted(() => ({
   getProviderConfig: vi.fn(),
+  resolveModelSelectionOrSingle: vi.fn(),
+  getProviderKey: vi.fn(),
 }))
 
 const workerMock = vi.hoisted(() => ({
@@ -49,6 +51,8 @@ describe('worker voice-design behavior', () => {
     vi.clearAllMocks()
     bailianMock.validateVoicePrompt.mockReturnValue({ valid: true })
     bailianMock.validatePreviewText.mockReturnValue({ valid: true })
+    apiConfigMock.resolveModelSelectionOrSingle.mockResolvedValue({ provider: 'bailian' })
+    apiConfigMock.getProviderKey.mockImplementation((id) => id)
     apiConfigMock.getProviderConfig.mockResolvedValue({ apiKey: 'bailian-key' })
     bailianMock.createVoiceDesign.mockResolvedValue({
       success: true,

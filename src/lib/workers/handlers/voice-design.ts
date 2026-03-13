@@ -5,7 +5,8 @@ import {
   validateVoicePrompt,
   type VoiceDesignInput,
 } from '@/lib/providers/bailian/voice-design'
-import { getProviderConfig } from '@/lib/api-config'
+import { getProviderConfig, getProviderKey, resolveModelSelectionOrSingle } from '@/lib/api-config'
+import { createMinimaxVoiceDesign, type VoiceDesignInput as MinimaxVoiceDesignInput } from '@/lib/providers/minimax'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
 import { TASK_TYPE, type TaskJobData } from '@/lib/task/types'
@@ -46,16 +47,52 @@ export async function handleVoiceDesignTask(job: Job<TaskJobData>) {
   })
   await assertTaskActive(job, 'voice_design_submit')
 
-  const { apiKey } = await getProviderConfig(job.data.userId, 'bailian')
-  const input: VoiceDesignInput = {
-    voicePrompt,
-    previewText,
-    preferredName,
-    language,
-  }
-  const designed = await createVoiceDesign(input, apiKey)
-  if (!designed.success) {
-    throw new Error(designed.error || '声音设计失败')
+  const audioSelection = await resolveModelSelectionOrSingle(job.data.userId, undefined, 'audio')
+  const providerKey = getProviderKey(audioSelection.provider).toLowerCase()
+
+  let voiceId: string | undefined
+  let targetModel: string | undefined
+  let audioBase64: string | undefined
+  let sampleRate: number | undefined
+  let responseFormat: string | undefined
+  let usageCount: number | undefined
+  let requestId: string | undefined
+
+  if (providerKey === 'minimax') {
+    const { apiKey, baseUrl } = await getProviderConfig(job.data.userId, audioSelection.provider)
+    const input: MinimaxVoiceDesignInput = {
+      voicePrompt,
+      previewText,
+      preferredName,
+      language,
+    }
+    const designed = await createMinimaxVoiceDesign(input, apiKey, baseUrl)
+    if (!designed.success) {
+      throw new Error(designed.error || 'Minimax声音设计失败')
+    }
+    voiceId = designed.voiceId
+    audioBase64 = designed.audioBase64
+  } else if (providerKey === 'bailian') {
+    const { apiKey } = await getProviderConfig(job.data.userId, audioSelection.provider)
+    const input: VoiceDesignInput = {
+      voicePrompt,
+      previewText,
+      preferredName,
+      language,
+    }
+    const designed = await createVoiceDesign(input, apiKey)
+    if (!designed.success) {
+      throw new Error(designed.error || '声音设计失败')
+    }
+    voiceId = designed.voiceId
+    targetModel = designed.targetModel
+    audioBase64 = designed.audioBase64
+    sampleRate = designed.sampleRate
+    responseFormat = designed.responseFormat
+    usageCount = designed.usageCount
+    requestId = designed.requestId
+  } else {
+    throw new Error(`当前提供商 (${audioSelection.provider}) 不支持声音设计`)
   }
 
   await reportTaskProgress(job, 96, {
@@ -66,13 +103,13 @@ export async function handleVoiceDesignTask(job: Job<TaskJobData>) {
 
   return {
     success: true,
-    voiceId: designed.voiceId,
-    targetModel: designed.targetModel,
-    audioBase64: designed.audioBase64,
-    sampleRate: designed.sampleRate,
-    responseFormat: designed.responseFormat,
-    usageCount: designed.usageCount,
-    requestId: designed.requestId,
+    voiceId,
+    targetModel,
+    audioBase64,
+    sampleRate,
+    responseFormat,
+    usageCount,
+    requestId,
     taskType: job.data.type === TASK_TYPE.ASSET_HUB_VOICE_DESIGN ? TASK_TYPE.ASSET_HUB_VOICE_DESIGN : TASK_TYPE.VOICE_DESIGN,
   }
 }
