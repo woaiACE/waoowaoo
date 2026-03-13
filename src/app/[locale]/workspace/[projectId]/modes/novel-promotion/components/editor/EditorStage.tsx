@@ -151,8 +151,13 @@ export default function EditorStage({
           {panelsWithVideo.map((panel, idx) => (
             <div key={panel.id || idx} className="h-full w-[120px] shrink-0 bg-[var(--glass-bg-muted)] border border-[var(--glass-border)] rounded-lg relative overflow-hidden group">
               {panel.videoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={panel.videoUrl} alt="Thumbnail" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                <video
+                  src={panel.videoUrl}
+                  className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
+                  muted
+                  playsInline
+                  preload="metadata"
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-xs text-[var(--glass-text-tertiary)]">
                   Clip {idx + 1}
