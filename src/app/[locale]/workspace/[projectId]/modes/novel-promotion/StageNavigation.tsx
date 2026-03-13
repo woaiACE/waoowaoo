@@ -44,8 +44,8 @@ export function StageNavigation({
     { id: 'assets', label: t('assets'), enabled: hasAudio || hasAssets },
     { id: 'storyboard', label: t('storyboard'), enabled: hasTextStoryboards || hasStoryboards },
     { id: 'videos', label: t('videos'), enabled: hasStoryboards || hasVideos },
-    // 配音阶段只要有文本输入就可以启用，不受其他条件限制
-    { id: 'voice', label: t('voice'), enabled: hasNovelText || hasVoiceLines }
+    { id: 'voice', label: t('voice'), enabled: hasNovelText || hasVoiceLines },
+    { id: 'editor', label: t('editor'), enabled: hasVideos }
   ]
 
   return (
