@@ -126,7 +126,8 @@ $esbuildExternalFlags = @(
     "--external:cpu-features",
     "--external:ssh2",
     "--external:bufferutil",
-    "--external:utf-8-validate"
+    "--external:utf-8-validate",
+    "--external:@vercel/og"   # @vercel/og 内部用 import.meta.url 加载字体，esbuild CJS 模式下会 crash
 )
 $esbuildCommon = @(
     "--bundle",
@@ -278,7 +279,7 @@ function Copy-NpmPackageClosure {
 Write-Host "  复制 Prisma CLI 依赖闭包到 standalone/node_modules ..."
 $sourceNodeModules = Join-Path $ProjectRoot "node_modules"
 $destNodeModules   = Join-Path $AppServerDir "node_modules"
-Copy-NpmPackageClosure -SourceNodeModules $sourceNodeModules -DestNodeModules $destNodeModules -EntryPackages @("prisma")
+Copy-NpmPackageClosure -SourceNodeModules $sourceNodeModules -DestNodeModules $destNodeModules -EntryPackages @("prisma", "@vercel/og")
 
 # .prisma/client 目录包含 Prisma 生成的客户端代码和 query engine 二进制文件（.dll.node）。
 # Next.js standalone 的 file-tracer 不追踪 .node 二进制，需手动复制。

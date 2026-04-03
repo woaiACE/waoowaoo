@@ -25,7 +25,7 @@ export default defineConfig({
     setupFiles: ['./tests/setup/env.ts'],
     globalSetup: ['./tests/setup/global-setup.ts'],
     include: ['**/*.test.ts'],
-    exclude: ['portable/**', 'node_modules/**'],
+    exclude: ['portable/**', 'node_modules/**', '.next/**'],
     testTimeout: 30_000,
     hookTimeout: 60_000,
     coverage: {
