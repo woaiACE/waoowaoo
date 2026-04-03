@@ -137,11 +137,15 @@ $esbuildCommon = @(
     "--log-level=warning"
 ) + $esbuildExternalFlags
 
+# Worker 专用参数：使用 ESM 格式输出（因为 @vercel/og 是纯 ESM 包，CJS require() 会失败）
+# ESM bundle 可以直接 import '@vercel/og'，无需任何转换
+$esbuildWorker = ($esbuildCommon | Where-Object { $_ -ne "--format=cjs" }) + "--format=esm"
+
 Push-Location $ProjectRoot
 
-# Worker (BullMQ)
-Write-Host "  Bundling src/lib/workers/index.ts → .next/standalone/worker.js"
-& npx esbuild src/lib/workers/index.ts @esbuildCommon --outfile=".next/standalone/worker.js"
+# Worker (BullMQ) — 输出为 .mjs (ESM)，由 start.bat 的 shim 通过 import() 加载
+Write-Host "  Bundling src/lib/workers/index.ts → .next/standalone/worker.mjs"
+& npx esbuild src/lib/workers/index.ts @esbuildWorker --outfile=".next/standalone/worker.mjs"
 if ($LASTEXITCODE -ne 0) {
     Write-Warning "Worker bundle 失败；BullMQ 后台任务处理将不可用。"
 }
