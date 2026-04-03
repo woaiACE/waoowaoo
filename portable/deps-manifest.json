@@ -1,5 +1,5 @@
 {
-  "_comment": "Windows 便携依赖版本清单 — 单一数据源。build-exe.ps1 和 setup-dependencies.ps1 均从本文件读取版本/URL/SHA256。⚠️ 升级依赖时只需修改此文件，SHA256 留空则跳过校验。获取方式：Node.js → nodejs.org/dist/v<ver>/SHASUMS256.txt；MariaDB → archive.mariadb.org/.../winx64-packages/*.sha256sum；MinIO → dl.min.io/.../minio.<ver>.sha256sum；Redis → GitHub Releases 核对文件大小（无官方校验和）。",
+  "_comment": "Windows 便携依赖版本清单 — 单一数据源。build-exe.ps1 和 setup-dependencies.ps1 均从本文件读取版本/URL/SHA256。⚠️ 升级依赖时只需修改此文件，SHA256 留空则跳过校验。获取方式：Node.js → nodejs.org/dist/v<ver>/SHASUMS256.txt；MariaDB → archive.mariadb.org/.../winx64-packages/*.sha256sum；MinIO → dl.min.io/.../minio.<ver>.sha256sum；Redis → GitHub Releases 页面内 SHA256 说明或 release notes。",
   "node": {
     "version": "20.18.1",
     "filename": "node-v20.18.1-win-x64.zip",
@@ -7,10 +7,10 @@
     "sha256": ""
   },
   "redis": {
-    "version": "5.0.14.1",
-    "filename": "Redis-x64-5.0.14.1.zip",
-    "url": "https://github.com/tporadowski/redis/releases/download/v5.0.14.1/Redis-x64-5.0.14.1.zip",
-    "sha256": ""
+    "version": "7.4.2",
+    "filename": "Redis-7.4.2-Windows-x64-msys2.zip",
+    "url": "https://github.com/redis-windows/redis-windows/releases/download/7.4.2/Redis-7.4.2-Windows-x64-msys2.zip",
+    "sha256": "65C8D2FF57572AFA3CF4634820D4CDB8921E82760B272AD1DD12F38308414A96"
   },
   "mariadb": {
     "version": "10.11.10",

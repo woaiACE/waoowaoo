@@ -2,7 +2,7 @@
 #
 # 检查并自动下载缺失的便携版运行时依赖：
 #   - Node.js v20 LTS (Windows x64)
-#   - Redis for Windows (tporadowski)
+#   - Redis for Windows (redis-windows/redis-windows, Redis 7.x LTS)
 #   - MariaDB 10.11 LTS (Windows x64)
 #   - MinIO (Windows 单文件二进制)
 #   - Caddy (Windows x64，优先离线缓存，否则从官网获取最新版本)
@@ -51,6 +51,7 @@ if (Test-Path $_manifestPath) {
         $MariaDBSha256  = $_m.mariadb.sha256
         $MinioSha256    = $_m.minio.sha256
         $CaddySha256    = $_m.caddy.sha256
+        $RedisFilename  = $_m.redis.filename
         $_manifestLoaded = $true
         Write-Host "[Setup] 版本清单来源: $_manifestPath"
     } catch {
@@ -62,20 +63,21 @@ if (-not $_manifestLoaded) {
     # ── 硬编码后备（仅在 deps-manifest.json 不可用时使用）──────────────────────────
     Write-Host "[Setup] 未找到 deps-manifest.json，使用内置默认版本配置"
     $NodeVersion    = "20.18.1"
-    $RedisVersion   = "5.0.14.1"
+    $RedisVersion   = "7.4.2"
     $MariaDBVersion = "10.11.10"
     $MinioVersion   = "RELEASE.2025-09-07T16-13-09Z"
     $CaddyVersion   = "2.11.2"
     $NodeUrl    = "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-x64.zip"
-    $RedisUrl   = "https://github.com/tporadowski/redis/releases/download/v$RedisVersion/Redis-x64-$RedisVersion.zip"
+    $RedisUrl   = "https://github.com/redis-windows/redis-windows/releases/download/$RedisVersion/Redis-$RedisVersion-Windows-x64-msys2.zip"
     $MariaDBUrl = "https://archive.mariadb.org/mariadb-$MariaDBVersion/winx64-packages/mariadb-$MariaDBVersion-winx64.zip"
     $MinioUrl   = "https://dl.min.io/server/minio/release/windows-amd64/archive/minio.$MinioVersion"
     $CaddyUrl   = "https://github.com/caddyserver/caddy/releases/download/v$CaddyVersion/caddy_${CaddyVersion}_windows_amd64.zip"
     $NodeSha256    = ""
-    $RedisSha256   = ""
+    $RedisSha256   = "65C8D2FF57572AFA3CF4634820D4CDB8921E82760B272AD1DD12F38308414A96"
     $MariaDBSha256 = ""
     $MinioSha256   = ""
     $CaddySha256   = "F93E39831F2CF2A35FBE99DA2B3B4FD18E0B75E314C7980AC51B0BCCFA782059"
+    $RedisFilename = "Redis-$RedisVersion-Windows-x64-msys2.zip"
 }
 
 # ── 离线依赖缓存目录（按优先级查找，命中则不走网络）──────────────────────────────
@@ -303,7 +305,7 @@ try {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Redis for Windows (tporadowski/redis)
+# Redis for Windows (redis-windows/redis-windows — Redis 7.x, BullMQ 5.x 要求 Redis 6.2+)
 # ══════════════════════════════════════════════════════════════════════════════
 try {
     $redisDir = Join-Path $InstallDir "portable_redis"
@@ -312,7 +314,8 @@ try {
         Write-Host ""
         Write-Host "[Setup] Redis 未找到，正在自动下载 v$RedisVersion ..."
         $zipDest = Join-Path $tempDir "redis.zip"
-        $redisOffline = Find-OfflineDependencyFile -FileNames @("Redis-x64-$RedisVersion.zip") -Label "Redis v$RedisVersion"
+        # 搜索缓存目录中的 Redis 安装包
+        $redisOffline = Find-OfflineDependencyFile -FileNames @($RedisFilename) -Label "Redis v$RedisVersion"
         if ($redisOffline) {
             Copy-Item $redisOffline $zipDest -Force
         } else {
@@ -326,6 +329,13 @@ try {
         $inner = Get-InnerDir $extDir
         $srcDir = if ($inner) { $inner } else { $extDir }
         Copy-Item "$srcDir\*" $redisDir -Recurse -Force
+        # redis-windows 7.x 仅含 redis.conf；创建 redis.windows.conf 供兼容性使用
+        $winConf   = Join-Path $redisDir "redis.windows.conf"
+        $linuxConf = Join-Path $redisDir "redis.conf"
+        if (-not (Test-Path $winConf) -and (Test-Path $linuxConf)) {
+            Copy-Item $linuxConf $winConf -Force
+            Write-Host "  [配置] 已从 redis.conf 创建 redis.windows.conf"
+        }
         Write-Host "  [就绪] Redis 已安装至 portable_redis\"
         $anyDownloaded = $true
     } else {
