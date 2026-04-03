@@ -732,7 +732,7 @@ IF %ERRORLEVEL% EQU 0 (
     REM 传入 Windows 反斜线路径给 conf 文件参数会失败；--dir 需使用正斜线路径）。
     REM 追加 --appendonly yes 与 docker-compose.yml 行为保持一致。
     PowerShell -NoProfile -ExecutionPolicy Bypass -Command ^
-        "$rdata=($env:REDIS_DATA -replace '\\\\','/'); try{$a=@('--bind','127.0.0.1','--port','6379','--loglevel','notice','--appendonly','yes','--dir',$rdata);$p=Start-Process -FilePath $env:_EXE -ArgumentList $a -NoNewWindow -RedirectStandardOutput (Join-Path $env:LOGS_DIR 'redis.log') -RedirectStandardError (Join-Path $env:LOGS_DIR 'redis-err.log') -PassThru;$p.Id|Out-File -LiteralPath (Join-Path $env:PIDS_DIR 'redis.pid') -Encoding ASCII -NoNewline}catch{Write-Warning $_}"
+        "$rdata=$env:REDIS_DATA.Replace('\','/'); try{$a=@('--bind','127.0.0.1','--port','6379','--loglevel','notice','--appendonly','yes','--dir',$rdata);$p=Start-Process -FilePath $env:_EXE -ArgumentList $a -NoNewWindow -RedirectStandardOutput (Join-Path $env:LOGS_DIR 'redis.log') -RedirectStandardError (Join-Path $env:LOGS_DIR 'redis-err.log') -PassThru;$p.Id|Out-File -LiteralPath (Join-Path $env:PIDS_DIR 'redis.pid') -Encoding ASCII -NoNewline}catch{Write-Warning $_}"
     REM 在 CMD 括号块内避免使用 GOTO 标签，改为 PowerShell 轮询
     PowerShell -NoProfile -ExecutionPolicy Bypass -Command ^
         "$ok=$false; for($i=1;$i -le 15;$i++){ try { & $env:REDIS_CLI -h 127.0.0.1 -p 6379 PING > $null 2>&1; if($LASTEXITCODE -eq 0){ Write-Host ('[Redis] 就绪 (第 ' + $i + ' 次 ping 成功)'); $ok=$true; break } } catch {}; Start-Sleep -Seconds 1 }; if(-not $ok){ Write-Host '[警告] Redis 启动超时，继续...' }"
