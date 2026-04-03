@@ -113,6 +113,13 @@ IF NOT EXIST "%SECRETS_FILE%" (
 )
 REM  步骤3：加载密钥（tokens=1,* delims== 确保值中的 = 号被正确保留）
 FOR /F "usebackq tokens=1,* delims==" %%A IN ("%SECRETS_FILE%") DO SET "%%A=%%B"
+REM  步骤4：升级安全检查 — 若 API_ENCRYPTION_KEY 不在旧版 .secrets 中，补充生成并追加
+IF "!API_ENCRYPTION_KEY!"=="" (
+    ECHO [初始化] 旧版密钥文件缺少 API_ENCRYPTION_KEY，正在补充生成...
+    PowerShell -NoProfile -ExecutionPolicy Bypass -Command ^
+        "try { $rng=[System.Security.Cryptography.RandomNumberGenerator]::Create(); $ek=New-Object byte[] 32; $rng.GetBytes($ek); $e=[BitConverter]::ToString($ek) -replace '-',''; $rng.Dispose(); 'API_ENCRYPTION_KEY='+$e | Add-Content -LiteralPath '%SECRETS_FILE%' -Encoding ASCII; Write-Host '[初始化] API_ENCRYPTION_KEY 已追加至密钥文件' } catch { Write-Host '[错误] 系统加密服务异常，API_ENCRYPTION_KEY 将使用非加密随机值（建议重启后重试）'; 'API_ENCRYPTION_KEY=portable-enc-'+[Guid]::NewGuid().ToString('N')+[Guid]::NewGuid().ToString('N') | Add-Content -LiteralPath '%SECRETS_FILE%' -Encoding ASCII }"
+    FOR /F "usebackq tokens=1,* delims==" %%A IN ("%SECRETS_FILE%") DO SET "%%A=%%B"
+)
 
 REM ---- 创建用户数据目录（首次运行或全新安装）----
 IF NOT EXIST "%USER_DATA%" MKDIR "%USER_DATA%"
@@ -457,7 +464,7 @@ PAUSE
 GOTO MAINTENANCE_MENU
 
 REM ====================================================
-REM  [5] 数据库迁移
+REM  [6] 数据库迁移
 REM ====================================================
 :MENU_DB_MIGRATE
 CLS
@@ -507,7 +514,7 @@ PAUSE
 GOTO MAINTENANCE_MENU
 
 REM ====================================================
-REM  [6] 清理用户数据
+REM  [7] 清理用户数据
 REM ====================================================
 :MENU_CLEAN_DATA
 CLS

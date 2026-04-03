@@ -321,19 +321,24 @@ $rng         = [System.Security.Cryptography.RandomNumberGenerator]::Create()
 $secretBytes = New-Object byte[] 32
 $cronBytes   = New-Object byte[] 16
 $taskBytes   = New-Object byte[] 16
+$encBytes    = New-Object byte[] 32
 $rng.GetBytes($secretBytes)
 $rng.GetBytes($cronBytes)
 $rng.GetBytes($taskBytes)
+$rng.GetBytes($encBytes)
 $nextauthSecret    = [BitConverter]::ToString($secretBytes) -replace '-', ''
 $cronSecret        = [BitConverter]::ToString($cronBytes)   -replace '-', ''
 $internalTaskToken = [BitConverter]::ToString($taskBytes)   -replace '-', ''
+$apiEncryptionKey  = [BitConverter]::ToString($encBytes)    -replace '-', ''
 $rng.Dispose()
 
 # .secrets 文件：仅存储需要每台机器唯一的密钥；由 start.bat 在运行时加载
+# API_ENCRYPTION_KEY 用于加密数据库中存储的 API 密钥，首次使用后请勿修改此文件
 @"
 NEXTAUTH_SECRET=$nextauthSecret
 CRON_SECRET=$cronSecret
 INTERNAL_TASK_TOKEN=$internalTaskToken
+API_ENCRYPTION_KEY=$apiEncryptionKey
 "@ | Out-File -FilePath (Join-Path $AppDir ".secrets") -Encoding ASCII -NoNewline
 
 # ── 写入 app/.env（无敏感密钥；密钥存于 .secrets，由 start.bat 加载） ─────────
@@ -360,8 +365,7 @@ MINIO_FORCE_PATH_STYLE=true
 
 NEXTAUTH_URL=http://localhost:3000
 INTERNAL_APP_URL=http://127.0.0.1:3000
-# API_ENCRYPTION_KEY: 用于加密数据库中存储的 API 密钥，首次使用后请勿修改
-API_ENCRYPTION_KEY=waoowaoo-opensource-fixed-key-2026
+# API_ENCRYPTION_KEY: 存储于 app/.secrets（每次构建随机生成），由 start.bat 在运行时加载
 
 WATCHDOG_INTERVAL_MS=30000
 TASK_HEARTBEAT_TIMEOUT_MS=90000
@@ -430,7 +434,7 @@ if ($StageOnly) {
     Write-Host "  ⚠️  构建完成后，还需手动放入便携二进制文件："
     Write-Host "     node/          → Node.js v20 LTS Windows x64 ZIP 解压内容"
     Write-Host "     portable_db/   → MariaDB 10.x Windows ZIP 解压内容"
-    Write-Host "     portable_redis/→ Redis for Windows (tporadowski) 解压内容"
+    Write-Host "     portable_redis/→ Redis for Windows (redis-windows 7.x) 解压内容"
     Write-Host "     portable_minio/→ minio.exe (MinIO Windows 二进制)"
     Write-Host ""
     Write-Host "  详细说明见 README_PORTABLE.md"

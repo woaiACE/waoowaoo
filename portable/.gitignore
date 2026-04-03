@@ -17,8 +17,11 @@ portable_minio/
 portable_redis/
 assets/
 
-# Database and runtime data (旧版嵌套数据目录，已迁移至 LOCALAPPDATA\waoowaoo)
+# Database and runtime data
+# data/ — 旧版根级运行时数据目录
 data/
+# db/data/ — 旧版 MariaDB 嵌套数据目录（已迁移至 LOCALAPPDATA\waoowaoo）
+db/data/
 
 # Build intermediate cache
 build-cache/
