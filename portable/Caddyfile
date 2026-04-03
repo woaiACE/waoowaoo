@@ -1,0 +1,39 @@
+# waoowaoo Portable HTTPS reverse proxy
+# 启动方式: caddy run --config Caddyfile --adapter caddyfile
+
+localhost:1443 {
+    encode zstd gzip
+
+    handle /admin/queues* {
+        reverse_proxy 127.0.0.1:3010 {
+            header_up Host {http.request.host}
+            header_up X-Forwarded-Host {http.request.host}
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Port 1443
+        }
+    }
+
+    # SSE 端点：禁用缓冲，确保任务进度/分镜生成/视频完成通知实时推送到浏览器
+    # 与 Docker 直连模式保持一致
+    handle /api/sse* {
+        reverse_proxy 127.0.0.1:3000 {
+            header_up Host {http.request.host}
+            header_up X-Forwarded-Host {http.request.host}
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Port 1443
+            flush_interval -1
+            header_down X-Accel-Buffering no
+        }
+    }
+
+    handle {
+        reverse_proxy 127.0.0.1:3000 {
+            header_up Host {http.request.host}
+            header_up X-Forwarded-Host {http.request.host}
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Port 1443
+        }
+    }
+
+    tls internal
+}

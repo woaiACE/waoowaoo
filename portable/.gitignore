@@ -1,0 +1,23 @@
+# Node.js dependencies (re-installed by setup-dependencies.ps1)
+app/server/node_modules/
+
+# Next.js build cache (regenerated on first run)
+app/server/.next/cache/
+
+# Sensitive environment files (user-configured)
+app/.env
+app/.secrets
+
+# Portable binary dependencies (downloaded by setup-dependencies.ps1)
+node/
+portable_caddy/
+portable_db/
+portable_minio/
+portable_redis/
+assets/
+
+# Database and runtime data
+db/
+
+# Build intermediate cache
+build-cache/
