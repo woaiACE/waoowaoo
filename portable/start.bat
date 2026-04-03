@@ -233,17 +233,19 @@ ECHO.
 ECHO  +--------------------------------------------------+
 ECHO  ^|  [1]  检查构建完整性                            ^|
 ECHO  ^|  [2]  重新安装便携依赖  (Node/Redis/DB/MinIO)   ^|
-ECHO  ^|  [3]  重新构建应用     (仅源码仓库可用)         ^|
-ECHO  ^|  [4]  查看日志目录                              ^|
-ECHO  ^|  [5]  数据库迁移       (应用更新后执行)         ^|
-ECHO  ^|  [6]  清理用户数据     (删除数据库/存储/日志)   ^|
+ECHO  ^|  [3]  重新构建应用     (完整, 约 5-15 分钟)     ^|
+ECHO  ^|  [4]  快速重建 Worker  (仅 JS 包, 约 10 秒)     ^|
+ECHO  ^|  [5]  查看日志目录                              ^|
+ECHO  ^|  [6]  数据库迁移       (应用更新后执行)         ^|
+ECHO  ^|  [7]  清理用户数据     (删除数据库/存储/日志)   ^|
 ECHO  ^|  [0]  返回主菜单                                ^|
 ECHO  +--------------------------------------------------+
 ECHO.
-CHOICE /C 0123456 /N /M " >>> 请输入选项 [0/1/2/3/4/5/6]: "
-IF ERRORLEVEL 7 GOTO MENU_CLEAN_DATA
-IF ERRORLEVEL 6 GOTO MENU_DB_MIGRATE
-IF ERRORLEVEL 5 GOTO MENU_VIEW_LOGS
+CHOICE /C 01234567 /N /M " >>> 请输入选项 [0/1/2/3/4/5/6/7]: "
+IF ERRORLEVEL 8 GOTO MENU_CLEAN_DATA
+IF ERRORLEVEL 7 GOTO MENU_DB_MIGRATE
+IF ERRORLEVEL 6 GOTO MENU_VIEW_LOGS
+IF ERRORLEVEL 5 GOTO MENU_QUICK_REBUILD
 IF ERRORLEVEL 4 GOTO MENU_REBUILD
 IF ERRORLEVEL 3 GOTO MENU_INSTALL_DEPS
 IF ERRORLEVEL 2 GOTO MENU_CHECK_BUILD
@@ -384,7 +386,63 @@ PAUSE
 GOTO MAINTENANCE_MENU
 
 REM ====================================================
-REM  [4] 查看日志目录
+REM  [4] 快速重建 Worker / Bull-Board / Watchdog
+REM      仅重新运行 esbuild，跳过 Next.js 完整构建
+REM      适用场景：修改了 src/lib/workers/ 等 Worker 代码后快速验证
+REM ====================================================
+:MENU_QUICK_REBUILD
+CLS
+ECHO.
+ECHO  ====================================================
+ECHO    快速重建  ^|  仅重新打包 Worker / Bull-Board
+ECHO  ====================================================
+ECHO.
+IF NOT "!BS_IN_SOURCE!"=="1" (
+    ECHO  [错误] 此功能仅在源码仓库模式下可用
+    ECHO  [提示] 快速重建需要读取 src/ 源码，请确保从项目的
+    ECHO          portable\ 目录运行 start.bat
+    ECHO.
+    PAUSE
+    GOTO MAINTENANCE_MENU
+)
+PUSHD "%ROOT%\.."
+SET "_QR_SRC=%CD%"
+POPD
+SET "_QR_DEST=%ROOT%\app\server"
+ECHO  源码目录 : %_QR_SRC%
+ECHO  目标目录 : %_QR_DEST%
+ECHO.
+ECHO  将重新打包以下组件（跳过 Next.js 完整构建，约 5-15 秒）:
+ECHO    [*] worker.mjs      - BullMQ 后台任务处理器  (ESM)
+ECHO    [*] bull-board.js   - 任务队列管理面板       (CJS)
+ECHO    [*] watchdog.js     - 任务看门狗             (CJS)
+ECHO    [*] storage-init.js - MinIO 存储桶初始化     (CJS)
+ECHO.
+ECHO  注意: 此操作不会更新页面/API 代码；如遇前端异常请改用 [3] 完整重建
+ECHO.
+PAUSE
+ECHO.
+ECHO  [快速重建] 开始打包...
+ECHO.
+PowerShell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$src=$env:_QR_SRC; $dest=$env:_QR_DEST; $ext=@('--external:sharp','--external:@prisma/client','--external:.prisma','--external:fsevents','--external:cpu-features','--external:ssh2','--external:bufferutil','--external:utf-8-validate','--external:@vercel/og'); Push-Location $src; $ok=$true; $results=@(); Write-Host '  [1/4] worker.mjs (ESM) ...'; & npx esbuild src/lib/workers/index.ts --bundle --platform=node --target=node20 --format=esm --log-level=warning @ext --outfile='.next/standalone/worker.mjs' 2>&1|Out-Default; if($LASTEXITCODE -ne 0){Write-Warning 'worker.mjs 打包失败'; $ok=$false}else{$results+='worker.mjs'}; Write-Host '  [2/4] bull-board.js ...'; & npx esbuild scripts/bull-board.ts --bundle --platform=node --target=node20 --format=cjs --log-level=warning @ext --outfile='.next/standalone/bull-board.js' 2>&1|Out-Default; if($LASTEXITCODE -ne 0){Write-Warning 'bull-board.js 打包失败'; $ok=$false}else{$results+='bull-board.js'}; Write-Host '  [3/4] watchdog.js ...'; & npx esbuild scripts/watchdog.ts --bundle --platform=node --target=node20 --format=cjs --log-level=warning @ext --outfile='.next/standalone/watchdog.js' 2>&1|Out-Default; if($LASTEXITCODE -ne 0){Write-Warning 'watchdog.js 打包失败'; $ok=$false}else{$results+='watchdog.js'}; Write-Host '  [4/4] storage-init.js ...'; & npx esbuild src/lib/storage/init.ts --bundle --platform=node --target=node20 --format=cjs --log-level=warning @ext --outfile='.next/standalone/storage-init.js' 2>&1|Out-Default; if($LASTEXITCODE -ne 0){Write-Warning 'storage-init.js 打包失败'; $ok=$false}else{$results+='storage-init.js'}; Pop-Location; Write-Host ''; Write-Host '[复制] 正在将构建产物复制到 app\server ...'; foreach($f in @('worker.mjs','bull-board.js','watchdog.js','storage-init.js')){ $s=Join-Path (Join-Path $src '.next\standalone') $f; $d=Join-Path $dest $f; if(Test-Path $s){ Copy-Item $s $d -Force; Write-Host ('  [OK] '+$f) }else{ Write-Warning ('跳过 (未生成): '+$f) } }; Write-Host ''; if(-not $ok){ Write-Host '[部分失败] 已成功打包: '+($results -join ', '); exit 1 }; Write-Host '[完成] 快速重建成功！重启 start.bat 即可生效。'"
+IF %ERRORLEVEL% NEQ 0 (
+    ECHO.
+    ECHO  [!] 部分组件打包失败，请查看上方输出
+    ECHO.
+) ELSE (
+    ECHO.
+    ECHO  [OK] 快速重建完成！
+    ECHO  [提示] 重新运行 start.bat 后新代码即可生效
+    ECHO.
+)
+CALL :CHECK_BUILD_STATE
+ECHO.
+PAUSE
+GOTO MAINTENANCE_MENU
+
+REM ====================================================
+REM  [5] 查看日志目录
 REM ====================================================
 :MENU_VIEW_LOGS
 ECHO.
