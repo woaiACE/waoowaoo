@@ -108,6 +108,23 @@ async function resolveProjectName(projectId: string): Promise<string | null> {
     return null
 }
 
+// ─── log directory resolution ─────────────────────────────────────────
+//
+// WAOOWAOO_LOG_DIR (optional): absolute path to the logs directory.
+// When set (e.g. by the Windows portable launcher), structured app logs are
+// written there instead of the default `<process.cwd()>/logs` location.
+// This ensures the per-project log files end up in the same user-visible
+// directory that the portable start console tails, rather than inside the
+// read-only standalone package directory.
+//
+function resolveLogsDir(modules: NodeModules): string {
+    const envDir = process.env.WAOOWAOO_LOG_DIR
+    if (envDir && envDir.trim()) {
+        return envDir.trim()
+    }
+    return modules.path.join(modules.cwd, 'logs')
+}
+
 // ─── file helpers ─────────────────────────────────────────────────────
 
 /**
@@ -137,7 +154,7 @@ async function appendLineAsync(filePath: string, line: string): Promise<void> {
 
 function buildLogFilePath(modules: NodeModules, prefix: string, projectName: string): string {
     const fileName = `${prefix}_${sanitizeProjectName(projectName)}.log`
-    return modules.path.join(modules.cwd, 'logs', fileName)
+    return modules.path.join(resolveLogsDir(modules), fileName)
 }
 
 // ─── 24h cleanup helpers ─────────────────────────────────────────────
@@ -283,7 +300,7 @@ export async function writeGlobalLogLine(line: string): Promise<void> {
     const modules = await getNodeModules()
     if (!modules) return
 
-    const filePath = modules.path.join(modules.cwd, 'logs', 'app.log')
+    const filePath = modules.path.join(resolveLogsDir(modules), 'app.log')
     try {
         modules.fs.mkdirSync(modules.path.dirname(filePath), { recursive: true })
 
@@ -322,7 +339,7 @@ export async function getLogFilesList(): Promise<LogFileInfo[]> {
     const modules = await getNodeModules()
     if (!modules) return []
 
-    const logsDir = modules.path.join(modules.cwd, 'logs')
+    const logsDir = resolveLogsDir(modules)
     try {
         const files = modules.fs.readdirSync(logsDir)
         return files
@@ -349,7 +366,7 @@ export async function readAllLogs(): Promise<string> {
     const modules = await getNodeModules()
     if (!modules) return ''
 
-    const logsDir = modules.path.join(modules.cwd, 'logs')
+    const logsDir = resolveLogsDir(modules)
     try {
         const files = modules.fs.readdirSync(logsDir)
             .filter((f: string) => f.endsWith('.log'))
@@ -373,7 +390,7 @@ export async function cleanupAllProjectLogs(): Promise<void> {
     const modules = await getNodeModules()
     if (!modules) return
 
-    const logsDir = modules.path.join(modules.cwd, 'logs')
+    const logsDir = resolveLogsDir(modules)
     try {
         const files = modules.fs.readdirSync(logsDir)
         for (const f of files) {
