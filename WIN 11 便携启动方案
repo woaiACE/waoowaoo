@@ -1,0 +1,434 @@
+
+---
+
+# waoowaoo 复杂全栈 Win11 便携一键启动方案 —— 详细设计文档
+
+---
+
+## 一、方案概述：Docker Compose 编排转译为 Windows 本地多进程协同
+
+### 1.1 原始编排拓扑分析
+
+通过对 docker-compose.yml 的完整解析，实际服务栈比预期多一个关键组件：
+
+| Docker 服务 | 角色 | 宿主机端口 | 健康检测 |
+|---|---|---|---|
+| `mysql:8.0` | 关系型数据库 | 13306 | `mysqladmin ping` |
+| `redis:7-alpine` | BullMQ 队列 + 缓存 | 16379 | `redis-cli ping` |
+| `minio` | **S3兼容对象存储**（图片/视频） | 19000, 19001 | HTTP `/minio/health/live` |
+| `app` (node) | Next.js + Worker + Watchdog + Bull Board | 13000, 13010 | — |
+
+> **关键发现**：项目的媒体存储并非简单的本地文件系统，而是通过 `@aws-sdk/client-s3` 连接 MinIO。MinIO 同样是服务栈的一等公民，必须纳入便携化方案。
+
+### 1.2 转译策略
+
+```
+Docker Compose 编排
+        │
+        ▼
+Windows 多进程原生协同（PowerShell 统一调度）
+        │
+        ├── mysqld.exe  (便携MySQL 8.0 ZIP)
+        ├── redis-server.exe  (Windows 移植版 Redis 5.x)
+        ├── minio.exe  (官方单一 Windows 可执行文件)
+        └── node.exe  (便携 Node.js 20 LTS)
+              └── npm run start
+                    ├── next start  (Web 应用 :13000)
+                    ├── tsx worker  (BullMQ Worker)
+                    ├── tsx watchdog  (心跳守护)
+                    └── tsx bull-board  (队列面板 :13010)
+```
+
+`concurrently --kill-others` 已内置在 `npm run start` 中，任何子进程崩溃将自动级联终止其余进程，这是上游设计的天然看门狗，在本方案中直接复用。
+
+---
+
+## 二、绿色化依赖管理设计
+
+### 2.1 便携二进制选型矩阵
+
+| 组件 | 推荐方案 | 来源 | 理由 |
+|---|---|---|---|
+| **Node.js** | 官方 Win x64 ZIP | `nodejs.org/dist/v20.x.x/node-v20.x.x-win-x64.zip` | 官方支持，免安装，含 npm |
+| **MySQL** | MariaDB 11.x ZIP Archive | `downloads.mariadb.org` | 协议兼容 MySQL 8.0；ZIP 发布比 MySQL 官方更友好（无需点击接受协议）；`mysqladmin`、`mysql` CLI 完整 |
+| **Redis (Windows)** | `tporadowski/redis` Release | `github.com/tporadowski/redis/releases` | Redis 5.0.14.1 Windows 原生移植；BullMQ 最低要求 Redis 5+，完全兼容；单 ZIP；**无商业授权限制** |
+| **MinIO** | 官方 Windows `minio.exe` | `dl.min.io/server/minio/release/windows-amd64/minio.exe` | 官方发布，单一可执行文件，零依赖，直接支持 Windows PATH |
+
+> **Redis 方案比较**
+> - `tporadowski/redis`（推荐）：免费、开源、Redis 5.x，BullMQ 已验证兼容，缺点是该 Windows 移植已 EOL（最后版本 2022 年），但功能稳定无安全暴露风险（仅本地 127.0.0.1 绑定）
+> - `Memurai Developer Edition`：兼容 Redis 7，活跃维护；缺点是商业协议，不可随项目自由再分发，需用户单独同意 EULA
+> - **结论**：自用/个人开发场景选 `tporadowski`；若未来公开分发便携包，改用 Memurai 且要求用户自行下载
+
+### 2.2 Prisma 初始化耗时评估
+
+Prisma 的冷启动存在两个耗时节点：
+
+| 阶段 | 耗时估算 | 说明 |
+|---|---|---|
+| `prisma generate` | 15–45 秒（首次） | 下载/生成 Prisma Query Engine Windows 二进制（`libquery_engine-windows.dll.node`） |
+| `prisma db push` | 5–20 秒 | 连接 MySQL 并 apply schema，依赖 MySQL 已完全就绪 |
+
+**方案设计**：
+- `prisma generate` 在 `npm install` 的 `postinstall` 钩子中自动触发（已内置于项目 package.json），故首次 `npm install` 后无需再次 generate
+- 启动脚本在 MySQL 端口健康检测通过后，再执行 `prisma db push`，避免竞态
+
+> 注意：`schema.prisma` 中 generator 块当前无显式 `binaryTargets`，依赖 `"native"` 隐式推断。在 Windows 上执行 `npm install` 时，Prisma postinstall 会自动为当前平台生成正确的引擎文件，无需修改 schema。
+
+### 2.3 下载校验策略
+
+每个二进制包附带预存 SHA-256 哈希值（固定版本），启动脚本下载后用 PowerShell `Get-FileHash` 校验，校验失败则删除并提示用户网络错误，**拒绝执行未经验证的二进制**。
+
+---
+
+## 三、路径隔离与重定向设计（核心）
+
+### 3.1 总体目录规划
+
+```
+%LOCALAPPDATA%\waoowaoo\
+│
+├── engines\                   ← 所有便携二进制（只写一次，跨版本复用）
+│   ├── node\                  ← node.exe, npm, npx
+│   ├── mysql\                 ← mysqld.exe, mysql.exe, my.ini (生成)
+│   ├── redis\                 ← redis-server.exe, redis-cli.exe, redis.conf (生成)
+│   └── minio\                 ← minio.exe
+│
+├── mysql-data\                ← MySQL 数据文件（InnoDB ibdata、表空间等）
+├── redis-data\                ← appendonly.aof, dump.rdb
+├── minio-data\                ← 对象存储（图片、视频、音频，可达数 GB）
+│
+├── app-data\
+│   └── uploads\               ← LocalStorage 模式备用路径
+│
+├── logs\                      ← Next.js 应用日志 / MySQL 错误日志
+│
+└── run\                       ← 运行时状态
+    ├── mysql.pid
+    ├── redis.pid
+    ├── minio.pid
+    └── app.pid
+```
+
+```
+{项目克隆目录}\                 ← git 管理区域，只读（git pull 安全）
+├── data\ → [Junction]         ← mklink /J → %LOCALAPPDATA%\waoowaoo\app-data
+├── docker-logs\ → [Junction]  ← mklink /J → %LOCALAPPDATA%\waoowaoo\logs
+└── .env                       ← 自动生成，不提交 git
+```
+
+> **`data\` 和 `docker-logs\` 在项目 .gitignore 中已列出**，目录联接不会被 git 追踪，`git pull` 完全安全。
+
+### 3.2 各服务路径重定向技术细节
+
+#### MySQL (`--datadir` 参数重定向)
+
+启动脚本生成 `engines\mysql\my.ini`（内容为绝对路径，每台机器不同）：
+
+```ini
+[mysqld]
+datadir=C:\Users\<用户名>\AppData\Local\waoowaoo\mysql-data
+port=13306
+default_authentication_plugin=mysql_native_password
+sql_mode=STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+log_error=C:\Users\<用户名>\AppData\Local\waoowaoo\logs\mysql-error.log
+pid_file=C:\Users\<用户名>\AppData\Local\waoowaoo\run\mysql.pid
+```
+
+启动命令：
+```
+mysqld.exe --defaults-file="<LOCALAPPDATA>\waoowaoo\engines\mysql\my.ini"
+```
+
+MySQL 完全感知不到 Docker，所有 I/O 100% 落入 `%LOCALAPPDATA%`。
+
+#### Redis (配置文件重写)
+
+启动脚本生成 `engines\redis\redis.conf`（绝对路径）：
+
+```
+port 16379
+bind 127.0.0.1
+dir C:\Users\<用户名>\AppData\Local\waoowaoo\redis-data
+appendonly yes
+appendfilename appendonly.aof
+```
+
+启动命令：
+```
+redis-server.exe "<LOCALAPPDATA>\waoowaoo\engines\redis\redis.conf"
+```
+
+#### MinIO (环境变量 + 命令行参数重定向)
+
+MinIO 通过两个机制控制路径：
+
+```powershell
+$env:MINIO_VOLUMES = "$env:LOCALAPPDATA\waoowaoo\minio-data"
+$env:MINIO_ROOT_USER = "minioadmin"
+$env:MINIO_ROOT_PASSWORD = "minioadmin"
+
+Start-Process -FilePath "minio.exe" -ArgumentList "server $dataDir --console-address :9001" -PassThru
+```
+
+MinIO 所有对象存储数据落入 `%LOCALAPPDATA%\waoowaoo\minio-data`。
+
+#### Next.js 应用数据 (Directory Junction 劫持)
+
+`LocalStorageProvider` 的核心路径拼接方式为：
+
+```typescript
+path.join(process.cwd(), UPLOAD_DIR, normalizeKey(key))
+// 即: {项目目录}\data\uploads\{key}
+```
+
+在 Windows 上，`path.join` **不支持**绝对路径覆盖（与 Unix 不同），因此**不能**单纯通过设置 `UPLOAD_DIR` 为绝对路径来重定向。
+
+**解决方案：`mklink /J` 目录联接**
+
+```batch
+mklink /J "%REPO_DIR%\data" "%LOCALAPPDATA%\waoowaoo\app-data"
+mklink /J "%REPO_DIR%\docker-logs" "%LOCALAPPDATA%\waoowaoo\logs"
+```
+
+操作系统层面的透明重定向，`process.cwd()` 感知不到联接，任何写入 `{repo}\data\*` 的数据物理落盘到 `%LOCALAPPDATA%\waoowaoo\app-data\*`，完全符合约束1。
+
+> **注意**：本方案的生产存储模式为 **MinIO**（`STORAGE_TYPE=minio`），`LocalStorageProvider` 为降级备用。MinIO 存储路径已由上述 `MINIO_VOLUMES` 环境变量完全控制，`mklink` 仅作为 local 模式的保险。
+
+#### .env 文件生成策略
+
+启动脚本检测到 `.env` 不存在时，自动从 `.env.example` 复制并修正以下字段：
+
+```env
+DATABASE_URL="mysql://root:waoowaoo123@127.0.0.1:13306/waoowaoo"
+REDIS_HOST=127.0.0.1
+REDIS_PORT=16379
+STORAGE_TYPE=minio
+MINIO_ENDPOINT=http://127.0.0.1:19000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+NEXTAUTH_URL=http://localhost:13000
+INTERNAL_APP_URL=http://127.0.0.1:13000
+# NEXTAUTH_SECRET: 自动生成随机32字节十六进制串，保存后不再重新生成
+```
+
+`NEXTAUTH_SECRET` 必须在首次生成后固定不变（否则用户每次重启后 session 失效），通过检测 `.env` 中是否已有非默认值来决定是否跳过。
+
+---
+
+## 四、核心时序与状态机
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│   用户双击 start.ps1 / start.bat                               │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                ┌───────────▼───────────┐
+                │  [PHASE 1] 环境探测   │
+                │  · 检测 Win 10.0+     │
+                │  · 检测 PowerShell 5+ │
+                │  · 创建 LOCALAPPDATA  │
+                │    目录树            │
+                └───────────┬───────────┘
+                            │
+          ┌─────────────────▼─────────────────┐
+          │  [PHASE 2] 绿色包完整性检查        │
+          │  对每个组件检测: .exe 存在? SHA256? │
+          │  缺失或校验失败 → 触发下载         │
+          └─────────────────┬─────────────────┘
+                            │
+          ╔═════════════════▼═════════════════╗   (仅首次或版本升级)
+          ║  [PHASE 3] 按需下载与解压          ║
+          ║  · curl Node.js ZIP → Expand-Archive║
+          ║  · curl MariaDB ZIP → Expand-Archive║
+          ║  · curl Redis ZIP → Expand-Archive  ║
+          ║  · curl minio.exe → 验证SHA256     ║
+          ╚═════════════════╦═════════════════╝
+                            ║
+          ╔═════════════════▼═════════════════╗   (仅 mysql-data\ 为空时)
+          ║  [PHASE 4] 首次初始化              ║
+          ║  · mysqld --initialize-insecure    ║
+          ║    --datadir=LOCALAPPDATA\mysql-data║
+          ║  · 等待初始化完成 (检测 ibdata1)    ║
+          ║  · 临时启动 mysqld                  ║
+          ║  · mysql -e "ALTER USER + CREATE DB"║
+          ║  · 停止临时 mysqld                  ║
+          ╚═════════════════╦═════════════════╝
+                            ║
+                ┌───────────▼───────────┐
+                │  [PHASE 5] 配置生成   │
+                │  · 写入 my.ini        │
+                │  · 写入 redis.conf    │
+                │  · 生成/更新 .env     │
+                │  · mklink /J data\    │
+                │  · mklink /J logs\    │
+                └───────────┬───────────┘
+                            │
+          ╔═════════════════▼═════════════════╗   (仅 node_modules\ 缺失时)
+          ║  [PHASE 6] npm install             ║
+          ║  · 使用便携 node.exe 执行 npm ci   ║
+          ║  · postinstall 触发 prisma generate║
+          ╚═════════════════╦═════════════════╝
+                            ║
+                ┌───────────▼───────────┐
+                │  [PHASE 7] 有序启服   │
+                │                       │
+                │  1. Start mysqld      │
+                │     Poll :13306 → ✓  │ ← 超时60s
+                │                       │
+                │  2. Start redis-server│
+                │     Poll :16379 → ✓  │ ← 超时30s
+                │                       │
+                │  3. Start minio       │
+                │     Poll :19000 → ✓  │ ← 超时30s
+                └───────────┬───────────┘
+                            │
+                ┌───────────▼───────────┐
+                │  [PHASE 8] DB Schema  │
+                │  · npx prisma db push │
+                │    (幂等操作，可重入) │
+                └───────────┬───────────┘
+                            │
+                ┌───────────▼───────────┐
+                │  [PHASE 9] 启动应用   │
+                │  · npm run start      │
+                │    (storage:init +    │
+                │     concurrently)     │
+                │  · Poll :13000 → ✓   │ ← 超时120s (Next.js 冷启动)
+                └───────────┬───────────┘
+                            │
+                ┌───────────▼───────────┐
+                │  [PHASE 10] 唤起浏览器│
+                │  · Start-Process      │
+                │    http://localhost:  │
+                │    13000              │
+                └───────────┬───────────┘
+                            │
+                ┌───────────▼───────────┐
+                │  [PHASE 11] 守护等待  │
+                │  · 显示服务状态面板   │
+                │  · 等待用户按 Q 或    │
+                │    Ctrl+C 退出        │
+                └───────────┬───────────┘
+                            │
+                ┌───────────▼───────────┐
+                │  [PHASE 12] 优雅关闭  │
+                │  1. SIGTERM → npm     │
+                │     (concurrently     │
+                │     --kill-others 自  │
+                │     动级联终止)       │
+                │  2. redis-cli SHUTDOWN│
+                │     SAVE (安全落盘)  │
+                │  3. mysqladmin        │
+                │     shutdown          │
+                │  4. Stop-Process minio│
+                │  5. 轮询确认所有端口  │
+                │     已释放           │
+                └───────────────────────┘
+```
+
+---
+
+## 五、实施路线评估：关键技术风险点
+
+### 风险1：MySQL 首次初始化的进程竞态 ⚠️ 高
+
+**问题**：`mysqld --initialize-insecure` 是一个异步过程，进程退出并不等于 InnoDB 完全就绪。若立即启动 `mysqld`，可能遇到日志文件被锁定的错误。
+
+**缓解**：在 PHASE 4 中，通过轮询检测 `mysql-data\ibdata1` 文件从「不存在」变为「存在且可读」，再附加 3 秒缓冲，最后通过 TCP 端口就绪来二次确认。
+
+---
+
+### 风险2：MariaDB 与 MySQL 8.0 的 SQL 兼容性差异 ⚠️ 中
+
+**问题**：docker-compose 使用 `mysql:8.0`，命令行包含 `--default-authentication-plugin=mysql_native_password`。MariaDB 11.x 默认使用 `ed25519` 认证，且部分 JSON 函数存在差异。Prisma 针对 MySQL/MariaDB 有条件分支。
+
+**缓解**：
+- 在 `my.ini` 中指定 `old_passwords=0`，使用 `mysql_native_password` 认证插件
+- 若兼容性问题严重，降级为 **MySQL 8.0 Community Server ZIP**（官方提供无安装器版本，需用户同意 GPL 协议，可通过脚本自动指向 Oracle 直链完成下载）
+
+---
+
+### 风险3：tporadowski Redis 5.x 与 BullMQ 5.x 的细节兼容性 ⚠️ 中
+
+**问题**：BullMQ 5.x 使用 Redis `WAIT`、`XADD`、`XREAD`（Redis Streams）等命令。`tporadowski/redis` 5.0 对 Streams 支持完整，但该移植已停止维护，若 BullMQ 未来版本升级 API 依赖，可能出现问题。
+
+**缓解**：锁定 BullMQ 版本（package.json 已有 `^5.67.3`），在部署文档中标注 Redis 版本依赖关系。
+
+---
+
+### 风险4：`sharp` native 绑定与便携 Node.js 版本不匹配 ⚠️ 中
+
+**问题**：`sharp`（`^0.34.5`）包含针对特定 Node.js ABI 版本的预编译 `.node` 文件。若便携方案固定 Node.js 20，而未来升级到 Node.js 22，`sharp` 将崩溃。工作区代码中 `engines: ">=18.18.0"` 未限制上限。
+
+**缓解**：固定 Node.js 版本（如 20.19.0 LTS），在启动脚本的版本检测阶段硬编码匹配版本号，便携 Node.js 升级时同步触发 `npm install` 重建 native 绑定。
+
+---
+
+### 风险5：PowerShell 执行策略阻断 ⚠️ 低
+
+**问题**：Windows 默认 `ExecutionPolicy` 为 `Restricted`，直接运行 `.ps1` 脚本将被拒绝。
+
+**缓解方案（二选一）**：
+1. 提供 `start.bat` 作为入口，内部调用：
+   ```batch
+   powershell -ExecutionPolicy Bypass -File "%~dp0scripts\start-core.ps1"
+   ```
+   用户只需双击 `.bat`，无感知
+2. 在文档中指导用户执行一次 `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+---
+
+### 风险6：Windows 长路径限制 ⚠️ 低
+
+**问题**：`%LOCALAPPDATA%\waoowaoo\mysql-data` 路径较长，MySQL InnoDB 内部路径拼接后可能超过 260 字符限制（Windows 默认路径上限）。
+
+**缓解**：在脚本首段检测并尝试启用长路径支持：
+```powershell
+# 需要管理员权限，失败则提示但不阻断
+Set-ItemProperty -Path "HKLM:\SYSTEM\...\FileSystem" -Name "LongPathsEnabled" -Value 1
+```
+同时在 `mysql my.ini` 中使用短路径格式（`GetShortPathName()`）写入 datadir。
+
+---
+
+### 风险7：MinIO 首次启动 Bucket 创建时序 ⚠️ 低
+
+**问题**：`npm run start` 在启动时调用 `storage:init`，内部执行 `ensureMinioBucket()`。若 MinIO 在 PHASE 9 启动 Next.js app 时尚未完全就绪（虽已通过健康检测），桶创建可能会有短暂失败后重试窗口。
+
+**缓解**：在 `storage:init` 中，`withRetry()` 工具函数已实现指数退避重试，可覆盖此场景（已内置于 utils.ts），无需额外处理。
+
+---
+
+### 风险8：npm install 期间 Prisma postinstall 需要网络 ⚠️ 中
+
+**问题**：`npm install` 触发 `postinstall: prisma generate`，Prisma 会从 CDN 下载对应平台的 Query Engine 二进制。若用户网络受代理限制，此步骤可能超时。
+
+**缓解**：通过设置环境变量 `PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1` 和 `PRISMA_QUERY_ENGINE_BINARY` 指定本地路径，可绕过 CDN 下载（高级选项）。一般用户场景下，联网下载即可。
+
+---
+
+## 六、方案边界声明
+
+**纳入范围（本文档覆盖）**：
+- 4 个服务（MySQL、Redis、MinIO、Node.js app）的便携二进制下载、配置生成、有序启停
+- 数据路径100%重定向到 `%LOCALAPPDATA%\waoowaoo`
+- 首次环境初始化（MySQL init、Prisma schema、MinIO bucket）
+- 进程守护与优雅关闭
+- `git pull` 不冲突的架构保障（Junction + `.env` 独立）
+
+**明确排除范围**：
+- AI API 密钥配置（属用户操作，不在自动化范围内）
+- Next.js `next build` 过程（假设用户自行构建，或预构建版本）
+- HTTPS/TLS 证书配置
+- 多用户/网络共享场景（设计目标为单机单用户）
+
+---
+
+> 以上为完整设计文档，**尚未产生任何实现代码**。请评审上述架构决策，重点确认以下几点后再进入编码阶段：
+
+**待您确认的关键决策**：
+
+1. **MySQL vs MariaDB**：是否接受使用 MariaDB 11.x（更友好的 ZIP 分发），还是坚持与 Docker 镜像版本完全一致的 MySQL 8.0？
+2. **Redis 替代方案**：接受 `tporadowski/redis 5.0.14.1`（免费开源），还是偏好 Memurai（Redis 7 兼容，但需商业协议考量）？
+3. **存储模式**：默认保持 MinIO 模式（需额外运行 minio.exe），还是允许降级为 local 模式（有 mklink 路径重定向，可省略 minio.exe 进程）？
+4. **Next.js 构建**：脚本首次运行时是否需要自动执行 `npm run build`（`next build`）？这将大幅增加首次启动时间（数分钟），但能保证开箱即用。
