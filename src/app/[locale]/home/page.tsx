@@ -11,7 +11,7 @@ import Navbar from '@/components/Navbar'
 import { AppIcon, IconGradientDefs } from '@/components/ui/icons'
 import StoryInputComposer from '@/components/story-input/StoryInputComposer'
 import TypewriterHero from '@/components/home/TypewriterHero'
-import { ART_STYLES, VIDEO_RATIOS } from '@/lib/constants'
+import { VIDEO_RATIOS } from '@/lib/constants'
 import { DEFAULT_STYLE_PRESET_VALUE, STYLE_PRESETS } from '@/lib/style-presets'
 import { Link, useRouter } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/api-fetch'
@@ -144,11 +144,6 @@ export default function HomePage() {
     []
   )
 
-  // 风格选项（带推荐标签）
-  const styleOptions = useMemo(
-    () => ART_STYLES.map((s) => ({ ...s, recommended: s.value === 'realistic' })),
-    []
-  )
   // 时间格式化
   const formatTimeAgo = (dateString: string): string => {
     const diffMs = Date.now() - new Date(dateString).getTime()
@@ -264,7 +259,6 @@ export default function HomePage() {
               ratioOptions={ratioOptions}
               artStyle={artStyle}
               onArtStyleChange={setArtStyle}
-              styleOptions={styleOptions}
               stylePresetValue={stylePresetValue}
               onStylePresetChange={setStylePresetValue}
               stylePresetOptions={STYLE_PRESETS}

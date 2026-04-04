@@ -1,7 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useRef, type CompositionEvent, type ReactNode } from 'react'
-import { RatioSelector, StylePresetSelector, StyleSelector } from '@/components/selectors/RatioStyleSelectors'
+import { useCallback, useEffect, useRef, useState, type CompositionEvent, type ReactNode } from 'react'
+import { RatioSelector, StylePresetSelector } from '@/components/selectors/RatioStyleSelectors'
+import StyleSelectorModal from '@/components/shared/assets/character-creation/StyleSelectorModal'
+import { getStyleConfigById } from '@/lib/style-categories'
+import { AppIcon } from '@/components/ui/icons'
 import { resolveTextareaTargetHeight } from '@/lib/ui/textarea-height'
 
 interface StoryInputComposerOption {
@@ -33,7 +36,8 @@ interface StoryInputComposerProps {
   getRatioUsage?: (ratio: string) => string
   artStyle: string
   onArtStyleChange: (value: string) => void
-  styleOptions: StoryInputComposerOption[]
+  /** @deprecated 已改用 StyleSelectorModal，此参数不再被使用，保留与旧 API 兼容 */
+  styleOptions?: StoryInputComposerOption[]
   stylePresetValue: string
   onStylePresetChange: (value: string) => void
   stylePresetOptions: readonly StoryInputComposerStylePresetOption[]
@@ -59,7 +63,6 @@ export default function StoryInputComposer({
   getRatioUsage,
   artStyle,
   onArtStyleChange,
-  styleOptions,
   stylePresetValue,
   onStylePresetChange,
   stylePresetOptions,
@@ -69,6 +72,7 @@ export default function StoryInputComposer({
 }: StoryInputComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const textareaMinHeightRef = useRef<number | null>(null)
+  const [styleModalOpen, setStyleModalOpen] = useState(false)
 
   const autoResizeTextarea = useCallback(() => {
     const el = textareaRef.current
@@ -140,10 +144,23 @@ export default function StoryInputComposer({
             />
           </div>
           <div className="w-[132px] flex-shrink-0">
-            <StyleSelector
-              value={artStyle}
-              onChange={onArtStyleChange}
-              options={styleOptions}
+            {/* 画风触发器：显示当前画风名，点击打开 StyleSelectorModal */}
+            <button
+              type="button"
+              onClick={() => setStyleModalOpen(true)}
+              disabled={disabled}
+              className="glass-input-base flex h-10 w-full items-center justify-between px-3 text-sm disabled:opacity-50"
+            >
+              <span className="truncate text-[var(--glass-text-primary)]">
+                {getStyleConfigById(artStyle).name}
+              </span>
+              <AppIcon name="chevronDown" className="w-3.5 h-3.5 flex-shrink-0 text-[var(--glass-text-tertiary)]" />
+            </button>
+            <StyleSelectorModal
+              open={styleModalOpen}
+              currentStyleId={artStyle}
+              onSelect={(style) => onArtStyleChange(style.id)}
+              onClose={() => setStyleModalOpen(false)}
             />
           </div>
           {stylePresetOptions.length > 0 ? (

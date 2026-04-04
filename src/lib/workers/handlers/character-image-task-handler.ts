@@ -1,6 +1,6 @@
 import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
-import { CHARACTER_ASSET_IMAGE_RATIO, addCharacterPromptSuffix, getArtStylePrompt, isArtStyleValue, PRIMARY_APPEARANCE_INDEX, type ArtStyleValue } from '@/lib/constants'
+import { CHARACTER_ASSET_IMAGE_RATIO, addCharacterPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, PRIMARY_APPEARANCE_INDEX, type ArtStyleValue } from '@/lib/constants'
 import { type TaskJobData } from '@/lib/task/types'
 import { encodeImageUrls } from '@/lib/contracts/image-urls-contract'
 import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
@@ -107,7 +107,9 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
   if (!appearance) throw new Error('Character appearance not found')
 
   const payloadArtStyle = resolvePayloadArtStyle(payload)
-  const artStyle = getArtStylePrompt(payloadArtStyle ?? models.artStyle, job.data.locale)
+  const effectiveArtStyleId = payloadArtStyle ?? models.artStyle
+  const artStyle = getArtStylePrompt(effectiveArtStyleId, job.data.locale)
+  const artStyleNegativePrompt = getArtStyleNegativePrompt(effectiveArtStyleId)
   const descriptions = parseJsonStringArray(appearance.descriptions)
   const baseDescriptions = descriptions.length > 0 ? descriptions : [appearance.description || '']
 
@@ -163,6 +165,7 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
       options: {
         referenceImages: primaryReferenceImages.length > 0 ? primaryReferenceImages : undefined,
         aspectRatio: CHARACTER_ASSET_IMAGE_RATIO,
+        negativePrompt: artStyleNegativePrompt,
       },
     })
 

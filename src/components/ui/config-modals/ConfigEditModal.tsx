@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
-    ART_STYLES,
     VIDEO_RATIOS,
 } from '@/lib/constants'
 import type {
@@ -12,7 +11,9 @@ import type {
     ModelCapabilities,
 } from '@/lib/model-config-contract'
 import { filterNormalVideoModelOptions } from '@/lib/model-capabilities/video-model-options'
-import { RatioSelector, StyleSelector } from './config-modal-selectors'
+import { RatioSelector } from './config-modal-selectors'
+import StyleSelectorCard from '@/components/shared/assets/character-creation/StyleSelectorCard'
+import StyleSelectorModal from '@/components/shared/assets/character-creation/StyleSelectorModal'
 import { ModelCapabilityDropdown } from './ModelCapabilityDropdown'
 import { AppIcon } from '@/components/ui/icons'
 
@@ -152,6 +153,7 @@ export function SettingsModal({
 }: SettingsModalProps) {
     const t = useTranslations('configModal')
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle')
+    const [isStyleSelectorOpen, setIsStyleSelectorOpen] = useState(false)
     const userModels = useMemo<UserModels>(() => ({
         llm: Array.isArray(availableModels?.llm) ? availableModels.llm : [],
         image: Array.isArray(availableModels?.image) ? availableModels.image : [],
@@ -370,10 +372,15 @@ export function SettingsModal({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-[var(--glass-text-secondary)]">{t('visualStyle')}</label>
-                                <StyleSelector
-                                    value={artStyle}
-                                    onChange={(value) => handleChange(onArtStyleChange)(value)}
-                                    options={ART_STYLES}
+                                <StyleSelectorCard
+                                    currentStyleId={artStyle}
+                                    onClick={() => setIsStyleSelectorOpen(true)}
+                                />
+                                <StyleSelectorModal
+                                    open={isStyleSelectorOpen}
+                                    currentStyleId={artStyle}
+                                    onSelect={(style) => handleChange(onArtStyleChange)(style.id)}
+                                    onClose={() => setIsStyleSelectorOpen(false)}
                                 />
                             </div>
                             <div className="space-y-2">

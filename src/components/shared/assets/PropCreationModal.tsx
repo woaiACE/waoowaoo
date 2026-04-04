@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { AppIcon } from '@/components/ui/icons'
+import StyleSelectorCard from './character-creation/StyleSelectorCard'
+import StyleSelectorModal from './character-creation/StyleSelectorModal'
 import TaskStatusInline from '@/components/task/TaskStatusInline'
 import { resolveTaskPresentationState } from '@/lib/task/presentation'
 import { useAssetActions } from '@/lib/query/hooks'
@@ -36,6 +38,7 @@ export function PropCreationModal({
   const [summary, setSummary] = useState('')
   const [description, setDescription] = useState('')
   const [artStyle, setArtStyle] = useState('american-comic')
+  const [styleModalOpen, setStyleModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submittingState = isSubmitting
     ? resolveTaskPresentationState({
@@ -137,7 +140,20 @@ export function PropCreationModal({
                 className="glass-textarea-base w-full h-36 px-3 py-2 text-sm resize-none"
               />
             </div>
-          </div>
+            {/* 画风选择 */}
+            <div className="space-y-2">
+              <label className="glass-field-label block">画面风格</label>
+              <StyleSelectorCard
+                currentStyleId={artStyle}
+                onClick={() => setStyleModalOpen(true)}
+              />
+              <StyleSelectorModal
+                open={styleModalOpen}
+                currentStyleId={artStyle}
+                onSelect={(style) => setArtStyle(style.id)}
+                onClose={() => setStyleModalOpen(false)}
+              />
+            </div>          </div>
         </div>
 
         <div className="flex gap-3 justify-end p-4 border-t border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface-strong)] rounded-b-xl flex-shrink-0">

@@ -11,6 +11,8 @@ import {
   CHARACTER_IMAGE_BANANA_RATIO,
   addCharacterPromptSuffix,
   getArtStylePrompt,
+  getArtStyleNegativePrompt,
+  isArtStyleValue,
 } from '@/lib/constants'
 import { encodeImageUrls } from '@/lib/contracts/image-urls-contract'
 import { generateUniqueKey, getSignedUrl, uploadObject } from '@/lib/storage'
@@ -37,6 +39,7 @@ async function generateReferenceImage(params: {
   falApiKey?: string | null
   keyPrefix: string
   labelText?: string
+  negativePrompt?: string
 }): Promise<string | null> {
   const {
     job,
@@ -48,6 +51,7 @@ async function generateReferenceImage(params: {
     falApiKey,
     keyPrefix,
     labelText,
+    negativePrompt,
   } = params
 
   try {
@@ -59,6 +63,7 @@ async function generateReferenceImage(params: {
       {
         referenceImages,
         aspectRatio: CHARACTER_IMAGE_BANANA_RATIO,
+        ...(negativePrompt ? { negativePrompt } : {}),
       },
     )
 
@@ -142,7 +147,12 @@ export async function handleReferenceToCharacterTask(job: Job<TaskJobData>) {
   const extractOnly = readBoolean(payload.extractOnly)
   const customDescription = readString(payload.customDescription)
   const characterName = readString(payload.characterName) || '新角色 - 初始形象'
-  const artStyle = readString(payload.artStyle)
+  const rawArtStyle = readString(payload.artStyle)
+  // 白名单验证：不在列表中的 ID 一律拘给，防止旧 ID 直接注入到提示词
+  if (rawArtStyle && !isArtStyleValue(rawArtStyle)) {
+    throw new Error(`Invalid artStyle in reference-to-character payload: "${rawArtStyle}"`)
+  }
+  const artStyle = rawArtStyle || null
 
   if (isBackgroundJob && (!characterId || !appearanceId)) {
     throw new Error('Missing characterId or appearanceId for background job')
@@ -198,6 +208,7 @@ export async function handleReferenceToCharacterTask(job: Job<TaskJobData>) {
   }
 
   const artStylePrompt = getArtStylePrompt(artStyle, job.data.locale)
+  const artStyleNegativePrompt = getArtStyleNegativePrompt(artStyle)
 
   const basePrompt = customDescription || buildPrompt({
     promptId: PROMPT_IDS.CHARACTER_REFERENCE_TO_SHEET,
@@ -229,6 +240,7 @@ export async function handleReferenceToCharacterTask(job: Job<TaskJobData>) {
       referenceImages: useReferenceImages ? allReferenceImages : undefined,
       falApiKey,
       keyPrefix,
+      negativePrompt: artStyleNegativePrompt,
       ...(isProject ? { labelText: characterName } : {}),
     }),
   ))

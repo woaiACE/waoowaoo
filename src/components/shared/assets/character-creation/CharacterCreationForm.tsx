@@ -1,8 +1,10 @@
 'use client'
 
-import type { DragEvent, RefObject } from 'react'
+import { useState, type DragEvent, type RefObject } from 'react'
 import { useTranslations } from 'next-intl'
-import { ART_STYLES } from '@/lib/constants'
+import StyleSelectorCard from './StyleSelectorCard'
+import StyleSelectorModal from './StyleSelectorModal'
+import type { StyleItem } from '@/lib/style-categories'
 import CharacterCreationPreview from './CharacterCreationPreview'
 import { AppIcon } from '@/components/ui/icons'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -55,6 +57,31 @@ const SparklesIcon = ({ className }: { className?: string }) => (
 const PhotoIcon = ({ className }: { className?: string }) => (
   <AppIcon name="image" className={className} />
 )
+
+/** 画风选择块：触发卡片 + 视觉化 Modal，状态自管理 */
+function StyleSelectorBlock({
+  artStyle,
+  onSelect,
+  label,
+}: {
+  artStyle: string
+  onSelect: (style: StyleItem) => void
+  label: string
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="space-y-2">
+      <label className="glass-field-label block">{label}</label>
+      <StyleSelectorCard currentStyleId={artStyle} onClick={() => setOpen(true)} />
+      <StyleSelectorModal
+        open={open}
+        currentStyleId={artStyle}
+        onSelect={onSelect}
+        onClose={() => setOpen(false)}
+      />
+    </div>
+  )
+}
 
 export default function CharacterCreationForm({
   mode,
@@ -170,26 +197,11 @@ export default function CharacterCreationForm({
       )}
 
       {mode === 'asset-hub' && !isSubAppearance && (
-        <div className="space-y-2">
-          <label className="glass-field-label block">
-            {t('artStyle.title')}
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {ART_STYLES.map((style) => (
-              <button
-                key={style.value}
-                type="button"
-                onClick={() => setArtStyle(style.value)}
-                className={`glass-btn-base px-3 py-2 rounded-lg text-sm border transition-all justify-start ${artStyle === style.value
-                  ? 'glass-btn-tone-info border-[var(--glass-stroke-focus)]'
-                  : 'glass-btn-soft border-[var(--glass-stroke-base)] text-[var(--glass-text-secondary)]'
-                  }`}
-              >
-                <span>{style.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <StyleSelectorBlock
+          artStyle={artStyle}
+          onSelect={(style) => setArtStyle(style.id)}
+          label={t('artStyle.title')}
+        />
       )}
 
       {createMode === 'reference' && (

@@ -14,11 +14,12 @@ function normalizeModelKey(value: unknown): string | null {
 export async function resolveAnalysisModel(projectId: string, userId: string): Promise<{
   id: string
   analysisModel: string
+  artStyle: string | null
 }> {
   const [novelData, userPreference] = await Promise.all([
     prisma.novelPromotionProject.findUnique({
       where: { projectId },
-      select: { id: true, analysisModel: true },
+      select: { id: true, analysisModel: true, artStyle: true },
     }),
     prisma.userPreference.findUnique({
       where: { userId },
@@ -33,7 +34,7 @@ export async function resolveAnalysisModel(projectId: string, userId: string): P
     normalizeModelKey(userPreference?.analysisModel)
   if (!analysisModel) throw new Error('请先在项目设置中配置分析模型')
 
-  return { id: novelData.id, analysisModel }
+  return { id: novelData.id, analysisModel, artStyle: novelData.artStyle ?? null }
 }
 
 export async function requireProjectLocation(locationId: string, projectInternalId: string) {

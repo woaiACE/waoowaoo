@@ -1,5 +1,6 @@
 import type { Job } from 'bullmq'
 import { removeLocationPromptSuffix } from '@/lib/constants'
+import { getStyleConfigById } from '@/lib/style-categories'
 import { normalizeLocationAvailableSlots } from '@/lib/location-available-slots'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
@@ -22,13 +23,18 @@ export async function handleModifyLocationTask(job: Job<TaskJobData>, payload: A
   const novelData = await resolveAnalysisModel(job.data.projectId, job.data.userId)
   const location = await requireProjectLocation(locationId, novelData.id)
 
+  // 画风上下文：确保修改后的场景描述与画风气质一致
+  const artStyleStyle = getStyleConfigById(novelData.artStyle)
+  const artStyleContext = `[当前画风: ${artStyleStyle.name}] `
+  const enrichedInstruction = `${artStyleContext}${modifyInstruction}`
+
   const finalPrompt = buildPrompt({
     promptId: PROMPT_IDS.NP_LOCATION_MODIFY,
     locale: job.data.locale,
     variables: {
       location_name: location.name,
       location_input: currentDescription,
-      user_input: modifyInstruction,
+      user_input: enrichedInstruction,
     },
   })
 

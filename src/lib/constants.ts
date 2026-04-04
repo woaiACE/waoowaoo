@@ -134,58 +134,64 @@ export const TTS_VOICES = [
   { value: 'zh-CN-XiaoyiNeural', label: '晓伊 (女声)', preview: '女' }
 ]
 
-export const ART_STYLES = [
-  {
-    value: 'american-comic',
-    label: '漫画风',
-    preview: '漫',
-    promptZh: '日式动漫风格',
-    promptEn: 'Japanese anime style'
-  },
-  {
-    value: 'chinese-comic',
-    label: '精致国漫',
-    preview: '国',
-    promptZh: '现代高质量漫画风格，动漫风格，细节丰富精致，线条锐利干净，质感饱满，超清，干净的画面风格，2D风格，动漫风格。',
-    promptEn: 'Modern premium Chinese comic style, rich details, clean sharp line art, full texture, ultra-clear 2D anime aesthetics.'
-  },
-  {
-    value: 'japanese-anime',
-    label: '日系动漫风',
-    preview: '日',
-    promptZh: '现代日系动漫风格，赛璐璐上色，清晰干净的线条，视觉小说CG感。高质量2D风格',
-    promptEn: 'Modern Japanese anime style, cel shading, clean line art, visual-novel CG look, high-quality 2D style.'
-  },
-  {
-    value: 'realistic',
-    label: '真人风格',
-    preview: '实',
-    promptZh: '真实电影级画面质感，真实现实场景，色彩饱满通透，画面干净精致，真实感',
-    promptEn: 'Realistic cinematic look, real-world scene fidelity, rich transparent colors, clean and refined image quality.'
-  }
-]
+// ─── 画风数据 — 从 style-categories 统一派生 ──────────────────────────────────
+// 单一数据源设计：STYLE_CATEGORIES 是权威来源，ART_STYLES 是向后兼容的扁平视图。
+// 新增画风只需修改 src/lib/style-categories.ts，本文件及所有 API/Worker 自动同步。
+//
+// 说明：新 API（STYLE_CATEGORIES / getStyleById / assembleImagePrompt）
+// 请从 '@/lib/style-categories' 直接导入，此处只保留向后兼容出口。
+import { getAllStyleItems, getStyleById, getArtStyleNegativePrompt, isValidStyleId } from '@/lib/style-categories'
+import type { ArtStyleValue } from '@/lib/style-categories'
 
-export type ArtStyleValue = (typeof ART_STYLES)[number]['value']
+// re-export 供 Worker 层直接使用，避免 import 路径散乱
+export { getArtStyleNegativePrompt }
 
+// ArtStyleValue 严格联合类型 re-export（保持调用方 import 路径不变）
+export type { ArtStyleValue }
+
+/**
+ * ART_STYLES — 向后兼容的扁平化列表（{ value, label, preview }）
+ *
+ * 用于 StyleSelector 紧凑型下拉框（StoryInputComposer 工具栏等）。
+ * 数据从 STYLE_CATEGORIES 自动生成，包含全部 26+ 个风格，无需手动维护。
+ */
+export const ART_STYLES = getAllStyleItems().map((s) => ({
+  value: s.id,
+  label: s.name,
+  preview: s.name[0] ?? '',
+}))
+
+/**
+ * isArtStyleValue — API 路由 & Worker 白名单验证（类型守卫）
+ *
+ * 此函数被 9 个 API 路由和 3 个 Worker 调用。
+ * 底层委托给 isValidStyleId（源自 STYLE_CATEGORIES），
+ * 新增风格后白名单自动扩展，所有调用方无需修改。
+ */
 export function isArtStyleValue(value: unknown): value is ArtStyleValue {
-  return typeof value === 'string' && ART_STYLES.some((style) => style.value === value)
+  return isValidStyleId(value)
 }
 
 /**
- * 🔥 实时从 ART_STYLES 常量获取风格 prompt
- * 这是获取风格 prompt 的唯一正确方式，确保始终使用最新的常量定义
- * 
- * @param artStyle - 风格标识符，如 'realistic', 'american-comic' 等
- * @returns 对应的风格 prompt，如果找不到则返回空字符串
+ * getArtStylePrompt — 获取风格 Prompt 字符串（Worker 层 prompt 拼接入口）
+ *
+ * 返回值用于 Worker 后缀拼接：`${addCharacterPromptSuffix(raw)}，${artStyle}`
+ * - prefix 非空：返回 `prefix, suffix`（完整风格描述）
+ * - prefix 为空：仅返回 suffix（兼容旧 4 个风格的行为）
+ *
+ * @param artStyle - 风格 ID（如 'pixar-3d', 'realistic'）
+ * @param _locale  - 保留参数（已统一使用英文 prompt，AI 图像模型需要英文）
  */
 export function getArtStylePrompt(
   artStyle: string | null | undefined,
-  locale: 'zh' | 'en',
+  _locale: 'zh' | 'en',
 ): string {
   if (!artStyle) return ''
-  const style = ART_STYLES.find(s => s.value === artStyle)
+  const style = getStyleById(artStyle)
   if (!style) return ''
-  return locale === 'en' ? style.promptEn : style.promptZh
+  const { prefix, suffix } = style.promptParams
+  if (prefix) return `${prefix} ${suffix}`.trim()
+  return suffix
 }
 
 // 角色形象生成的系统后缀（始终添加到提示词末尾，不显示给用户）- 左侧面部特写+右侧三视图

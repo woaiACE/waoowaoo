@@ -1106,13 +1106,7 @@ function Invoke-Phase12-GracefulShutdown {
     if ($null -ne $AppProcess -and -not $AppProcess.HasExited) {
         # 用 taskkill /T 递归终止整个进程树（/F 强制，/T 包含子进程）
         # PS5.1 的 .NET Framework 4.x 不支持 Process.Kill(bool)
-        # 注：concurrently --kill-others 触发级联退出，个别子进程在 taskkill 显式
-        # 终止前已自行退出，taskkill 向 stderr 报告 "could not be terminated"。
-        # $ErrorActionPreference='Stop' + 2>&1 管道会将该 stderr 升级为终止性错误，
-        # 以 try/catch 屏蔽竞态噪音，改以父进程 WaitForExit 作为成功判断依据。
-        try {
-            & taskkill /F /T /PID $AppProcess.Id 2>&1 | Out-Null
-        } catch { <# 子进程已先行退出，属正常竞态，忽略 #> }
+        & taskkill /F /T /PID $AppProcess.Id 2>&1 | Out-Null
         $AppProcess.WaitForExit(5000) | Out-Null
         Write-Success "应用进程已停止"
     }

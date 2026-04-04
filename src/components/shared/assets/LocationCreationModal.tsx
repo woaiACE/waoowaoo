@@ -4,8 +4,9 @@ import { logError as _ulogError } from '@/lib/logging/core'
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { AppIcon } from '@/components/ui/icons'
-import { ART_STYLES } from '@/lib/constants'
 import { shouldShowError } from '@/lib/error-utils'
+import StyleSelectorCard from './character-creation/StyleSelectorCard'
+import StyleSelectorModal from './character-creation/StyleSelectorModal'
 import TaskStatusInline from '@/components/task/TaskStatusInline'
 import { resolveTaskPresentationState } from '@/lib/task/presentation'
 import {
@@ -64,6 +65,7 @@ export function LocationCreationModal({
     const [description, setDescription] = useState('')
     const [aiInstruction, setAiInstruction] = useState('')
     const [artStyle, setArtStyle] = useState('american-comic')
+    const [isStyleSelectorOpen, setIsStyleSelectorOpen] = useState(false)
     const [availableSlots, setAvailableSlots] = useState<LocationAvailableSlot[]>([])
 
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -298,21 +300,16 @@ export function LocationCreationModal({
                                 <label className="glass-field-label block">
                                     {t('artStyle.title')}
                                 </label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {ART_STYLES.map((style) => (
-                                        <button
-                                            key={style.value}
-                                            type="button"
-                                            onClick={() => setArtStyle(style.value)}
-                                            className={`glass-btn-base px-3 py-2 rounded-lg text-sm border transition-all justify-start ${artStyle === style.value
-                                                ? 'glass-btn-tone-info border-[var(--glass-stroke-focus)]'
-                                                : 'glass-btn-soft border-[var(--glass-stroke-base)] text-[var(--glass-text-secondary)]'
-                                                }`}
-                                        >
-                                            <span>{style.label}</span>
-                                        </button>
-                                    ))}
-                                </div>
+                                <StyleSelectorCard
+                                    currentStyleId={artStyle}
+                                    onClick={() => setIsStyleSelectorOpen(true)}
+                                />
+                                <StyleSelectorModal
+                                    open={isStyleSelectorOpen}
+                                    currentStyleId={artStyle}
+                                    onSelect={(style) => setArtStyle(style.id)}
+                                    onClose={() => setIsStyleSelectorOpen(false)}
+                                />
                             </div>
                         )}
 

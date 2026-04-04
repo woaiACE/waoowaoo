@@ -1,5 +1,6 @@
 import type { Job } from 'bullmq'
 import { removePropPromptSuffix } from '@/lib/constants'
+import { getStyleConfigById } from '@/lib/style-categories'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
 import type { TaskJobData } from '@/lib/task/types'
@@ -16,13 +17,18 @@ export async function handleModifyPropTask(job: Job<TaskJobData>, payload: AnyOb
   const modifyInstruction = readRequiredString(payload.modifyInstruction, 'modifyInstruction')
   const novelData = await resolveAnalysisModel(job.data.projectId, job.data.userId)
 
+  // 画风上下文：确保修改后的道具描述与画风气质一致
+  const artStyleStyle = getStyleConfigById(novelData.artStyle)
+  const artStyleContext = `[当前画风: ${artStyleStyle.name}] `
+  const enrichedInstruction = `${artStyleContext}${modifyInstruction}`
+
   const finalPrompt = buildPrompt({
     promptId: PROMPT_IDS.NP_PROP_DESCRIPTION_UPDATE,
     locale: job.data.locale,
     variables: {
       prop_name: propName,
       original_description: removePropPromptSuffix(currentDescription),
-      modify_instruction: modifyInstruction,
+      modify_instruction: enrichedInstruction,
       image_context: '',
     },
   })

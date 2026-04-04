@@ -11,7 +11,7 @@ import '@/styles/animations.css'
 import AiWriteModal from '@/components/home/AiWriteModal'
 import LongTextDetectionPrompt from '@/components/story-input/LongTextDetectionPrompt'
 import StoryInputComposer from '@/components/story-input/StoryInputComposer'
-import { ART_STYLES, VIDEO_RATIOS } from '@/lib/constants'
+import { VIDEO_RATIOS } from '@/lib/constants'
 import TaskStatusInline from '@/components/task/TaskStatusInline'
 import { resolveTaskPresentationState } from '@/lib/task/presentation'
 import { AppIcon } from '@/components/ui/icons'
@@ -191,10 +191,6 @@ export default function NovelInputStage({
           getRatioUsage={getRatioUsageTag}
           artStyle={artStyle}
           onArtStyleChange={(value) => onArtStyleChange?.(value)}
-          styleOptions={ART_STYLES.map((option) => ({
-            ...option,
-            recommended: option.value === 'realistic'
-          }))}
           stylePresetValue={stylePresetValue}
           onStylePresetChange={setStylePresetValue}
           stylePresetOptions={STYLE_PRESETS}

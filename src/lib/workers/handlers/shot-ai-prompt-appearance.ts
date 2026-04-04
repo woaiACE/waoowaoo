@@ -1,5 +1,6 @@
 import type { Job } from 'bullmq'
 import { removeCharacterPromptSuffix } from '@/lib/constants'
+import { getStyleConfigById } from '@/lib/style-categories'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
 import type { TaskJobData } from '@/lib/task/types'
@@ -15,12 +16,17 @@ export async function handleModifyAppearanceTask(job: Job<TaskJobData>, payload:
   const modifyInstruction = readRequiredString(payload.modifyInstruction, 'modifyInstruction')
   const novelData = await resolveAnalysisModel(job.data.projectId, job.data.userId)
 
+  // 手气上下文：将当前项目画风信息注入给 LLM，确保修改后的描述与画风气质一致
+  const artStyleStyle = getStyleConfigById(novelData.artStyle)
+  const artStyleContext = `[当前画风: ${artStyleStyle.name}] `
+  const enrichedInstruction = `${artStyleContext}${modifyInstruction}`
+
   const finalPrompt = buildPrompt({
     promptId: PROMPT_IDS.NP_CHARACTER_MODIFY,
     locale: job.data.locale,
     variables: {
       character_input: removeCharacterPromptSuffix(currentDescription),
-      user_input: modifyInstruction,
+      user_input: enrichedInstruction,
     },
   })
 

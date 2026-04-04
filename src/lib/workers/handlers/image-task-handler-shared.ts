@@ -106,6 +106,7 @@ async function generateImageToStorage(params: {
     referenceImages?: string[]
     aspectRatio?: string
     size?: string
+    negativePrompt?: string  // 画风负向提示词，透传给支持 negative_prompt 的提供商
   }
   label?: string
 }) {
@@ -134,6 +135,7 @@ export async function generateCleanImageToStorage(params: {
     referenceImages?: string[]
     aspectRatio?: string
     size?: string
+    negativePrompt?: string
   }
 }) {
   return await generateImageToStorage(params)
@@ -151,6 +153,7 @@ export async function generateProjectLabeledImageToStorage(params: {
     referenceImages?: string[]
     aspectRatio?: string
     size?: string
+    negativePrompt?: string  // 画风负向提示词，透传给支持 negative_prompt 的提供商
   }
 }) {
   return await generateImageToStorage(params)

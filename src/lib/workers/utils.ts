@@ -177,6 +177,7 @@ export async function resolveImageSourceFromGeneration(
       resolution?: string
       size?: string
       provider?: string
+      negativePrompt?: string  // 画风负向提示词，透传给支持 negative_prompt 的提供商
     }
     allowTaskExternalIdResume?: boolean
     pollProgress?: { start?: number; end?: number }
