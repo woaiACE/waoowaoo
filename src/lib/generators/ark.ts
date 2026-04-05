@@ -207,6 +207,7 @@ export class ArkImageGenerator extends BaseImageGenerator {
             'aspectRatio',
             'size',
             'resolution',
+            'negativePrompt',  // Ark API 不支持负向提示词，接收但静默丢弃
         ])
         for (const [key, value] of Object.entries(options)) {
             if (value === undefined) continue

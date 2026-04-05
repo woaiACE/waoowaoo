@@ -83,15 +83,15 @@ $Script:MariaDbVersion  = '11.4.5'
 $Script:MariaDbUrl      = "https://archive.mariadb.org/mariadb-$($Script:MariaDbVersion)/winx64-packages/mariadb-$($Script:MariaDbVersion)-winx64.zip"
 $Script:MariaDbSha256   = ''   # 空字符串表示跳过 SHA256 校验（仅 Node.js 强制校验）
 
-# tporadowski Redis 5.0.14.1 Windows 移植
-$Script:RedisVersion    = '5.0.14.1'
-$Script:RedisUrl        = "https://github.com/tporadowski/redis/releases/download/v$($Script:RedisVersion)/Redis-x64-$($Script:RedisVersion).zip"
-$Script:RedisSha256     = ''   # 见下方注释
+# redis-windows 8.6.2 MSYS2 构建（官方社区 Windows 移植，活跃维护）
+$Script:RedisVersion    = '8.6.2'
+$Script:RedisUrl        = "https://github.com/redis-windows/redis-windows/releases/download/$($Script:RedisVersion)/Redis-$($Script:RedisVersion)-Windows-x64-msys2.zip"
+$Script:RedisSha256     = 'c2bcaa8ce0f4b942f749c491327dcf126a98169e0bde59013251e179d6f86b8b'
 
-# MinIO 官方 Windows 单一可执行文件（dl.min.io 官方 CDN 最新稳定版）
-# 注意：dl.min.io 的 archive 子路径需精确版本后缀，不稳定；使用 latest 直链更可靠
-$Script:MinioUrl        = 'https://dl.min.io/server/minio/release/windows-amd64/minio.exe'
-$Script:MinioSha256     = ''   # latest 版本哈希变化，跳过校验
+# AIStor 商业版 Windows 单一可执行文件（MinIO 企业版，S3 API 完全兼容）
+# 需在 .env 中配置 MINIO_SUBNET_LICENSE 以激活商业许可
+$Script:MinioUrl        = 'https://dl.min.io/aistor/minio/release/windows-amd64/minio.exe'
+$Script:MinioSha256     = ''   # 跟随最新版，跳过哈希校验
 
 # MySQL 密码与数据库名（与 docker-compose.yml 保持一致）
 $Script:DbRootPassword = 'waoowaoo123'
@@ -479,10 +479,10 @@ function Invoke-Phase2And3-DownloadEngines {
         Write-Success "MariaDB 已就绪：$Script:MySqldExe"
     }
 
-    # ── Redis (tporadowski) ───────────────────────────────────
+    # ── Redis (redis-windows) ──────────────────────────────────
     if (-not (Test-Path $Script:RedisExe)) {
         Write-Step -Phase '检查' -Message "Redis 未找到，准备下载..."
-        $redisZip = Join-Path $tempDir "Redis-x64-$($Script:RedisVersion).zip"
+        $redisZip = Join-Path $tempDir "Redis-$($Script:RedisVersion)-Windows-x64-msys2.zip"
 
         if (-not (Test-Path $redisZip)) {
             Invoke-SafeDownload `
@@ -719,6 +719,7 @@ MINIO_BUCKET=waoowaoo
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
 MINIO_FORCE_PATH_STYLE=true
+MINIO_SUBNET_LICENSE=
 
 # 认证
 NEXTAUTH_URL=http://localhost:$Script:PortApp
@@ -756,7 +757,7 @@ BULL_BOARD_PASSWORD=
 
 # 日志
 LOG_UNIFIED_ENABLED=true
-LOG_LEVEL=ERROR
+LOG_LEVEL=INFO
 LOG_FORMAT=json
 LOG_DEBUG_ENABLED=false
 LOG_AUDIT_ENABLED=true
@@ -793,6 +794,11 @@ LLM_STREAM_EPHEMERAL_ENABLED=true
     # docker-logs\ → %LOCALAPPDATA%\waoowaoo\logs
     $logsLink = Join-Path $RepoDir 'docker-logs'
     New-DirectoryJunction -LinkPath $logsLink -TargetPath $Script:LogRoot
+
+    # logs\ → %LOCALAPPDATA%\waoowaoo\logs
+    # file-writer.ts 将 worker 日志写到 process.cwd()/logs/，此 junction 将其重定向到 LogRoot
+    $logsLink2 = Join-Path $RepoDir 'logs'
+    New-DirectoryJunction -LinkPath $logsLink2 -TargetPath $Script:LogRoot
 
     Write-Success '路径重定向配置完成。'
 }
@@ -871,11 +877,22 @@ function Invoke-Phase7-StartServices {
     }
     else {
         Write-Step -Phase '启动' -Message "启动 Redis..."
+        # MSYS2 构建：-RedirectStandardOutput 与 MSYS2 管道机制冲突会导致进程立即退出
+        # 改用 redis.conf 中已配置的 logfile 指令落盘，不做 PowerShell 级别重定向
+        # -WindowStyle Hidden 同样不兼容 MSYS2，使用 -NoNewWindow
         $redisProcess = Start-Process `
             -FilePath $Script:RedisExe `
-            -ArgumentList "`"$Script:RedisConf`"" `
-            -WindowStyle Hidden `
+            -ArgumentList 'redis.conf' `
+            -WorkingDirectory $Script:RedisDir `
+            -NoNewWindow `
             -PassThru
+
+        # 早期退出检测（配置有误时 Redis 会在 ~1s 内退出）
+        Start-Sleep -Milliseconds 1500
+        if ($redisProcess.HasExited) {
+            $logContent = Get-Content (Join-Path $Script:LogRoot 'redis.log') -Tail 20 -ErrorAction SilentlyContinue
+            throw "Redis 进程启动后立即退出（代码：$($redisProcess.ExitCode)）。日志：`n$logContent"
+        }
 
         Save-PidFile -ProcessId $redisProcess.Id -PidFilePath $Script:PidRedis
         Wait-ForPort -Port $Script:PortRedis -ServiceName 'Redis' -TimeoutSeconds 30
@@ -889,6 +906,15 @@ function Invoke-Phase7-StartServices {
         Write-Step -Phase '启动' -Message "启动 MinIO..."
         $env:MINIO_ROOT_USER     = 'minioadmin'
         $env:MINIO_ROOT_PASSWORD = 'minioadmin'
+
+        # 从 .env 读取 AIStor 许可证密钥（若未配置则跳过）
+        $envFile = Join-Path $RepoDir '.env'
+        if (Test-Path $envFile) {
+            $licLine = Get-Content $envFile | Where-Object { $_ -match '^MINIO_SUBNET_LICENSE=(.+)$' } | Select-Object -First 1
+            if ($licLine -match '^MINIO_SUBNET_LICENSE=(.+)$') {
+                $env:MINIO_SUBNET_LICENSE = $Matches[1].Trim()
+            }
+        }
 
         $minioLogFile = Join-Path $Script:LogRoot 'minio.log'
         $minioErrLog  = Join-Path $Script:LogRoot 'minio-err.log'
