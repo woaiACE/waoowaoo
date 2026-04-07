@@ -1,5 +1,6 @@
 import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
+import { createScopedLogger } from '@/lib/logging/core'
 import { CHARACTER_ASSET_IMAGE_RATIO, addCharacterPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, PRIMARY_APPEARANCE_INDEX, type ArtStyleValue } from '@/lib/constants'
 import { type TaskJobData } from '@/lib/task/types'
 import { encodeImageUrls } from '@/lib/contracts/image-urls-contract'
@@ -73,6 +74,13 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
   const payload = (job.data.payload || {}) as AnyObj
   const projectId = job.data.projectId
   const userId = job.data.userId
+  const logger = createScopedLogger({
+    module: 'worker.character-image',
+    action: 'character_image_generate',
+    taskId: job.data.taskId,
+    projectId,
+    userId,
+  })
   const models = await getProjectModels(projectId, userId)
   const modelId = models.characterModel
   if (!modelId) throw new Error('Character model not configured')
@@ -148,6 +156,7 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
     const index = indexes[i]
     const raw = baseDescriptions[index] || baseDescriptions[0]
     const prompt = artStyle ? `${addCharacterPromptSuffix(raw)}，${artStyle}` : addCharacterPromptSuffix(raw)
+    logger.info({ message: 'character image prompt resolved', details: { index, promptText: prompt } })
 
     await reportTaskProgress(job, 15 + Math.floor((i / Math.max(indexes.length, 1)) * 55), {
       stage: 'generate_character_image',

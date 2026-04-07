@@ -15,6 +15,8 @@ interface UseWorkspaceStageRuntimeParams {
   isStartingScriptToStoryboard: boolean
   videoRatio: string | undefined
   artStyle: string | undefined
+  colorGradePreset: string | undefined
+  targetPlatform: string | undefined
   videoModel: string | undefined
   capabilityOverrides: CapabilitySelections
   userVideoModels: Array<{
@@ -65,6 +67,8 @@ export function useWorkspaceStageRuntime({
   isStartingScriptToStoryboard,
   videoRatio,
   artStyle,
+  colorGradePreset,
+  targetPlatform,
   videoModel,
   capabilityOverrides,
   userVideoModels,
@@ -95,12 +99,16 @@ export function useWorkspaceStageRuntime({
     isStartingScriptToStoryboard,
     videoRatio,
     artStyle,
+    colorGradePreset,
+    targetPlatform,
     videoModel,
     capabilityOverrides,
     userVideoModels: resolvedUserVideoModels,
     onNovelTextChange: (value) => handleUpdateEpisode('novelText', value),
     onVideoRatioChange: (value) => handleUpdateConfig('videoRatio', value),
     onArtStyleChange: (value) => handleUpdateConfig('artStyle', value),
+    onColorGradePresetChange: (value) => handleUpdateConfig('colorGradePreset', value),
+    onTargetPlatformChange: (value) => handleUpdateConfig('targetPlatform', value),
     onRunStoryToScript: () => runWithRebuildConfirm('storyToScript', runStoryToScriptFlow),
     onClipUpdate: (clipId, data) => {
       if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -138,6 +146,8 @@ export function useWorkspaceStageRuntime({
     runWithRebuildConfirm,
     resolvedUserVideoModels,
     capabilityOverrides,
+    colorGradePreset,
+    targetPlatform,
     videoModel,
     videoRatio,
   ])

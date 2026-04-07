@@ -46,6 +46,8 @@ export function useWorkspaceProjectSnapshot({
       capabilityOverrides,
       ttsRate: projectData?.ttsRate,
       artStyle: projectData?.artStyle,
+      colorGradePreset: projectData?.colorGradePreset,
+      targetPlatform: projectData?.targetPlatform,
     }
   }, [episode?.novelText, episode?.storyboards, project.novelPromotionData, urlStage])
 }

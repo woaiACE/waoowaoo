@@ -1,5 +1,6 @@
 import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
+import { createScopedLogger } from '@/lib/logging/core'
 import { LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO, addLocationPromptSuffix, addPropPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, type ArtStyleValue } from '@/lib/constants'
 import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
 import { type TaskJobData } from '@/lib/task/types'
@@ -61,6 +62,13 @@ export async function handleLocationImageTask(job: Job<TaskJobData>) {
   const projectId = job.data.projectId
   const userId = job.data.userId
   const db = prisma as unknown as LocationImageTaskDb
+  const logger = createScopedLogger({
+    module: 'worker.location-image',
+    action: 'location_image_generate',
+    taskId: job.data.taskId,
+    projectId,
+    userId,
+  })
   const models = await getProjectModels(projectId, userId)
   const modelId = models.locationModel
   if (!modelId) throw new Error('Location model not configured')
@@ -159,6 +167,7 @@ export async function handleLocationImageTask(job: Job<TaskJobData>) {
       ? addPropPromptSuffix(promptCore)
       : addLocationPromptSuffix(promptCore)
     const prompt = artStyle ? `${promptWithSuffix}，${artStyle}` : promptWithSuffix
+    logger.info({ message: 'location image prompt resolved', details: { imageId: item.id, assetType, promptText: prompt } })
     const aspectRatio = assetType === 'prop' ? PROP_IMAGE_RATIO : LOCATION_IMAGE_RATIO
     await reportTaskProgress(job, 20 + Math.floor((i / Math.max(locationImages.length, 1)) * 55), {
       stage: 'generate_location_image',

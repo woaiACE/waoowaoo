@@ -1,6 +1,7 @@
 import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
 import { getArtStylePrompt } from '@/lib/constants'
+import { getColorGradePromptKeywords } from '@/lib/color-grade-presets'
 import { createScopedLogger } from '@/lib/logging/core'
 import { type TaskJobData } from '@/lib/task/types'
 import { reportTaskProgress } from '../shared'
@@ -201,7 +202,9 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
     },
   })
 
-  const artStyle = getArtStylePrompt(modelConfig.artStyle, job.data.locale)
+  const artStyleBase = getArtStylePrompt(modelConfig.artStyle, job.data.locale)
+  const colorKeywords = getColorGradePromptKeywords(projectData.colorGradePreset ?? 'auto')
+  const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
   if (!projectData.videoRatio) throw new Error('Project videoRatio not configured')
   const aspectRatio = projectData.videoRatio
   const promptContext = buildPanelPromptContext({
@@ -232,6 +235,7 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
     message: 'panel image prompt resolved',
     details: {
       promptLength: prompt.length,
+      promptText: prompt,
     },
   })
 

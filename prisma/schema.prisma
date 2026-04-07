@@ -255,6 +255,8 @@ model NovelPromotionProject {
   globalAssetText String?                   @db.Text
   artStyle        String                    @default("american-comic")
   artStylePrompt  String?                   @db.Text
+  colorGradePreset String                   @default("auto")
+  targetPlatform  String                    @default("douyin")
   characterModel  String? // 用户配置的角色图片模型
   locationModel   String? // 用户配置的场景图片模型
   storyboardModel String? // 用户配置的分镜图片模型

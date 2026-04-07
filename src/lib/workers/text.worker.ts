@@ -313,11 +313,11 @@ async function runStoryboardPhasesForClip(params: {
       ...(rules
         ? {
           photographyPlan: {
-            composition: rules.composition,
+            scene_summary: rules.scene_summary,
             lighting: rules.lighting,
-            colorPalette: rules.color_palette,
-            atmosphere: rules.atmosphere,
-            technicalNotes: rules.technical_notes,
+            characters: rules.characters,
+            depth_of_field: rules.depth_of_field,
+            color_tone: rules.color_tone,
           },
         }
         : {}),

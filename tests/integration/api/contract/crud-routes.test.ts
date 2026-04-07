@@ -50,6 +50,10 @@ const prismaMock = vi.hoisted(() => ({
     create: vi.fn(),
     count: vi.fn(),
   },
+  novelPromotionProject: {
+    findUnique: vi.fn(),
+    update: vi.fn(),
+  },
 }))
 
 vi.mock('@/lib/api-auth', () => {
@@ -267,6 +271,21 @@ describe('api contract - crud routes (behavior)', () => {
       props: JSON.stringify(['Bronze Dagger']),
     })
     prismaMock.novelPromotionPanel.count.mockResolvedValue(1)
+    prismaMock.novelPromotionProject.findUnique.mockResolvedValue({
+      projectId: 'project-1',
+      analysisModel: null,
+      characterModel: null,
+      locationModel: null,
+      storyboardModel: null,
+      editModel: null,
+      videoModel: null,
+      audioModel: null,
+    })
+    prismaMock.novelPromotionProject.update.mockResolvedValue({
+      projectId: 'project-1',
+      colorGradePreset: 'ancient-warm',
+      targetPlatform: 'douyin-vertical',
+    })
   })
 
   it('crud route group exists', () => {
@@ -465,5 +484,30 @@ describe('api contract - crud routes (behavior)', () => {
         description: 'panel description',
       },
     })
+  })
+
+  it('PATCH /novel-promotion/[projectId] accepts colorGradePreset and targetPlatform fields', async () => {
+    authState.authenticated = true
+    const mod = await import('@/app/api/novel-promotion/[projectId]/route')
+    const req = buildMockRequest({
+      path: '/api/novel-promotion/project-1',
+      method: 'PATCH',
+      body: {
+        colorGradePreset: 'ancient-warm',
+        targetPlatform: 'douyin-vertical',
+      },
+    })
+
+    const res = await mod.PATCH(req, { params: Promise.resolve({ projectId: 'project-1' }) })
+    expect(res.status).toBe(200)
+    expect(prismaMock.novelPromotionProject.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { projectId: 'project-1' },
+        data: expect.objectContaining({
+          colorGradePreset: 'ancient-warm',
+          targetPlatform: 'douyin-vertical',
+        }),
+      }),
+    )
   })
 })

@@ -61,6 +61,10 @@ export default function ConfigStage() {
       artStyle={runtime.artStyle ?? undefined}
       onVideoRatioChange={runtime.onVideoRatioChange}
       onArtStyleChange={runtime.onArtStyleChange}
+      colorGradePreset={runtime.colorGradePreset ?? undefined}
+      onColorGradePresetChange={runtime.onColorGradePresetChange}
+      targetPlatform={runtime.targetPlatform ?? undefined}
+      onTargetPlatformChange={runtime.onTargetPlatformChange}
       onNext={runtime.onRunStoryToScript}
       onSmartSplit={handleSmartSplit}
     />

@@ -19,6 +19,10 @@ import { DEFAULT_STYLE_PRESET_VALUE, STYLE_PRESETS } from '@/lib/style-presets'
 import { PROJECT_STORY_INPUT_MIN_ROWS } from '@/lib/ui/textarea-height'
 import { apiFetch } from '@/lib/api-fetch'
 import { expandHomeStory } from '@/lib/home/ai-story-expand'
+import { COLOR_GRADE_PRESETS } from '@/lib/color-grade-presets'
+import { TARGET_PLATFORMS, getPlatformVideoRatio } from '@/lib/target-platforms'
+import ProjectTemplateSelector from './ProjectTemplateSelector'
+import type { ProjectTemplate } from '@/lib/project-templates'
 
 /** 触发智能分集建议的字数阈值 */
 const LONG_TEXT_THRESHOLD = 1000
@@ -46,6 +50,10 @@ interface NovelInputStageProps {
   artStyle?: string
   onVideoRatioChange?: (value: string) => void
   onArtStyleChange?: (value: string) => void
+  colorGradePreset?: string
+  onColorGradePresetChange?: (value: string) => void
+  targetPlatform?: string
+  onTargetPlatformChange?: (value: string) => void
 }
 
 export default function NovelInputStage({
@@ -61,7 +69,11 @@ export default function NovelInputStage({
   videoRatio = '9:16',
   artStyle = 'american-comic',
   onVideoRatioChange,
-  onArtStyleChange
+  onArtStyleChange,
+  colorGradePreset = 'auto',
+  onColorGradePresetChange,
+  targetPlatform = 'douyin',
+  onTargetPlatformChange,
 }: NovelInputStageProps) {
   const t = useTranslations('novelPromotion')
   const homeT = useTranslations('home')
@@ -127,6 +139,22 @@ export default function NovelInputStage({
     }
   }, [aiWriteLoading, onNovelTextChange])
 
+  const handleApplyTemplate = useCallback((template: ProjectTemplate) => {
+    const cfg = template.config
+    // artStyle & colorGrade
+    if (cfg.artStyle && cfg.artStyle !== artStyle) onArtStyleChange?.(cfg.artStyle)
+    if (cfg.colorGradePreset && cfg.colorGradePreset !== colorGradePreset) onColorGradePresetChange?.(cfg.colorGradePreset)
+    // platform + videoRatio 联动：先应用平台，再覆盖比例（模板显式声明 videoRatio 优先）
+    if (cfg.targetPlatform && cfg.targetPlatform !== targetPlatform) {
+      onTargetPlatformChange?.(cfg.targetPlatform)
+      const inferredRatio = getPlatformVideoRatio(cfg.targetPlatform)
+      const finalRatio = cfg.videoRatio || inferredRatio
+      if (finalRatio && finalRatio !== videoRatio) onVideoRatioChange?.(finalRatio)
+    } else if (cfg.videoRatio && cfg.videoRatio !== videoRatio) {
+      onVideoRatioChange?.(cfg.videoRatio)
+    }
+  }, [videoRatio, artStyle, colorGradePreset, targetPlatform, onVideoRatioChange, onArtStyleChange, onColorGradePresetChange, onTargetPlatformChange])
+
   // 下拉中使用的简短标签（低信息密度）
   const ratioUsageTagMap: Record<string, string> = {
     '1:1': t('storyInput.ratioUsageTag.1_1'),
@@ -155,6 +183,9 @@ export default function NovelInputStage({
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
+
+      {/* 项目风格模板库 */}
+      <ProjectTemplateSelector onApply={handleApplyTemplate} />
 
       {/* 当前编辑剧集提示 - 顶部居中醒目显示 */}
       {episodeName && (
@@ -232,6 +263,47 @@ export default function NovelInputStage({
           )}
         />
       </div>
+
+      {/* 发布平台 & 色调风格 */}
+      <div className="flex flex-wrap gap-3">
+        {/* 目标平台 */}
+        <div className="flex items-center gap-2 glass-surface px-3 py-2 rounded-xl flex-1 min-w-[160px]">
+          <AppIcon name="globe" className="w-4 h-4 text-[var(--glass-text-tertiary)] flex-shrink-0" />
+          <span className="text-xs text-[var(--glass-text-tertiary)] flex-shrink-0">目标平台</span>
+          <select
+            value={targetPlatform}
+            onChange={e => {
+              const v = e.target.value
+              onTargetPlatformChange?.(v)
+              const ratio = getPlatformVideoRatio(v)
+              if (ratio) onVideoRatioChange?.(ratio)
+            }}
+            disabled={isSubmittingTask || isSwitchingStage}
+            className="flex-1 min-w-0 bg-transparent text-xs text-[var(--glass-text-secondary)] outline-none cursor-pointer"
+          >
+            {TARGET_PLATFORMS.map(p => (
+              <option key={p.value} value={p.value}>{p.icon} {p.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* 色调预设 */}
+        <div className="flex items-center gap-2 glass-surface px-3 py-2 rounded-xl flex-1 min-w-[180px]">
+          <AppIcon name="film" className="w-4 h-4 text-[var(--glass-text-tertiary)] flex-shrink-0" />
+          <span className="text-xs text-[var(--glass-text-tertiary)] flex-shrink-0">色调预设</span>
+          <select
+            value={colorGradePreset}
+            onChange={e => onColorGradePresetChange?.(e.target.value)}
+            disabled={isSubmittingTask || isSwitchingStage}
+            className="flex-1 min-w-0 bg-transparent text-xs text-[var(--glass-text-secondary)] outline-none cursor-pointer"
+          >
+            {COLOR_GRADE_PRESETS.map(p => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <AiWriteModal
         open={aiWriteOpen}
         loading={aiWriteLoading}

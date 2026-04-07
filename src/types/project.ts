@@ -257,6 +257,8 @@ export interface NovelPromotionProject {
   workflowMode: WorkflowMode  // 新增：工作流模式
   artStyle: string
   artStylePrompt: string | null
+  colorGradePreset: string
+  targetPlatform: string
   audioUrl: string | null
   media?: MediaRef | null
   srtContent: string | null

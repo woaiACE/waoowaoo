@@ -20,6 +20,7 @@ const sharedMock = vi.hoisted(() => ({
   collectPanelReferenceImages: vi.fn(async () => ['https://signed.example/ref-1.png']),
   resolveNovelData: vi.fn(async () => ({
     videoRatio: '16:9',
+    colorGradePreset: null as string | null,
     characters: [],
     locations: [
       {
@@ -170,6 +171,27 @@ describe('worker panel-image-task-handler behavior', () => {
         candidateImages: JSON.stringify(['cos/panel-candidate-1.png', 'cos/panel-candidate-2.png']),
       },
     })
+  })
+
+  it('colorGradePreset injects color keywords into artStyle', async () => {
+    sharedMock.resolveNovelData.mockResolvedValueOnce({
+      videoRatio: '16:9',
+      colorGradePreset: 'ancient-warm',
+      characters: [],
+      locations: [],
+    })
+
+    const job = buildJob({ candidateCount: 1 })
+    await handlePanelImageTask(job)
+
+    // buildPrompt receives `variables.style` which should include color keywords for ancient-warm preset
+    expect(promptMock.buildPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variables: expect.objectContaining({
+          style: expect.stringContaining('warm golden hour lighting'),
+        }),
+      }),
+    )
   })
 
   it('regeneration branch -> keeps old image in previousImageUrl and stores candidates only', async () => {

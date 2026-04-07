@@ -1,5 +1,6 @@
 import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
+import { createScopedLogger } from '@/lib/logging/core'
 import { CHARACTER_ASSET_IMAGE_RATIO, LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO, addCharacterPromptSuffix, addLocationPromptSuffix, addPropPromptSuffix, getArtStylePrompt } from '@/lib/constants'
 import { type TaskJobData } from '@/lib/task/types'
 import { encodeImageUrls } from '@/lib/contracts/image-urls-contract'
@@ -62,6 +63,12 @@ export async function handleAssetHubImageTask(job: Job<TaskJobData>) {
   const db = prisma as unknown as AssetHubImageDb
   const payload = (job.data.payload || {}) as AnyObj
   const userId = job.data.userId
+  const logger = createScopedLogger({
+    module: 'worker.asset-hub-image',
+    action: 'asset_hub_image_generate',
+    taskId: job.data.taskId,
+    userId,
+  })
   const userModels = await getUserModels(userId)
   const artStyle = getArtStylePrompt(
     typeof payload.artStyle === 'string' ? payload.artStyle : undefined,
@@ -94,6 +101,7 @@ export async function handleAssetHubImageTask(job: Job<TaskJobData>) {
     for (let i = 0; i < count; i++) {
       const raw = base[i] || base[0]
       const prompt = artStyle ? `${addCharacterPromptSuffix(raw)}，${artStyle}` : addCharacterPromptSuffix(raw)
+      logger.info({ message: 'asset hub character image prompt resolved', details: { appearanceId: appearance.id, index: i, promptText: prompt } })
       const imageKey = await generateCleanImageToStorage({
         job,
         userId,
@@ -155,6 +163,7 @@ export async function handleAssetHubImageTask(job: Job<TaskJobData>) {
         ? addPropPromptSuffix(promptCore)
         : addLocationPromptSuffix(promptCore)
       const prompt = artStyle ? `${promptWithSuffix}，${artStyle}` : promptWithSuffix
+      logger.info({ message: 'asset hub location image prompt resolved', details: { imageId: image.id, type: payload.type, promptText: prompt } })
       const aspectRatio = payload.type === 'prop' ? PROP_IMAGE_RATIO : LOCATION_IMAGE_RATIO
 
       const imageKey = await generateCleanImageToStorage({
