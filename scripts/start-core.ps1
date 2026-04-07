@@ -970,6 +970,22 @@ function Invoke-Phase8-PrismaDbPush {
         if ($prismaProcess.ExitCode -ne 0) {
             throw "prisma db push 失败，退出代码：$($prismaProcess.ExitCode)"
         }
+
+        # 独立执行 prisma generate，确保 Prisma Client 与最新 schema 同步。
+        # 注意：prisma db push --skip-generate 仅同步数据库结构但不重新生成客户端，
+        # 若客户端未更新，新增字段在运行时会被 Prisma 当作未知字段拒绝。
+        Write-Step -Phase 'Prisma' -Message "重新生成 Prisma Client（同步新字段定义）..."
+        $generateProcess = Start-Process `
+            -FilePath $Script:NpxCmd `
+            -ArgumentList 'prisma', 'generate' `
+            -NoNewWindow `
+            -PassThru `
+            -Wait `
+            -WorkingDirectory $RepoDir
+
+        if ($generateProcess.ExitCode -ne 0) {
+            throw "prisma generate 失败，退出代码：$($generateProcess.ExitCode)"
+        }
     }
     finally {
         Pop-Location

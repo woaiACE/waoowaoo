@@ -186,6 +186,11 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
     projectId: job.data.projectId,
     userId: job.data.userId,
   })
+
+  const artStyleBase = getArtStylePrompt(modelConfig.artStyle, job.data.locale)
+  const colorKeywords = getColorGradePromptKeywords(projectData.colorGradePreset ?? 'auto')
+  const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
+
   logger.info({
     message: 'panel image generation started',
     details: {
@@ -198,13 +203,13 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
       normalizedUrls: normalizedRefs.map((u) => u.substring(0, 100)),
       panelCharacters: panel.characters,
       panelLocation: panel.location,
-      artStyle: modelConfig.artStyle,
+      artStyleKey: modelConfig.artStyle,
+      colorGradePreset: projectData.colorGradePreset ?? 'auto',
+      colorKeywords: colorKeywords || '(none)',
+      artStyleFinal: artStyle,
     },
   })
 
-  const artStyleBase = getArtStylePrompt(modelConfig.artStyle, job.data.locale)
-  const colorKeywords = getColorGradePromptKeywords(projectData.colorGradePreset ?? 'auto')
-  const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
   if (!projectData.videoRatio) throw new Error('Project videoRatio not configured')
   const aspectRatio = projectData.videoRatio
   const promptContext = buildPanelPromptContext({
