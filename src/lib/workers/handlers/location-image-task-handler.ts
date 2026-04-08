@@ -2,6 +2,7 @@ import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
 import { createScopedLogger } from '@/lib/logging/core'
 import { LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO, addLocationPromptSuffix, addPropPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, type ArtStyleValue } from '@/lib/constants'
+import { getColorGradePromptKeywords } from '@/lib/color-grade-presets'
 import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
 import { type TaskJobData } from '@/lib/task/types'
 import { reportTaskProgress } from '../shared'
@@ -76,7 +77,9 @@ export async function handleLocationImageTask(job: Job<TaskJobData>) {
 
   const payloadArtStyle = resolvePayloadArtStyle(payload)
   const effectiveArtStyleId = payloadArtStyle ?? models.artStyle
-  const artStyle = getArtStylePrompt(effectiveArtStyleId, job.data.locale)
+  const artStyleBase = getArtStylePrompt(effectiveArtStyleId, job.data.locale)
+  const colorKeywords = getColorGradePromptKeywords(models.colorGradePreset ?? 'auto')
+  const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
   const artStyleNegativePrompt = getArtStyleNegativePrompt(effectiveArtStyleId)
   const assetType = payload.type === 'prop' ? 'prop' : 'location'
 

@@ -2,6 +2,7 @@ import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
 import { createScopedLogger } from '@/lib/logging/core'
 import { CHARACTER_ASSET_IMAGE_RATIO, addCharacterPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, PRIMARY_APPEARANCE_INDEX, type ArtStyleValue } from '@/lib/constants'
+import { getColorGradePromptKeywords } from '@/lib/color-grade-presets'
 import { type TaskJobData } from '@/lib/task/types'
 import { encodeImageUrls } from '@/lib/contracts/image-urls-contract'
 import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
@@ -116,7 +117,9 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
 
   const payloadArtStyle = resolvePayloadArtStyle(payload)
   const effectiveArtStyleId = payloadArtStyle ?? models.artStyle
-  const artStyle = getArtStylePrompt(effectiveArtStyleId, job.data.locale)
+  const artStyleBase = getArtStylePrompt(effectiveArtStyleId, job.data.locale)
+  const colorKeywords = getColorGradePromptKeywords(models.colorGradePreset ?? 'auto')
+  const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
   const artStyleNegativePrompt = getArtStyleNegativePrompt(effectiveArtStyleId)
   const descriptions = parseJsonStringArray(appearance.descriptions)
   const baseDescriptions = descriptions.length > 0 ? descriptions : [appearance.description || '']
