@@ -15,6 +15,7 @@ import { useTranslations } from 'next-intl'
  */
 
 import { useState, useCallback, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 // 移除了 useRouter 导入，因为不再需要在组件中操作 URL
 import { Character, CharacterAppearance, NovelPromotionClip } from '@/types/project'
 import { resolveTaskPresentationState } from '@/lib/task/presentation'
@@ -26,6 +27,7 @@ import {
   useRefreshProjectAssets,
   useEpisodes,
   useEpisodeData,
+  useCharacterRelations,
 } from '@/lib/query/hooks'
 import {
   getAllClipsAssets,
@@ -50,6 +52,8 @@ import AssetToolbar from './assets/AssetToolbar'
 import AssetFilterBar, { type AssetKindFilter } from './assets/AssetFilterBar'
 import AssetsStageStatusOverlays from './assets/AssetsStageStatusOverlays'
 import AssetsStageModals from './assets/AssetsStageModals'
+import CharacterGraphView from './assets/CharacterGraphView'
+import { AppIcon } from '@/components/ui/icons'
 
 interface AssetsStageProps {
   projectId: string
@@ -69,10 +73,12 @@ export default function AssetsStage({
   triggerGlobalAnalyze = false,
   onGlobalAnalyzeComplete
 }: AssetsStageProps) {
+  const queryClient = useQueryClient()
   const { data: assets = [] } = useAssets({
     scope: 'project',
     projectId,
   })
+  const relationQuery = useCharacterRelations(projectId)
   const characters = useMemo(
     () => assets.filter((asset) => asset.kind === 'character'),
     [assets],
@@ -93,6 +99,10 @@ export default function AssetsStage({
   // 🔥 使用 React Query 刷新，替代 onRefresh prop
   const refreshAssets = useRefreshProjectAssets(projectId)
   const onRefresh = useCallback(() => { refreshAssets() }, [refreshAssets])
+  const handleGlobalAnalyzeComplete = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['characterRelations', projectId] })
+    onGlobalAnalyzeComplete?.()
+  }, [onGlobalAnalyzeComplete, projectId, queryClient])
 
   // 🔥 V6.6 重构：使用 mutation hooks 替代 onGenerateImage prop
   const generateCharacterImage = useGenerateProjectCharacterImage(projectId)
@@ -115,6 +125,7 @@ export default function AssetsStage({
   }, [generateCharacterImage, generateLocationImage, propAssetActions])
 
   const t = useTranslations('assets')
+  const hasCompletedGlobalAnalyze = relationQuery.data?.hasCompletedGlobalAnalyze ?? false
   // 计算资产总数
   const totalAppearances = characters.reduce((sum, character) => sum + character.variants.length, 0)
   const totalLocations = locations.length
@@ -126,6 +137,7 @@ export default function AssetsStage({
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null)
   const [kindFilter, setKindFilter] = useState<AssetKindFilter>('all')
   const [episodeFilter, setEpisodeFilter] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'cards' | 'graph'>('cards')
 
   // 获取剧集列表
   const { episodes } = useEpisodes(projectId)
@@ -221,11 +233,17 @@ export default function AssetsStage({
   } = useAssetsGlobalActions({
     projectId,
     triggerGlobalAnalyze,
-    onGlobalAnalyzeComplete,
+    onGlobalAnalyzeComplete: handleGlobalAnalyzeComplete,
     onRefresh,
     showToast,
     t,
   })
+
+  const handleGraphNodeClick = useCallback((characterName: string) => {
+    setViewMode('cards')
+    setKindFilter('character')
+    showToast(t('graph.focusToCard', { name: characterName }), 'success', 2200)
+  }, [showToast, t])
 
   const {
     copyFromGlobalTarget,
@@ -405,7 +423,52 @@ export default function AssetsStage({
         }}
       />
 
-      {(kindFilter === 'all' || kindFilter === 'character') && (
+      {/* 卡片 / 图谱切换 Tab（在资产前列自迁图谱区域） */}
+      <div className="flex items-center justify-end gap-1">
+        <button
+          type="button"
+          onClick={() => setViewMode('cards')}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            viewMode === 'cards'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'hover:bg-muted text-muted-foreground'
+          }`}
+        >
+          <AppIcon name="image" className="w-3.5 h-3.5" />
+          卡片视图
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('graph')}
+          className={`relative inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            viewMode === 'graph'
+              ? 'bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/30'
+              : 'hover:bg-muted text-muted-foreground border border-primary/30'
+          }`}
+        >
+          <AppIcon name="usersRound" className="w-3.5 h-3.5" />
+          {t('graph.tabTitle')}
+          {!hasCompletedGlobalAnalyze && !isGlobalAnalyzing && (
+            <span className="absolute -top-1.5 -right-1.5 rounded-full bg-amber-500 text-white px-1.5 py-0.5 text-[10px] leading-none animate-pulse">
+              {t('graph.needAnalyzeBadge')}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* 关系图谱视图 */}
+      {viewMode === 'graph' && (
+        <CharacterGraphView
+          projectId={projectId}
+          isGlobalAnalyzing={isGlobalAnalyzing}
+          onRunGlobalAnalyze={() => {
+            void handleGlobalAnalyze()
+          }}
+          onNodeClick={handleGraphNodeClick}
+        />
+      )}
+
+      {viewMode === 'cards' && (kindFilter === 'all' || kindFilter === 'character') && (
           <CharacterSection
             key="character"
             projectId={projectId}
@@ -446,7 +509,7 @@ export default function AssetsStage({
             onDeleteProfile={handleDeleteProfile}
           />
       )}
-      {(kindFilter === 'all' || kindFilter === 'location') && (
+      {viewMode === 'cards' && (kindFilter === 'all' || kindFilter === 'location') && (
           <LocationSection
             key="location"
             projectId={projectId}
@@ -468,7 +531,7 @@ export default function AssetsStage({
             filterIds={episodeAssetIds?.locIds ?? null}
           />
       )}
-      {(kindFilter === 'all' || kindFilter === 'prop') && (
+      {viewMode === 'cards' && (kindFilter === 'all' || kindFilter === 'prop') && (
           <LocationSection
             key="prop"
             projectId={projectId}

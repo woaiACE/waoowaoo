@@ -209,8 +209,27 @@ D级（群众演员）：
       "updated_introduction": "更新后的角色介绍（补充新发现的关系、称呼、真名等）",
       "updated_aliases": ["新发现的别名1", "新发现的别名2"]
     }
+  ],
+  "relationships": [
+    {
+      "from": "角色A规范名",
+      "to": "角色B规范名",
+      "type": "上下级",
+      "direction": "unidirectional",
+      "description": "A是B的上司"
+    }
   ]
 }
+
+【relationships 填写规则】
+
+在输出 JSON 的 relationships 数组中，列出文本中出现的角色之间的明确关系：
+- type 可选值：上下级 / 友好 / 敌对 / 恋爱 / 家族 / 战友 / 仇敌 / 竞争 / 其他
+- direction 可选值：unidirectional（单向，如 A 是 B 的上级）/ bidirectional（双向，如互为战友）
+- description 20字以内的补充说明
+- from / to 必须使用角色的规范名（与 new_characters/updated_characters 中的 name 保持一致）
+- 只列出原文中有明确依据的关系，不要推断或臆造
+- 如果原文中没有明确的角色间关系，输出空数组 []
 
 【更新规则】
 

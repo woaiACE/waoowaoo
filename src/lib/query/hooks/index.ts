@@ -231,3 +231,10 @@ export {
     type UserModelOption as QueryUserModelOption,
     type UserModelsPayload as QueryUserModelsPayload,
 } from './useUserModels'
+
+export {
+    useCharacterRelations,
+    type CharacterRelation,
+    type CharacterNode,
+    type CharacterRelationsData,
+} from './useCharacterRelations'

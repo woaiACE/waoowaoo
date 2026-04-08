@@ -17,7 +17,7 @@ import {
   type CharacterBrief,
 } from './analyze-global-parse'
 import { buildAnalyzeGlobalPrompts, loadAnalyzeGlobalPromptTemplates } from './analyze-global-prompt'
-import { createAnalyzeGlobalStats, persistAnalyzeGlobalChunk } from './analyze-global-persist'
+import { createAnalyzeGlobalStats, persistAnalyzeGlobalChunk, upsertCharacterRelations } from './analyze-global-persist'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 
 function readAssetKind(value: Record<string, unknown>): string {
@@ -199,6 +199,15 @@ export async function handleAnalyzeGlobalTask(job: Job<TaskJobData>) {
         existingPropNames,
         stats,
       })
+
+      // 持久化角色关系数据
+      if (charactersData.relationships && charactersData.relationships.length > 0) {
+        await upsertCharacterRelations({
+          projectInternalId: novelData.id,
+          relationships: charactersData.relationships,
+          existingCharacterNames,
+        })
+      }
 
       stats.processedChunks += 1
     }

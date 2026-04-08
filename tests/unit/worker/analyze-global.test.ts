@@ -19,7 +19,7 @@ const workerMock = vi.hoisted(() => ({
 
 const parseMock = vi.hoisted(() => ({
   chunkContent: vi.fn(() => ['chunk-1', 'chunk-2']),
-  safeParseCharactersResponse: vi.fn(() => ({ new_characters: [] })),
+  safeParseCharactersResponse: vi.fn((): Record<string, unknown> => ({ new_characters: [] })),
   safeParseLocationsResponse: vi.fn(() => ({ locations: [] })),
   safeParsePropsResponse: vi.fn(() => ({ props: [] })),
 }))
@@ -41,6 +41,7 @@ const persistMock = vi.hoisted(() => ({
     args.stats.newLocations += 1
     args.stats.newProps += 1
   }),
+  upsertCharacterRelations: vi.fn(async () => undefined),
 }))
 
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
@@ -80,6 +81,7 @@ vi.mock('@/lib/workers/handlers/analyze-global-prompt', () => ({
 vi.mock('@/lib/workers/handlers/analyze-global-persist', () => ({
   createAnalyzeGlobalStats: persistMock.createAnalyzeGlobalStats,
   persistAnalyzeGlobalChunk: persistMock.persistAnalyzeGlobalChunk,
+  upsertCharacterRelations: persistMock.upsertCharacterRelations,
 }))
 
 import { handleAnalyzeGlobalTask } from '@/lib/workers/handlers/analyze-global'
@@ -151,5 +153,23 @@ describe('worker analyze-global behavior', () => {
         totalProps: 0,
       },
     })
+  })
+
+  it('characters response includes relationships -> calls upsertCharacterRelations', async () => {
+    parseMock.safeParseCharactersResponse
+      .mockReturnValueOnce({
+        new_characters: [],
+        relationships: [{ from: 'Hero', to: 'Hero', relationType: 'self' }],
+      })
+      .mockReturnValueOnce({ new_characters: [] })
+
+    await handleAnalyzeGlobalTask(buildJob())
+
+    expect(persistMock.upsertCharacterRelations).toHaveBeenCalledTimes(1)
+    expect(persistMock.upsertCharacterRelations).toHaveBeenCalledWith(expect.objectContaining({
+      projectInternalId: 'np-project-1',
+      existingCharacterNames: expect.arrayContaining(['Hero']),
+      relationships: [{ from: 'Hero', to: 'Hero', relationType: 'self' }],
+    }))
   })
 })

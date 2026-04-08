@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process'
+import { execSync, spawnSync } from 'node:child_process'
 import { setTimeout as sleep } from 'node:timers/promises'
 import mysql from 'mysql2/promise'
 import Redis from 'ioredis'
@@ -75,15 +75,23 @@ export default async function globalSetup() {
     return async () => {}
   }
 
-  execSync('docker compose -f docker-compose.test.yml down -v --remove-orphans', {
+  const dockerVersion = spawnSync('docker', ['--version'], {
     cwd: process.cwd(),
-    stdio: 'inherit',
+    stdio: 'ignore',
+    shell: process.platform === 'win32',
   })
 
-  execSync('docker compose -f docker-compose.test.yml up -d --remove-orphans', {
-    cwd: process.cwd(),
-    stdio: 'inherit',
-  })
+  if (dockerVersion.status === 0) {
+    execSync('docker compose -f docker-compose.test.yml down -v --remove-orphans', {
+      cwd: process.cwd(),
+      stdio: 'inherit',
+    })
+
+    execSync('docker compose -f docker-compose.test.yml up -d --remove-orphans', {
+      cwd: process.cwd(),
+      stdio: 'inherit',
+    })
+  }
 
   await waitForMysql()
   await waitForRedis()

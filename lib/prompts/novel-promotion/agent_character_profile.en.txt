@@ -27,28 +27,6 @@ Field rules:
 
 Output format (JSON only):
 {
-  "characters": [
-    {
-      "name": "Canonical Name",
-      "aliases": ["alias 1", "alias 2"],
-      "introduction": "Role, perspective mapping, relationships, and naming aliases",
-      "gender": "male/female/other",
-      "age_range": "young adult",
-      "role_level": "S",
-      "archetype": "character archetype",
-      "personality_tags": ["tag1", "tag2"],
-      "era_period": "modern/fantasy/historical/sci-fi",
-      "social_class": "elite/middle/common",
-      "occupation": "occupation or none",
-      "costume_tier": 3,
-      "suggested_colors": ["color1", "color2"],
-      "primary_identifier": "signature visual marker",
-      "visual_keywords": ["keyword1", "keyword2"],
-      "expected_appearances": [
-        { "id": 1, "change_reason": "initial appearance" }
-      ]
-    }
-  ],
   "new_characters": [
     {
       "name": "Canonical Name",
@@ -77,8 +55,25 @@ Output format (JSON only):
       "updated_introduction": "Updated intro with newly discovered mapping",
       "updated_aliases": ["new alias 1", "new alias 2"]
     }
+  ],
+  "relationships": [
+    {
+      "from": "Character A canonical name",
+      "to": "Character B canonical name",
+      "type": "superior",
+      "direction": "unidirectional",
+      "description": "A is B's superior"
+    }
   ]
 }
+
+Relationships rules:
+- type options: superior / friendly / hostile / romantic / family / ally / rival / competing / other
+- direction: unidirectional (A→B) or bidirectional (mutual)
+- description: under 20 words
+- from/to must use canonical names matching new_characters/updated_characters name field
+- Only list relationships explicitly supported by the text, do not infer
+- Output empty array [] if no clear relationships are found
 
 Strict constraints:
 1. JSON only.

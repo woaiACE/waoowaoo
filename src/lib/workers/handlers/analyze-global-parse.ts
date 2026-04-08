@@ -10,10 +10,36 @@ export type CharacterBrief = {
   introduction: string
 }
 
+export type CharacterRelationItem = {
+  from: string
+  to: string
+  type: string
+  direction?: string
+  description?: string
+}
+
+function normalizeRelationshipItem(item: Record<string, unknown>): CharacterRelationItem | null {
+  const from = readText(item.from ?? item.from_name).trim()
+  const to = readText(item.to ?? item.to_name).trim()
+  const type = readText(item.type ?? item.relation_type).trim()
+  const direction = readText(item.direction).trim()
+  const description = readText(item.description).trim()
+
+  if (!from || !to) return null
+  return {
+    from,
+    to,
+    type: type || '其他',
+    direction: direction || 'unidirectional',
+    description: description || undefined,
+  }
+}
+
 export type AnalyzeGlobalCharactersData = {
   new_characters?: Array<Record<string, unknown>>
   updated_characters?: Array<Record<string, unknown>>
   characters?: Array<Record<string, unknown>>
+  relationships?: CharacterRelationItem[]
 }
 
 export type AnalyzeGlobalLocationsData = {
@@ -85,6 +111,10 @@ export function safeParseCharactersResponse(responseText: string): AnalyzeGlobal
     if (!parsed.new_characters && Array.isArray(parsed.characters)) {
       parsed.new_characters = parsed.characters
     }
+    const rawRelationships = Array.isArray(parsed.relationships) ? parsed.relationships : []
+    parsed.relationships = rawRelationships
+      .map((item) => (item && typeof item === 'object' ? normalizeRelationshipItem(item as Record<string, unknown>) : null))
+      .filter((item): item is CharacterRelationItem => item !== null)
     return parsed
   } catch {
     return {}

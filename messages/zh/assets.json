@@ -216,6 +216,41 @@
         "regenerateAllHint": "重新生成所有资产图片（覆盖现有）",
         "downloadAll": "打包下载全部图片"
     },
+    "graph": {
+        "tabTitle": "关系图谱",
+        "needAnalyzeBadge": "需分析",
+        "loading": "加载角色关系图谱...",
+        "loadFailed": "加载失败，请刷新重试",
+        "noCharacters": "暂无角色数据",
+        "requireGlobalAnalyze": "请先运行「全局分析」以提取角色关系图谱",
+        "noGlobalAnalyzeYet": "当前项目尚未完成过全局分析",
+        "lastAnalyzeAt": "最近全局分析：{time}",
+        "runGlobalAnalyze": "运行全局分析",
+        "globalAnalyzing": "分析中...",
+        "noRelationsHint": "暂无角色关系数据，可重新运行全局分析自动提取",
+        "roleLegendTitle": "角色等级：",
+        "relationLegendTitle": "关系类型：",
+        "summary": "共 {characters} 个角色 · {relations} 条关系 · 可拖拽节点调整布局",
+        "focusToCard": "已定位到角色卡片：{name}",
+        "roleLevel": {
+            "S": "绝对主角",
+            "A": "核心配角",
+            "B": "重要配角",
+            "C": "次要角色",
+            "D": "群众演员"
+        },
+        "relationType": {
+            "superior": "上下级",
+            "friendly": "友好",
+            "romantic": "恋爱",
+            "family": "家族",
+            "ally": "战友",
+            "hostile": "敌对",
+            "rival": "仇敌",
+            "competing": "竞争",
+            "other": "其他"
+        }
+    },
     "common": {
         "actions": "操作",
         "add": "添加",

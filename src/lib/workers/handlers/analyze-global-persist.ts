@@ -8,6 +8,7 @@ import {
   type AnalyzeGlobalLocationsData,
   type AnalyzeGlobalPropsData,
   type CharacterBrief,
+  type CharacterRelationItem,
 } from './analyze-global-parse'
 import { seedProjectLocationBackedImageSlots } from '@/lib/assets/services/location-backed-assets'
 import { normalizeLocationAvailableSlots } from '@/lib/location-available-slots'
@@ -234,6 +235,59 @@ export async function persistAnalyzeGlobalChunk(params: {
       params.stats.newProps += 1
     } catch {
       params.stats.skippedProps += 1
+    }
+  }
+}
+
+export async function upsertCharacterRelations(params: {
+  projectInternalId: string
+  relationships: CharacterRelationItem[]
+  existingCharacterNames: string[]
+}) {
+  if (!params.relationships || params.relationships.length === 0) return
+
+  const normalizedNameSet = new Set(params.existingCharacterNames.map((name) => name.toLowerCase()))
+
+  for (const rel of params.relationships) {
+    const from = readText(rel.from).trim()
+    const to = readText(rel.to).trim()
+    if (!from || !to || from === to) continue
+
+    // 仅保留在当前项目角色库中存在的关系边，避免孤立关系记录。
+    if (!normalizedNameSet.has(from.toLowerCase()) || !normalizedNameSet.has(to.toLowerCase())) {
+      continue
+    }
+
+    const relationType = readText(rel.type ?? '').trim() || '其他'
+    const rawDirection = readText(rel.direction ?? '').trim().toLowerCase()
+    const direction = rawDirection === 'bidirectional' ? 'bidirectional' : 'unidirectional'
+    const description = readText(rel.description ?? '').trim() || null
+
+    try {
+      await prisma.characterRelation.upsert({
+        where: {
+          novelPromotionProjectId_fromName_toName: {
+            novelPromotionProjectId: params.projectInternalId,
+            fromName: from,
+            toName: to,
+          },
+        },
+        create: {
+          novelPromotionProjectId: params.projectInternalId,
+          fromName: from,
+          toName: to,
+          relationType,
+          direction,
+          description,
+        },
+        update: {
+          relationType,
+          direction,
+          description,
+        },
+      })
+    } catch {
+      // skip failed upsert silently
     }
   }
 }

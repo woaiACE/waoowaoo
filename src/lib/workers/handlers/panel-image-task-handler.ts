@@ -218,6 +218,7 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
     const rules = panelRules as Record<string, unknown>
     if (typeof rules.color_tone === 'string') {
       panelColorTone = rules.color_tone
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { color_tone: _ct, ...rulesWithout } = rules
       ;(promptContext.panel as Record<string, unknown>).photography_rules = rulesWithout
     }

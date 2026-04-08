@@ -216,6 +216,41 @@
         "regenerateAllHint": "Regenerate all asset images (overwrite existing)",
         "downloadAll": "Download all images as ZIP"
     },
+    "graph": {
+        "tabTitle": "Relationship Graph",
+        "needAnalyzeBadge": "Analyze",
+        "loading": "Loading character relationship graph...",
+        "loadFailed": "Load failed, please refresh and retry",
+        "noCharacters": "No character data yet",
+        "requireGlobalAnalyze": "Run Global Analysis first to build the relationship graph",
+        "noGlobalAnalyzeYet": "This project has not completed any global analysis yet",
+        "lastAnalyzeAt": "Last global analysis: {time}",
+        "runGlobalAnalyze": "Run Global Analysis",
+        "globalAnalyzing": "Analyzing...",
+        "noRelationsHint": "No relationship edges yet. Re-run global analysis to extract them automatically",
+        "roleLegendTitle": "Role Levels:",
+        "relationLegendTitle": "Relationship Types:",
+        "summary": "{characters} characters · {relations} relationships · Drag nodes to adjust layout",
+        "focusToCard": "Focused character card: {name}",
+        "roleLevel": {
+            "S": "Protagonist",
+            "A": "Core Supporting",
+            "B": "Important Supporting",
+            "C": "Minor Character",
+            "D": "Extra"
+        },
+        "relationType": {
+            "superior": "Hierarchy",
+            "friendly": "Friendly",
+            "romantic": "Romantic",
+            "family": "Family",
+            "ally": "Allies",
+            "hostile": "Hostile",
+            "rival": "Rivals",
+            "competing": "Competing",
+            "other": "Other"
+        }
+    },
     "common": {
         "actions": "Actions",
         "add": "Add",

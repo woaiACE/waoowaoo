@@ -267,12 +267,30 @@ model NovelPromotionProject {
   lastEpisodeId   String?
   imageResolution String                    @default("2K")
   importStatus    String?
-  characters      NovelPromotionCharacter[]
-  episodes        NovelPromotionEpisode[]
-  locations       NovelPromotionLocation[]
-  project         Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  characters         NovelPromotionCharacter[]
+  episodes           NovelPromotionEpisode[]
+  locations          NovelPromotionLocation[]
+  characterRelations CharacterRelation[]
+  project            Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("novel_promotion_projects")
+}
+
+model CharacterRelation {
+  id                      String                @id @default(uuid())
+  novelPromotionProjectId String
+  fromName                String
+  toName                  String
+  relationType            String                // 上下级/友好/敌对/恋爱/家族/战友/仇敌/竞争/其他
+  direction               String                @default("unidirectional") // unidirectional/bidirectional
+  description             String?               @db.Text
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @default(now()) @updatedAt
+  novelPromotionProject   NovelPromotionProject @relation(fields: [novelPromotionProjectId], references: [id], onDelete: Cascade)
+
+  @@unique([novelPromotionProjectId, fromName, toName])
+  @@index([novelPromotionProjectId])
+  @@map("character_relations")
 }
 
 model NovelPromotionShot {

@@ -174,6 +174,7 @@ export function useAssetsGlobalActions({
           timeoutMs: 2_000,
         }) as { stats?: { newCharacters?: number; newLocations?: number } }
         await Promise.resolve(onRefresh())
+        onGlobalAnalyzeComplete?.()
         showToast(
           t('toolbar.globalAnalyzeSuccess', {
             characters: result.stats?.newCharacters || 0,
@@ -187,7 +188,7 @@ export function useAssetsGlobalActions({
         showToast(`${t('toolbar.globalAnalyzeFailed')}: ${getErrorMessage(error)}`, 'error', 5000)
       }
     })()
-  }, [globalAnalyzeTaskState, onRefresh, showToast, t])
+  }, [globalAnalyzeTaskState, onGlobalAnalyzeComplete, onRefresh, showToast, t])
 
   useEffect(() => {
     if (!triggerGlobalAnalyze || hasTriggeredGlobalAnalyze.current || isGlobalAnalyzing) {
@@ -200,7 +201,6 @@ export function useAssetsGlobalActions({
     const timer = window.setTimeout(() => {
       void (async () => {
         await handleGlobalAnalyze()
-        onGlobalAnalyzeComplete?.()
       })()
     }, 500)
 
