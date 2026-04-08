@@ -13,6 +13,10 @@ vi.mock('@/components/selectors/RatioStyleSelectors', () => ({
   StylePresetSelector: (props: Record<string, unknown>) => createElement('div', props, 'StylePresetSelector'),
 }))
 
+vi.mock('@/components/shared/assets/character-creation/StyleSelectorModal', () => ({
+  default: (props: Record<string, unknown>) => createElement('div', props, 'StyleSelector'),
+}))
+
 describe('StoryInputComposer', () => {
   it('renders a shared composer shell with configurable textarea rows and shared controls', () => {
     Reflect.set(globalThis, 'React', React)
