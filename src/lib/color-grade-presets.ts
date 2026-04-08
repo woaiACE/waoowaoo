@@ -9,6 +9,8 @@ export interface ColorGradePreset {
   label: string
   description: string
   promptKeywords: string
+  /** 仅保留质感/氛围词，剔除具体色相词。当场景已有 color_tone 时使用，避免与场景色调冲突 */
+  textureKeywords?: string
 }
 
 export const COLOR_GRADE_PRESETS: readonly ColorGradePreset[] = [
@@ -90,6 +92,7 @@ export const COLOR_GRADE_PRESETS: readonly ColorGradePreset[] = [
     label: '粉彩治愈',
     description: '治愈系，低饱和粉柔色调',
     promptKeywords: 'soft pastel palette, low saturation gentle colors, dreamy washed-out tones, healing aesthetic light pink and lavender, airy overexposed highlights',
+    textureKeywords: 'soft pastel palette, low saturation gentle colors, dreamy washed-out tones, airy overexposed highlights',
   },
   {
     value: 'mocha-brown',
@@ -172,6 +175,7 @@ export const COLOR_GRADE_PRESETS: readonly ColorGradePreset[] = [
     label: '日系少女',
     description: '日系少女漫，高光溢出粉嫩',
     promptKeywords: 'Japanese shojo manga color aesthetic, overexposed bright highlights, soft pink and white glow, delicate pastel romance, dreamy lens bloom',
+    textureKeywords: 'Japanese shojo manga color aesthetic, overexposed bright highlights, dreamy lens bloom',
   },
   {
     value: 'korean-drama',
@@ -183,10 +187,21 @@ export const COLOR_GRADE_PRESETS: readonly ColorGradePreset[] = [
 
 export type ColorGradePresetValue = typeof COLOR_GRADE_PRESETS[number]['value']
 
-/** 获取色调 prompt 关键词，自动追加到 artStyle 之后 */
-export function getColorGradePromptKeywords(preset: string | null | undefined): string {
+/**
+ * 获取色调 prompt 关键词，自动追加到 artStyle 之后。
+ * @param preset 色调预设 value
+ * @param sceneHasColorTone 场景是否已有 color_tone 指令（来自 photography_rules）。
+ *   为 true 时优先返回 textureKeywords（仅质感词，不含色相词），避免与场景色调冲突。
+ */
+export function getColorGradePromptKeywords(
+  preset: string | null | undefined,
+  sceneHasColorTone = false,
+): string {
   if (!preset || preset === 'auto') return ''
-  return COLOR_GRADE_PRESETS.find(p => p.value === preset)?.promptKeywords ?? ''
+  const found = COLOR_GRADE_PRESETS.find(p => p.value === preset)
+  if (!found) return ''
+  if (sceneHasColorTone && found.textureKeywords !== undefined) return found.textureKeywords
+  return found.promptKeywords
 }
 
 /** 获取预设对象 */

@@ -188,27 +188,6 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
   })
 
   const artStyleBase = getArtStylePrompt(modelConfig.artStyle, job.data.locale)
-  const colorKeywords = getColorGradePromptKeywords(projectData.colorGradePreset ?? 'auto')
-  const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
-
-  logger.info({
-    message: 'panel image generation started',
-    details: {
-      panelId,
-      modelKey,
-      candidateCount,
-      referenceImagesRawCount: refs.length,
-      referenceImagesNormalizedCount: normalizedRefs.length,
-      rawUrls: refs.map((u) => u.substring(0, 100)),
-      normalizedUrls: normalizedRefs.map((u) => u.substring(0, 100)),
-      panelCharacters: panel.characters,
-      panelLocation: panel.location,
-      artStyleKey: modelConfig.artStyle,
-      colorGradePreset: projectData.colorGradePreset ?? 'auto',
-      colorKeywords: colorKeywords || '(none)',
-      artStyleFinal: artStyle,
-    },
-  })
 
   if (!projectData.videoRatio) throw new Error('Project videoRatio not configured')
   const aspectRatio = projectData.videoRatio
@@ -244,8 +223,31 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
     }
   }
 
-  const styleBase = artStyle || '与参考图风格一致'
-  const styleText = panelColorTone ? `${styleBase}, scene color tone: ${panelColorTone}` : styleBase
+  // 已知 panelColorTone 后再计算 colorKeywords：
+  // 当场景有 color_tone 时传 sceneHasColorTone=true，让预设只返回质感词（去除色相词），避免冲突。
+  const colorKeywords = getColorGradePromptKeywords(projectData.colorGradePreset ?? 'auto', panelColorTone != null)
+  const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
+  const styleText = panelColorTone ? `${artStyle}, scene color tone: ${panelColorTone}` : artStyle
+
+  logger.info({
+    message: 'panel image generation started',
+    details: {
+      panelId,
+      modelKey,
+      candidateCount,
+      referenceImagesRawCount: refs.length,
+      referenceImagesNormalizedCount: normalizedRefs.length,
+      rawUrls: refs.map((u) => u.substring(0, 100)),
+      normalizedUrls: normalizedRefs.map((u) => u.substring(0, 100)),
+      panelCharacters: panel.characters,
+      panelLocation: panel.location,
+      artStyleKey: modelConfig.artStyle,
+      colorGradePreset: projectData.colorGradePreset ?? 'auto',
+      colorKeywords: colorKeywords || '(none)',
+      panelColorTone: panelColorTone || '(none)',
+      artStyleFinal: styleText,
+    },
+  })
 
   const contextJson = JSON.stringify(promptContext, null, 2)
   const prompt = buildPanelPrompt({
