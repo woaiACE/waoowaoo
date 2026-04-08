@@ -228,11 +228,30 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
     },
     projectData,
   })
+
+  // 将 color_tone 从 photography_rules JSON 数据中移出并拼接到 style 末尾，
+  // 避免 JSON 中的摄影色调指令与 style 里的色调预设关键词形成两条互相矛盾的「必须严格遵守」，
+  // 导致图模型无法同时满足（如冷绿色森林 vs. 粉彩治愈预设互相覆盖）。
+  // color_tone 作为最具体的场景色彩指令，放在 style 末尾以最终生效。
+  let panelColorTone: string | null = null
+  const panelRules = promptContext.panel.photography_rules
+  if (panelRules && typeof panelRules === 'object' && !Array.isArray(panelRules)) {
+    const rules = panelRules as Record<string, unknown>
+    if (typeof rules.color_tone === 'string') {
+      panelColorTone = rules.color_tone
+      const { color_tone: _ct, ...rulesWithout } = rules
+      ;(promptContext.panel as Record<string, unknown>).photography_rules = rulesWithout
+    }
+  }
+
+  const styleBase = artStyle || '与参考图风格一致'
+  const styleText = panelColorTone ? `${styleBase}, scene color tone: ${panelColorTone}` : styleBase
+
   const contextJson = JSON.stringify(promptContext, null, 2)
   const prompt = buildPanelPrompt({
     locale: job.data.locale,
     aspectRatio,
-    styleText: artStyle || '与参考图风格一致',
+    styleText,
     sourceText: panel.srtSegment || panel.description || '',
     contextJson,
   })
