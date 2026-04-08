@@ -188,11 +188,11 @@ function mergePanelsWithRules(params: {
     return {
       ...panel,
       photographyPlan: {
-        composition: rules.composition,
+        scene_summary: rules.scene_summary,
         lighting: rules.lighting,
-        colorPalette: rules.color_palette,
-        atmosphere: rules.atmosphere,
-        technicalNotes: rules.technical_notes,
+        depth_of_field: rules.depth_of_field,
+        color_tone: rules.color_tone,
+        characters: rules.characters,
       },
       actingNotes: acting.characters,
     }
