@@ -2,6 +2,16 @@ import { defineConfig } from 'vitest/config'
 import { resolve } from 'node:path'
 
 export default defineConfig({
+  plugins: [
+    {
+      name: 'strip-shebang',
+      transform(code: string, id: string) {
+        if (id.endsWith('.mjs') && code.startsWith('#!')) {
+          return code.slice(code.indexOf('\n') + 1)
+        }
+      },
+    },
+  ],
   css: {
     postcss: {
       plugins: [],

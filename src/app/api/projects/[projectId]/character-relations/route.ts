@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireUserAuth, isErrorResponse } from '@/lib/api-auth'
 import { apiHandler, ApiError } from '@/lib/api-errors'
+import { getSignedUrl } from '@/lib/storage'
 
 type CharacterRelationDelegate = {
   findMany: (args: unknown) => Promise<Array<Record<string, unknown>>>
@@ -90,6 +91,7 @@ export const GET = apiHandler(async (
       where: {
         projectId,
         type: 'analyze_global',
+        status: 'completed',
       },
       orderBy: [
         { finishedAt: 'desc' },
@@ -107,12 +109,15 @@ export const GET = apiHandler(async (
   // 简化角色数据：解析 profileData 只返回必要字段
   const characterNodes = characters.map((char: (typeof characters)[number]) => {
     let roleLevel = 'D'
+    let title = ''
     try {
       const pd = JSON.parse(char.profileData ?? '{}') as Record<string, unknown>
       if (typeof pd.role_level === 'string') roleLevel = pd.role_level
+      if (typeof pd.occupation === 'string') title = pd.occupation
     } catch {
       // ignore parse error
     }
+    const rawImageKey = resolveAppearanceImage(char.appearances[0])
     return {
       id: char.id,
       name: char.name,
@@ -124,20 +129,30 @@ export const GET = apiHandler(async (
         }
       })(),
       roleLevel,
+      title,
       profileConfirmed: char.profileConfirmed,
-      imageUrl: resolveAppearanceImage(char.appearances[0]),
+      imageUrl: rawImageKey ? getSignedUrl(rawImageKey) : null,
     }
   })
 
+  // 过滤孤立关系（fromName / toName 不在当前角色库中）
+  const characterNameSet = new Set(
+    characterNodes.flatMap((c) => [c.name.toLowerCase(), ...c.aliases.map((a) => a.toLowerCase())])
+  )
+  const validRelations = (relations as Array<Record<string, unknown>>).filter(
+    (r) =>
+      characterNameSet.has(String(r.fromName).toLowerCase()) &&
+      characterNameSet.has(String(r.toName).toLowerCase())
+  )
+
   return NextResponse.json({
-    relations,
+    relations: validRelations,
     characters: characterNodes,
-    hasRelations: relations.length > 0,
+    hasRelations: validRelations.length > 0,
     hasCompletedGlobalAnalyze: latestGlobalAnalyzeTask?.status === 'completed',
     lastGlobalAnalyzeAt:
       latestGlobalAnalyzeTask?.finishedAt ??
       latestGlobalAnalyzeTask?.updatedAt ??
-      latestGlobalAnalyzeTask?.createdAt ??
       null,
   })
 })

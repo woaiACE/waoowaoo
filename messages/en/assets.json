@@ -218,6 +218,7 @@
     },
     "graph": {
         "tabTitle": "Relationship Graph",
+        "cardsTabTitle": "Card View",
         "needAnalyzeBadge": "Analyze",
         "loading": "Loading character relationship graph...",
         "loadFailed": "Load failed, please refresh and retry",

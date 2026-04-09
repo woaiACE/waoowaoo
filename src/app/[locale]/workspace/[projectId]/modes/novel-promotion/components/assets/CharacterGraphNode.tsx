@@ -6,6 +6,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react'
 export type CharacterNodeData = {
   name: string
   roleLevel: string
+  title?: string
   imageUrl: string | null
   profileConfirmed?: boolean
   label?: string
@@ -37,7 +38,7 @@ function getRoleBg(roleLevel: string): string {
 
 function CharacterGraphNode({ data }: NodeProps) {
   const nodeData = data as CharacterNodeData
-  const { name, roleLevel, imageUrl, profileConfirmed = true } = nodeData
+  const { name, roleLevel, title, imageUrl, profileConfirmed = true } = nodeData
   const color = getRoleColor(roleLevel)
   const bg = getRoleBg(roleLevel)
   const initial = name ? name.charAt(0).toUpperCase() : '?'
@@ -118,6 +119,25 @@ function CharacterGraphNode({ data }: NodeProps) {
       >
         {name}
       </div>
+
+      {/* 身份/头衔标签 */}
+      {title && (
+        <div
+          style={{
+            color: '#6b7280',
+            fontSize: 10,
+            maxWidth: 90,
+            textAlign: 'center',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            lineHeight: '14px',
+          }}
+          title={title}
+        >
+          {title}
+        </div>
+      )}
 
       {/* 等级标签 */}
       <div

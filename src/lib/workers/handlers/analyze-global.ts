@@ -104,6 +104,11 @@ export async function handleAnalyzeGlobalTask(job: Job<TaskJobData>) {
   })
   await assertTaskActive(job, 'analyze_global_prepare')
 
+  // 清空本项目的历史关系记录，确保每次全量分析结果干净
+  await prisma.characterRelation.deleteMany({
+    where: { novelPromotionProjectId: novelData.id },
+  })
+
   const streamContext = createWorkerLLMStreamContext(job, 'analyze_global')
   const streamCallbacks = createWorkerLLMStreamCallbacks(job, streamContext)
 
@@ -199,6 +204,14 @@ export async function handleAnalyzeGlobalTask(job: Job<TaskJobData>) {
         existingPropNames,
         stats,
       })
+
+      // 将本轮新增角色名追加进可见名单，确保跨块关系不被遗漏
+      for (const newChar of charactersData.new_characters ?? []) {
+        const newName = readText(newChar.name).trim()
+        if (newName && !existingCharacterNames.some((n) => n.toLowerCase() === newName.toLowerCase())) {
+          existingCharacterNames.push(newName)
+        }
+      }
 
       // 持久化角色关系数据
       if (charactersData.relationships && charactersData.relationships.length > 0) {

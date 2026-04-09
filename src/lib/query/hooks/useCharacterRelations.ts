@@ -20,6 +20,7 @@ export type CharacterNode = {
   name: string
   aliases: string[]
   roleLevel: string
+  title?: string
   profileConfirmed: boolean
   imageUrl: string | null
 }

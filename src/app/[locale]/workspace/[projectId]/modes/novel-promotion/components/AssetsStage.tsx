@@ -138,6 +138,8 @@ export default function AssetsStage({
   const [kindFilter, setKindFilter] = useState<AssetKindFilter>('all')
   const [episodeFilter, setEpisodeFilter] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'cards' | 'graph'>('cards')
+  const [localFocusCharacterId, setLocalFocusCharacterId] = useState<string | null>(null)
+  const [localFocusRequestId, setLocalFocusRequestId] = useState(0)
 
   // 获取剧集列表
   const { episodes } = useEpisodes(projectId)
@@ -240,10 +242,15 @@ export default function AssetsStage({
   })
 
   const handleGraphNodeClick = useCallback((characterName: string) => {
+    const charNode = relationQuery.data?.characters.find((c) => c.name === characterName)
     setViewMode('cards')
     setKindFilter('character')
     showToast(t('graph.focusToCard', { name: characterName }), 'success', 2200)
-  }, [showToast, t])
+    if (charNode?.id) {
+      setLocalFocusCharacterId(charNode.id)
+      setLocalFocusRequestId((prev) => prev + 1)
+    }
+  }, [relationQuery.data?.characters, showToast, t])
 
   const {
     copyFromGlobalTarget,
@@ -435,7 +442,7 @@ export default function AssetsStage({
           }`}
         >
           <AppIcon name="image" className="w-3.5 h-3.5" />
-          卡片视图
+          {t('graph.cardsTabTitle')}
         </button>
         <button
           type="button"
@@ -472,8 +479,8 @@ export default function AssetsStage({
           <CharacterSection
             key="character"
             projectId={projectId}
-            focusCharacterId={focusCharacterId}
-            focusCharacterRequestId={focusCharacterRequestId}
+            focusCharacterId={localFocusCharacterId ?? focusCharacterId}
+            focusCharacterRequestId={localFocusRequestId || focusCharacterRequestId}
             activeTaskKeys={activeTaskKeys}
             onClearTaskKey={clearTransientTaskKey}
             onRegisterTransientTaskKey={registerTransientTaskKey}

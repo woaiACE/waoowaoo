@@ -5,6 +5,7 @@ import { TASK_TYPE, type TaskJobData } from '@/lib/task/types'
 const prismaMock = vi.hoisted(() => ({
   project: { findUnique: vi.fn() },
   novelPromotionProject: { findUnique: vi.fn() },
+  characterRelation: { deleteMany: vi.fn(async () => ({ count: 0 })) },
 }))
 
 const llmMock = vi.hoisted(() => ({
