@@ -145,7 +145,22 @@ analyze-novel（单集资产提取）
 
 analyze-global（跨集全局分析）
 ├── 内容分块处理           超长文本按 CHUNK_SIZE 切片，逐块累积结果
-├── 角色关系图谱           全剧角色动机、关系梳理
+│                         → 新角色名推送至 existingCharacterNames（跨块去重已修复）
+│
+├── 角色关系图谱  ✅ 已完整实现（2026-04）
+│   ├── LLM 输出        每块响应含 relationships[]（characterA/B / relationshipType / description）
+│   ├── 解析层           safeParseCharactersResponse() → CharacterRelationItem[]
+│   ├── 持久化层         upsertCharacterRelations() → CharacterRelation 表
+│   │                    → 每次全量分析前先 deleteMany 清空旧记录，保证结果干净
+│   └── 前端可视化       React Flow 力导向图
+│       ├── 布局         按 roleLevel (S/A/B/C/D) 分层排列，同层水平均匀分布
+│       ├── 节点         CharacterGraphNode：头像圈（已确认→真实图片 / 未确认→首字母占位）
+│       │                + 角色等级彩色角标 + 职衔标签（occupation/title）
+│       ├── 边           按 relationshipType 映射颜色/虚线样式（20 种类型覆盖）
+│       │                + 悬停 tooltip 显示关系描述
+│       ├── 控件         MiniMap / 缩放控制条 / 适应画面按钮
+│       └── 入口         AssetsStage "图谱视图" Tab（卡片视图 ↔ 图谱视图 切换）
+│
 ├── 情节分段               全集情节弧度标注
 └── 内容轨道标签           自动推断 contentTrack 建议值
 ```
@@ -157,14 +172,71 @@ analyze-global（跨集全局分析）
 function nameMatchesWithAlias(existingName: string, newName: string): boolean
 ```
 
-### 📋 阶段 2 差距分析 & 改进计划
+### 📋 阶段 2 改进计划进度
 
-| 项目 | 内容 |
-|------|------|
-| **缺失功能** | 角色关系可视化图谱；情节预检/审阅 UI；内容敏感度预警；多路 LLM 验证 |
-| **优先级** | 🟡 中 |
-| **待实现** | ① **角色关系图谱可视化**：将 analyze-global 产出的角色关系数据渲染为前端力导向图（D3.js / React Flow），用户可直观确认主角/配角层级，发现错误后直接编辑 ② **分析结果一致性校验**：同一段文本调用两路不同温度的 LLM（temperature 0 + temperature 0.3），对比角色列表差异，差异超过阈值时标黄提示人工确认 ③ **内容敏感词预警**：分析完成后对角色描述/场景描述扫描敏感词库，提前告警避免后续图像生成被平台拦截，节约 API 费用 |
-| **实现好处** | 用户在资产制作前就能纠正分析偏差；减少因角色识别错误导致的返工；降低因内容审核导致的生成失败率 |
+```text
+阶段 2 已完成
+└── ✅ 角色关系图谱可视化（2026-04）
+        数据层：analyze-global 每块输出 relationships[]，safeParseCharactersResponse
+                解析为 CharacterRelationItem，upsertCharacterRelations 写入
+                CharacterRelation 表；每次重新分析前 deleteMany 清空旧记录
+        接口层：GET /api/projects/[projectId]/character-relations
+                → 返回 characters（含 signedUrl 头像、occupation/title）+ relations
+                → 已过滤 status≠completed 任务和 orphan 孤立关系
+        展示层：React Flow 图，按 roleLevel S/A/B/C/D 分层布局
+                节点：头像圆圈 + 职衔标签 + 确认状态指示
+                边：20 种关系类型映射颜色/虚线（友好→蓝 / 敌对→红虚 / 家族→橙 / 师徒→紫 …）
+        入口：  AssetsStage "图谱视图" Tab，点击节点聚焦对应角色卡片
+
+阶段 2 仍未落地
+├── ❌ 分析结果一致性校验
+│   │
+│   ├── 目标：同一文本以 temperature 0 + temperature 0.7（当前主力）跑两路角色提取，
+│   │         差异名单超过阈值时前端标黄提示人工确认
+│   │
+│   ├── [GitNexus: blast radius = LOW，仅影响 handleAnalyzeGlobalTask 本身，无直接调用方]
+│   │
+│   └── 技术落地计划（5 步）
+│       ├── 1. 新建 src/lib/workers/handlers/analyze-global-consistency.ts
+│       │       fn checkCharacterConsistency({ job, analysisModel, firstChunk, knownNames, ... })
+│       │       → 对 firstChunk 以 temperature=0 调用 executeAiTextStep，只提取角色名
+│       │       → diff 对比 knownNames，返回主运行遗漏的名字数组
+│       ├── 2. prisma/schema.prisma → NovelPromotionProject 追加字段
+│       │       analysisConsistencyWarnings  Json?
+│       │       执行: prisma migrate dev --name add-analysis-warnings
+│       ├── 3. analyze-global.ts → chunk 循环结束后（96% 进度前）插入
+│       │       const missing = await checkCharacterConsistency(...)
+│       │       if (missing.length) prisma.novelPromotionProject.update({ analysisConsistencyWarnings: missing })
+│       ├── 4. character-relations/route.ts → 返回体追加 consistencyWarning?: string[]
+│       └── 5. AssetsStage.tsx / CharacterGraphView.tsx
+│               当 consistencyWarning.length > 0 时图谱顶部渲染黄色 Alert 列出疑似遗漏角色名
+│
+└── ❌ 内容敏感词预警
+    │
+    ├── 目标：分析完成后扫描角色描述/场景描述，提前告警平台违禁内容，
+    │         避免后续图像/视频生成被拦截浪费 API 费用
+    │
+    ├── [GitNexus: blast radius = LOW，仅影响 handleAnalyzeGlobalTask 本身，无直接调用方]
+    │
+    └── 技术落地计划（5 步）
+        ├── 1. 新建 src/lib/workers/handlers/analyze-global-sensitivity.ts
+        │       fn checkContentSensitivity({ job, analysisModel, projectId, ... })
+        │       → 查询刚写入的角色 description + 场景 summary
+        │       → 以 temperature=0 调用"内容审核 prompt"（问 LLM 是否含平台违禁元素）
+        │       → 返回 Array<{ field, text, reason }>
+        ├── 2. prisma/schema.prisma → NovelPromotionProject 追加字段
+        │       contentSensitivityWarnings  Json?
+        │       合并入 add-analysis-warnings 同一迁移
+        ├── 3. analyze-global.ts → 一致性校验之后插入
+        │       const items = await checkContentSensitivity(...)
+        │       if (items.length) prisma.novelPromotionProject.update({ contentSensitivityWarnings: items })
+        ├── 4. character-relations/route.ts → 返回体追加 sensitivityWarning?: Array<{field,text,reason}>
+        └── 5. AssetsStage.tsx
+                当 sensitivityWarning.length > 0 时渲染橙色 Alert + 可折叠违禁详情面板，
+                提示用户进入阶段 3 前先修改相关描述
+
+优先级：🟡 中
+```
 
 ---
 
@@ -189,29 +261,73 @@ function nameMatchesWithAlias(existingName: string, newName: string): boolean
 
 ```
 artStyleId → getArtStylePrompt()      画风正向提示词
-          → getArtStyleNegativePrompt() 画风负向提示词（不支持该参数的提供商静默丢弃）
+          → getArtStyleNegativePrompt() 画风负向提示词（Ark 提供商自动转正向兼容，其他透传）
           → addCharacterPromptSuffix()  注入三视图布局指令
           → generateCleanImageToStorage() 调用图像生成 API → 上传 MinIO
 ```
 
-**negativePrompt 兼容性说明：**
+**negativePrompt 兼容性说明（✅ 2026-04 已修复 Ark 静默丢弃问题）：**
 
+```text
+提供商           支持 negativePrompt    处理方式
+──────────────────────────────────────────────────────────────────
+Ark (豆包系列)   ❌ 接收但静默丢弃      ✅ 降级兼容：负向词转正向约束追加到 prompt
+Fal              ✅                     直接透传
+其他提供商        视各自 API 能力        无负向词时不传该参数
 ```
-提供商           支持 negativePrompt
-────────────────────────────────────
-Ark (豆包系列)   ❌ 接收但静默丢弃（API 不支持此字段）
-Fal              ✅
-其他提供商        视各自 API 能力
+
+### 📋 阶段 3 改进计划进度（2026-04）
+
+```text
+阶段 3 已完成
+├── ✅ ① 角色参考图 Image Input 强注入（2026-04）
+│   ├── 子形象生成时：自动取同角色主形象（appearanceIndex=0）已有图片作为 referenceImages
+│   │       → character-image-task-handler.ts，findFirst(appearanceIndex=PRIMARY_APPEARANCE_INDEX)
+│   ├── 主形象初次生成时：若角色来源于全局资产库（sourceGlobalCharacterId 存在）
+│   │       → 取全局形象的首个 appearance 图片注入，实现像素级视觉约束
+│   └── 归一化：normalizeReferenceImagesForGeneration() 统一转 Base64，向所有支持的模型传入
+│
+├── ✅ ③ Negative Prompt 降级兼容（2026-04）
+│   ├── 新增 isArkModelKey(modelKey)：按 provider::modelId 格式识别 Ark/豆包系列模型
+│   ├── 新增 convertNegativeToPositivePrompt(negative)：
+│   │       将负向词转为正向等价表述（blurry→sharp focus, ugly→beautiful 等）
+│   ├── character-image-task-handler.ts + location-image-task-handler.ts 均已接入：
+│   │       Ark 模型：negativePrompt 设为 undefined，正向转化词追加到 prompt 末尾
+│   │       非 Ark 模型：negativePrompt 正常透传
+│   └── 源码位置：src/lib/style-categories.ts，通过 src/lib/constants.ts 统一导出
+│
+├── ✅ ④ Character Bible 锁定（2026-04）—— 全链路打通，DB 迁移待执行
+│   ├── 数据层
+│   │   ├── prisma/schema.prisma：CharacterAppearance 追加 bibleLocked Boolean @default(false)
+│   │   │                                                            bibleLockedAt DateTime?
+│   │   └── ⚠️  迁移 SQL 待执行（DB 可用后运行）：
+│   │           npx prisma migrate dev --name add-character-bible-lock
+│   ├── API 层
+│   │   └── POST /api/novel-promotion/[projectId]/character/bible-lock
+│   │       ├── PATCH：锁定指定 appearance，自动解锁同角色其他 appearance
+│   │       └── DELETE：解锁指定 appearance
+│   ├── Worker 层
+│   │   └── image-task-handler-shared.ts → collectPanelReferenceImages()
+│   │       bibleLocked=true 的 appearance 优先级高于 item.appearance 指定和默认第0个
+│   │       → 阶段 6 生成分镜图时自动使用锁定形象作为像素级视觉约束
+│   ├── 前端合约层
+│   │   ├── src/lib/assets/contracts.ts：AssetVariantSummary 追加 bibleLocked?: boolean
+│   │   ├── src/lib/assets/mappers.ts：CharacterAppearanceRecord + createVariant 传递字段
+│   │   ├── src/lib/query/hooks/useProjectAssets.ts：mapper 传递 + useCharacterBibleLock hook
+│   │   └── src/types/project.ts：CharacterAppearance 接口追加 bibleLocked?: boolean
+│   └── UI 层
+│       ├── CharacterCard.tsx：锁定/解锁切换按钮（锁定→琥珀色实心 / 解锁→透明描边）
+│       ├── CharacterSection.tsx：调用 useCharacterBibleLock，传 onBibleLock/onBibleUnlock
+│       └── icons/registry.ts：注册 lock / lockOpen 图标
+│
+└── ❌ ② 角色视觉一致性评分——已放弃
+        原计划：CLIP 嵌入余弦相似度评分
+        放弃原因：对当前工作流收益有限，维护成本高，暂不实现
 ```
 
-### 📋 阶段 3 差距分析 & 改进计划
+---
 
-| 项目 | 内容 |
-|------|------|
-| **缺失功能** | 角色一致性锁定（Character Bible）；视觉规范系统（全集调色板）；参考图 Image Input 强注入；跨集资产一致性评分 |
-| **优先级** | 🔴 最高 |
-| **待实现** | ① **角色参考图 Image Input 强注入**：当前仅将角色图作为 prompt 文字描述注入，改为对支持多图输入的模型（Fal Flux Kontext、Kling）直接传入原始图片作为视觉约束，实现从文字引导→像素级约束的质量跃升 ② **角色视觉一致性评分**：生成完所有角色图后，用 CLIP 嵌入向量计算同一角色多张图的余弦相似度，低于阈值（如 0.85）标红并建议重生成 ③ **Negative Prompt 降级兼容**：对 Ark 豆包等不支持 negative prompt 的提供商，自动将负向约束转为正向表述（`no clutter` → `clean minimalist background`），由 `getArtStyleNegativePrompt()` 统一处理 ④ **Character Bible 锁定**：资产制作完成后生成"角色设定册"快照（外貌关键词 + 参考图 URL），后续阶段 6 生成分镜图时强制引用此快照 |
-| **实现好处** | 解决短剧最核心痛点——同一角色跨帧"换脸"问题；角色视觉一致性从约 40% 提升至 80%+；避免负向 prompt 静默失效导致画面质量下降 |
+## 阶段 4 ▎ 剧本生成
 
 ---
 

@@ -1,7 +1,7 @@
 import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
 import { createScopedLogger } from '@/lib/logging/core'
-import { CHARACTER_ASSET_IMAGE_RATIO, addCharacterPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, PRIMARY_APPEARANCE_INDEX, type ArtStyleValue } from '@/lib/constants'
+import { CHARACTER_ASSET_IMAGE_RATIO, addCharacterPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, PRIMARY_APPEARANCE_INDEX, isArkModelKey, convertNegativeToPositivePrompt, type ArtStyleValue } from '@/lib/constants'
 import { getColorGradePromptKeywords } from '@/lib/color-grade-presets'
 import { type TaskJobData } from '@/lib/task/types'
 import { encodeImageUrls } from '@/lib/contracts/image-urls-contract'
@@ -121,10 +121,16 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
   const colorKeywords = getColorGradePromptKeywords(models.colorGradePreset ?? 'auto')
   const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
   const artStyleNegativePrompt = getArtStyleNegativePrompt(effectiveArtStyleId)
+  const isArkModel = isArkModelKey(modelId)
+  // Ark 豆包不支持 negative_prompt，预先将负向词转换为正向约束备用
+  const positiveNegativeFallback = isArkModel && artStyleNegativePrompt
+    ? convertNegativeToPositivePrompt(artStyleNegativePrompt)
+    : null
   const descriptions = parseJsonStringArray(appearance.descriptions)
   const baseDescriptions = descriptions.length > 0 ? descriptions : [appearance.description || '']
 
   // 子形象（不是主形象）生成时，引用主形象图片保持一致性
+  // 主形象：若来源于全局资产库，注入全局形象图作为像素级视觉约束
   const primaryReferenceInputs: string[] = []
   if (appearance.appearanceIndex > PRIMARY_APPEARANCE_INDEX) {
     const primaryAppearance = await db.characterAppearance.findFirst({
@@ -140,6 +146,29 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
         : null
       if (primaryMainUrl) {
         primaryReferenceInputs.push(primaryMainUrl)
+      }
+    }
+  } else {
+    // 主形象初次生成：若角色从全局资产库复制而来，取全局形象的首个 appearance 图片作为参考
+    const sourceChar = await prisma.novelPromotionCharacter.findUnique({
+      where: { id: appearance.characterId },
+      select: { sourceGlobalCharacterId: true },
+    })
+    if (sourceChar?.sourceGlobalCharacterId) {
+      const globalAppearance = await prisma.globalCharacterAppearance.findFirst({
+        where: {
+          characterId: sourceChar.sourceGlobalCharacterId,
+          appearanceIndex: PRIMARY_APPEARANCE_INDEX,
+        },
+        select: { imageUrl: true },
+      })
+      const globalImageUrl = globalAppearance?.imageUrl
+      if (globalImageUrl) {
+        const signedGlobalImageUrl = toSignedUrlIfCos(globalImageUrl, 3600)
+        if (signedGlobalImageUrl) {
+          primaryReferenceInputs.push(signedGlobalImageUrl)
+          logger.info({ message: 'global character reference image injected', details: { sourceGlobalCharacterId: sourceChar.sourceGlobalCharacterId } })
+        }
       }
     }
   }
@@ -158,8 +187,9 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
   for (let i = 0; i < indexes.length; i++) {
     const index = indexes[i]
     const raw = baseDescriptions[index] || baseDescriptions[0]
-    const prompt = artStyle ? `${addCharacterPromptSuffix(raw)}，${artStyle}` : addCharacterPromptSuffix(raw)
-    logger.info({ message: 'character image prompt resolved', details: { index, promptText: prompt } })
+    const basePrompt = artStyle ? `${addCharacterPromptSuffix(raw)}，${artStyle}` : addCharacterPromptSuffix(raw)
+    const prompt = positiveNegativeFallback ? `${basePrompt}，${positiveNegativeFallback}` : basePrompt
+    logger.info({ message: 'character image prompt resolved', details: { index, promptText: prompt, isArkModel } })
 
     await reportTaskProgress(job, 15 + Math.floor((i / Math.max(indexes.length, 1)) * 55), {
       stage: 'generate_character_image',
@@ -177,7 +207,7 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
       options: {
         referenceImages: primaryReferenceImages.length > 0 ? primaryReferenceImages : undefined,
         aspectRatio: CHARACTER_ASSET_IMAGE_RATIO,
-        negativePrompt: artStyleNegativePrompt,
+        negativePrompt: isArkModel ? undefined : artStyleNegativePrompt,
       },
     })
 

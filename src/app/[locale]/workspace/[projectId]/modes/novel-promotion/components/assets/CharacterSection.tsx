@@ -16,7 +16,7 @@ import { PRIMARY_APPEARANCE_INDEX } from '@/lib/constants'
  */
 
 import { Character, CharacterAppearance } from '@/types/project'
-import { useProjectAssets } from '@/lib/query/hooks/useProjectAssets'
+import { useProjectAssets, useCharacterBibleLock } from '@/lib/query/hooks/useProjectAssets'
 import CharacterCard from './CharacterCard'
 import CharacterProfileCard from './CharacterProfileCard'
 import { parseProfileData } from '@/types/character-profile'
@@ -116,6 +116,7 @@ export default function CharacterSection({
         : null
 
     const { data: assets } = useProjectAssets(projectId)
+    const { bibleLock, bibleUnlock } = useCharacterBibleLock(projectId)
     const allCharacters: Character[] = useMemo(() => assets?.characters ?? [], [assets?.characters])
     // 🔥 V7：排除待确认角色，避免同一角色在待确认区与已确认网格中重复出现
     const unconfirmedIds = useMemo(
@@ -373,6 +374,8 @@ export default function CharacterSection({
                                             onVoiceChange={(characterId: string, customVoiceUrl?: string) => customVoiceUrl && onVoiceChange(characterId, customVoiceUrl)}
                                             onVoiceDesign={onVoiceDesign}
                                             onVoiceSelectFromHub={onVoiceSelectFromHub}
+                                            onBibleLock={(_charId, appearanceId) => bibleLock(appearanceId)}
+                                            onBibleUnlock={(_charId, appearanceId) => bibleUnlock(appearanceId)}
                                         />
                                     )
                                 })}

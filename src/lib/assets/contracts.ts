@@ -55,6 +55,7 @@ export type AssetVariantSummary = {
   renders: AssetRenderSummary[]
   taskRefs: AssetTaskRef[]
   taskState: AssetTaskState
+  bibleLocked?: boolean
 }
 
 export type BaseAssetSummary = {

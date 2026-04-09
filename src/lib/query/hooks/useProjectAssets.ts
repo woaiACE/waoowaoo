@@ -1,7 +1,8 @@
 'use client'
 import { logInfo as _ulogInfo } from '@/lib/logging/core'
 
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useMutation } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api-fetch'
 import { queryKeys } from '../keys'
 import type { Character, Location, MediaRef, Prop } from '@/types/project'
 import { useAssets } from './useAssets'
@@ -42,6 +43,7 @@ function mapCharacterAssetToProjectCharacter(asset: AssetGroupMap['character'][n
             previousDescription: null,
             previousDescriptions: null,
             selectedIndex: variant.selectionState.selectedRenderIndex,
+            bibleLocked: variant.bibleLocked,
             imageTaskRunning: asset.taskState.isRunning || variant.taskState.isRunning,
             imageErrorMessage: variant.taskState.lastError?.message ?? null,
             lastError: variant.taskState.lastError ?? asset.taskState.lastError,
@@ -173,5 +175,47 @@ export function useRefreshProjectAssets(projectId: string | null) {
             queryClient.invalidateQueries({ queryKey: queryKeys.projectData(projectId) })
             queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all(projectId), exact: false })
         }
+    }
+}
+
+/**
+ * Character Bible 锁定/解锁 mutation hook
+ */
+export function useCharacterBibleLock(projectId: string) {
+    const queryClient = useQueryClient()
+
+    const invalidate = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.assets.all('project', projectId) })
+        queryClient.invalidateQueries({ queryKey: queryKeys.projectAssets.all(projectId) })
+        queryClient.invalidateQueries({ queryKey: queryKeys.projectData(projectId) })
+    }
+
+    const lockMutation = useMutation({
+        mutationFn: async (appearanceId: string) => {
+            const response = await apiFetch(`/api/novel-promotion/${projectId}/character/bible-lock`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appearanceId }),
+            })
+            if (!response.ok) throw new Error('Failed to lock Character Bible')
+        },
+        onSuccess: invalidate,
+    })
+
+    const unlockMutation = useMutation({
+        mutationFn: async (appearanceId: string) => {
+            const response = await apiFetch(`/api/novel-promotion/${projectId}/character/bible-lock`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appearanceId }),
+            })
+            if (!response.ok) throw new Error('Failed to unlock Character Bible')
+        },
+        onSuccess: invalidate,
+    })
+
+    return {
+        bibleLock: (appearanceId: string) => lockMutation.mutate(appearanceId),
+        bibleUnlock: (appearanceId: string) => unlockMutation.mutate(appearanceId),
     }
 }

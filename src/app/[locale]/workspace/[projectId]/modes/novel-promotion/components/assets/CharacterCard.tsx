@@ -48,6 +48,8 @@ interface CharacterCardProps {
   onVoiceChange?: (characterId: string, customVoiceUrl?: string) => void
   onVoiceDesign?: (characterId: string, characterName: string) => void  // AI 声音设计
   onVoiceSelectFromHub?: (characterId: string) => void  // 从资产中心选择音色
+  onBibleLock?: (characterId: string, appearanceId: string) => void    // 锁定 Character Bible
+  onBibleUnlock?: (characterId: string, appearanceId: string) => void  // 解锁 Character Bible
 }
 
 export default function CharacterCard({
@@ -71,7 +73,9 @@ export default function CharacterCard({
   onConfirmSelection,
   onVoiceChange,
   onVoiceDesign,
-  onVoiceSelectFromHub
+  onVoiceSelectFromHub,
+  onBibleLock,
+  onBibleUnlock
 }: CharacterCardProps) {
   // 🔥 使用 mutation
   const uploadImage = useUploadProjectCharacterImage(projectId)
@@ -370,6 +374,22 @@ export default function CharacterCard({
           title={t('image.undo')}
         >
           <AppIcon name="undo" className="w-4 h-4 text-[var(--glass-tone-warning-fg)] hover:text-white" />
+        </button>
+      )}
+      {!isAppearanceTaskRunning && !isAnyTaskRunning && currentImageUrl && (
+        <button
+          onClick={() => appearance.bibleLocked
+            ? onBibleUnlock?.(character.id, appearance.id)
+            : onBibleLock?.(character.id, appearance.id)
+          }
+          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm ${
+            appearance.bibleLocked
+              ? 'bg-amber-500 hover:bg-amber-600 text-white'
+              : 'bg-[var(--glass-bg-surface-strong)] hover:bg-amber-100'
+          }`}
+          title={appearance.bibleLocked ? '解锁 Character Bible' : '锁定为 Character Bible（阶段6生成分镜图时优先使用此形象）'}
+        >
+          <AppIcon name={appearance.bibleLocked ? 'lock' : 'lockOpen'} className={`w-4 h-4 ${appearance.bibleLocked ? 'text-white' : 'text-amber-600'}`} />
         </button>
       )}
     </>

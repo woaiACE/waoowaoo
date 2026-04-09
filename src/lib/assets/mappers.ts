@@ -26,6 +26,7 @@ type CharacterAppearanceRecord = {
   previousMedia?: MediaRef | null
   previousImageUrls?: string[]
   previousImageMedias?: MediaRef[]
+  bibleLocked?: boolean
 }
 
 type ProjectCharacterRecord = {
@@ -143,6 +144,7 @@ function createVariant(params: {
   selectedRenderIndex: number | null
   renders: AssetRenderSummary[]
   taskRefs: AssetTaskRef[]
+  bibleLocked?: boolean
 }): AssetVariantSummary {
   return {
     id: params.id,
@@ -155,6 +157,7 @@ function createVariant(params: {
     },
     taskRefs: params.taskRefs,
     taskState: createIdleTaskState(),
+    bibleLocked: params.bibleLocked,
   }
 }
 
@@ -194,6 +197,7 @@ export function mapProjectCharacterToAsset(character: ProjectCharacterRecord): C
           types: ['image_character', 'modify_asset_image', 'regenerate_group'],
         },
       ],
+      bibleLocked: appearance.bibleLocked,
     })
   })
 

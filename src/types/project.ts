@@ -48,6 +48,7 @@ export interface CharacterAppearance {
   previousDescription: string | null  // 上一次的描述（用于撤回）
   previousDescriptions: string[] | null  // 上一次的描述数组（用于撤回）
   selectedIndex: number | null      // 用户选中的图片索引
+  bibleLocked?: boolean             // 🔒 Character Bible 锁定标记（锁定后作为阶段6参考图强约束）
   // 任务态字段（由 tasks + hook 派生，不再依赖数据库持久化）
   imageTaskRunning?: boolean
   imageErrorMessage?: string | null  // 图片生成错误消息

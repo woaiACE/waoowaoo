@@ -491,6 +491,39 @@ export function getArtStyleNegativePrompt(id: string | null | undefined): string
 }
 
 /**
+ * 判断 model key 前缀是否为 Ark（豆包/火山引擎）提供商
+ *
+ * Model key 格式：provider::modelId
+ * Ark 系列在本系统中统一注册为 'ark' provider key。
+ * Ark API 接收 negativePrompt 字段但静默丢弃，需在调用方做降级处理。
+ */
+export function isArkModelKey(modelKey: string): boolean {
+  return modelKey.split('::')[0]?.toLowerCase() === 'ark'
+}
+
+/**
+ * 将负向提示词转换为等价的正向约束表述
+ *
+ * 用于 Ark 豆包等不支持 negative_prompt 的提供商：
+ * 将常见负向描述转换为正向关键词，追加到主 prompt 末尾，
+ * 避免负向约束静默丢弃导致画面质量下降。
+ */
+export function convertNegativeToPositivePrompt(negative: string): string {
+  return negative
+    .replace(/\bblurry\b/gi, 'sharp focus')
+    .replace(/\blow quality\b/gi, 'high quality')
+    .replace(/\bugly\b/gi, 'beautiful')
+    .replace(/\bdeformed\b/gi, 'well-formed')
+    .replace(/\bdistorted\b/gi, 'accurate proportions')
+    .replace(/\bno clutter\b/gi, 'clean minimalist background')
+    .replace(/\bwatermark\b/gi, 'clean image')
+    .replace(/\bphotorealistic\b/gi, 'artistic style')
+    .replace(/,\s*,/g, ',')
+    .replace(/^,\s*|,\s*$/g, '')
+    .trim()
+}
+
+/**
  * 运行时风格 ID 白名单验证（类型守卫）
  *
  * 此函数是 constants.ts 中 isArtStyleValue 的底层实现，

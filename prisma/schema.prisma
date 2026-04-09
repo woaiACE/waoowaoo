@@ -37,6 +37,8 @@ model CharacterAppearance {
   imageUrl             String?                 @db.Text
   imageUrls            String?                 @db.Text
   selectedIndex        Int?
+  bibleLocked          Boolean                 @default(false) // 🔒 角色设定册锁定：锁定后作为阶段6参考图强约束来源
+  bibleLockedAt        DateTime?               // 🔒 锁定时间戳
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @default(now()) @updatedAt
   previousImageUrl     String?                 @db.Text

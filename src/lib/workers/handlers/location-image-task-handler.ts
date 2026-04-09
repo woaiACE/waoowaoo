@@ -1,7 +1,7 @@
 import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
 import { createScopedLogger } from '@/lib/logging/core'
-import { LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO, addLocationPromptSuffix, addPropPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, type ArtStyleValue } from '@/lib/constants'
+import { LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO, addLocationPromptSuffix, addPropPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, isArkModelKey, convertNegativeToPositivePrompt, type ArtStyleValue } from '@/lib/constants'
 import { getColorGradePromptKeywords } from '@/lib/color-grade-presets'
 import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
 import { type TaskJobData } from '@/lib/task/types'
@@ -81,6 +81,11 @@ export async function handleLocationImageTask(job: Job<TaskJobData>) {
   const colorKeywords = getColorGradePromptKeywords(models.colorGradePreset ?? 'auto')
   const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
   const artStyleNegativePrompt = getArtStyleNegativePrompt(effectiveArtStyleId)
+  const isArkModel = isArkModelKey(modelId)
+  // Ark 豆包不支持 negative_prompt，预先将负向词转换为正向约束备用
+  const positiveNegativeFallback = isArkModel && artStyleNegativePrompt
+    ? convertNegativeToPositivePrompt(artStyleNegativePrompt)
+    : null
   const assetType = payload.type === 'prop' ? 'prop' : 'location'
 
   // targetId may be locationId (group) or locationImageId (single)
@@ -169,8 +174,9 @@ export async function handleLocationImageTask(job: Job<TaskJobData>) {
     const promptWithSuffix = assetType === 'prop'
       ? addPropPromptSuffix(promptCore)
       : addLocationPromptSuffix(promptCore)
-    const prompt = artStyle ? `${promptWithSuffix}，${artStyle}` : promptWithSuffix
-    logger.info({ message: 'location image prompt resolved', details: { imageId: item.id, assetType, promptText: prompt } })
+    const basePrompt = artStyle ? `${promptWithSuffix}，${artStyle}` : promptWithSuffix
+    const prompt = positiveNegativeFallback ? `${basePrompt}，${positiveNegativeFallback}` : basePrompt
+    logger.info({ message: 'location image prompt resolved', details: { imageId: item.id, assetType, promptText: prompt, isArkModel } })
     const aspectRatio = assetType === 'prop' ? PROP_IMAGE_RATIO : LOCATION_IMAGE_RATIO
     await reportTaskProgress(job, 20 + Math.floor((i / Math.max(locationImages.length, 1)) * 55), {
       stage: 'generate_location_image',
@@ -187,7 +193,7 @@ export async function handleLocationImageTask(job: Job<TaskJobData>) {
       keyPrefix: 'location',
       options: {
         aspectRatio,
-        negativePrompt: artStyleNegativePrompt,
+        negativePrompt: isArkModel ? undefined : artStyleNegativePrompt,
       },
     })
 

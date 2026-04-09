@@ -81,6 +81,7 @@ const ROUTE_FILES = [
   'src/app/api/novel-promotion/[projectId]/assets/route.ts',
   'src/app/api/novel-promotion/[projectId]/character-profile/batch-confirm/route.ts',
   'src/app/api/novel-promotion/[projectId]/character-profile/confirm/route.ts',
+  'src/app/api/novel-promotion/[projectId]/character/bible-lock/route.ts',
   'src/app/api/novel-promotion/[projectId]/character-voice/route.ts',
   'src/app/api/novel-promotion/[projectId]/character/appearance/route.ts',
   'src/app/api/novel-promotion/[projectId]/character/confirm-selection/route.ts',

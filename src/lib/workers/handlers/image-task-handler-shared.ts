@@ -19,6 +19,7 @@ interface CharacterAppearanceLike {
   imageUrls: string | null
   imageUrl: string | null
   selectedIndex: number | null
+  bibleLocked?: boolean // 🔒 Character Bible 锁定，锁定后作为阶段6参考图强约束来源
 }
 
 interface CharacterLike {
@@ -238,8 +239,10 @@ export async function collectPanelReferenceImages(projectData: NovelProjectData,
     if (!character) continue
 
     const appearances = character.appearances || []
-    let appearance = appearances[0]
-    if (item.appearance) {
+    // 🔒 如果有已锁定的 Bible 形象，优先用它（较 item.appearance 指定和默认第0个优先级更高）
+    const lockedAppearance = appearances.find((a) => a.bibleLocked && a.imageUrl)
+    let appearance = lockedAppearance || appearances[0]
+    if (!lockedAppearance && item.appearance) {
       const matched = appearances.find((a) => (a.changeReason || '').toLowerCase() === item.appearance!.toLowerCase())
       if (matched) appearance = matched
     }
