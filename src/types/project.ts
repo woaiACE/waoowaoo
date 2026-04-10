@@ -260,6 +260,7 @@ export interface NovelPromotionProject {
   artStylePrompt: string | null
   colorGradePreset: string
   targetPlatform: string
+  screenplayTone: string
   audioUrl: string | null
   media?: MediaRef | null
   srtContent: string | null

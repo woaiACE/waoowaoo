@@ -48,6 +48,7 @@ export function useWorkspaceProjectSnapshot({
       artStyle: projectData?.artStyle,
       colorGradePreset: projectData?.colorGradePreset,
       targetPlatform: projectData?.targetPlatform,
+      screenplayTone: projectData?.screenplayTone,
     }
   }, [episode?.novelText, episode?.storyboards, project.novelPromotionData, urlStage])
 }

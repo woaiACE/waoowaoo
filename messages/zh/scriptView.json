@@ -54,7 +54,8 @@
         "characters": "出场角色",
         "noCharacter": "暂无角色信息",
         "noLocation": "暂无出场场景",
-        "noCharacterInClip": "暂无出场角色"
+        "noCharacterInClip": "暂无出场角色",
+        "regenStoryboard": "重新生成分镜"
     },
     "confirm": {
         "removeCharacter": "确定要从当前片段移除该角色吗？",

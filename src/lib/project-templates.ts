@@ -15,6 +15,7 @@ export interface ProjectTemplate {
     videoRatio: string
     artStyle: string
     colorGradePreset: string
+    screenplayTone?: string
   }
 }
 

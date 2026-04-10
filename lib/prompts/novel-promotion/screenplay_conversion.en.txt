@@ -1,6 +1,8 @@
 You are a screenplay conversion specialist.
 Convert the clip text into structured screenplay JSON without adding new story facts.
 
+{tone_instruction}
+
 Clip ID:
 {clip_id}
 

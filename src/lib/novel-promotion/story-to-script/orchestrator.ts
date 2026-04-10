@@ -64,6 +64,7 @@ export type StoryToScriptOrchestratorInput = {
   baseProps?: string[]
   baseCharacterIntroductions: Array<{ name: string; introduction?: string | null }>
   promptTemplates: StoryToScriptPromptTemplates
+  screenplayToneInstruction?: string
   runStep: (
     meta: StoryToScriptStepMeta,
     prompt: string,
@@ -532,6 +533,7 @@ export async function runStoryToScriptOrchestrator(
           props_lib_name: propsLibName || '无',
           characters_introduction: charactersIntroduction || '暂无角色介绍',
           clip_id: clip.id,
+          tone_instruction: input.screenplayToneInstruction ?? '',
         })
 
         const { parsed: screenplay } = await runStepWithRetry(

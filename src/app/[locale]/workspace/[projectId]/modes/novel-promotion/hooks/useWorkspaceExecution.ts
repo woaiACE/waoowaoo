@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { logInfo as _ulogInfo } from '@/lib/logging/core'
+import { apiFetch } from '@/lib/api-fetch'
 import {
   useAnalyzeProjectAssets,
   useScriptToStoryboardRunStream,
@@ -13,6 +14,7 @@ interface UseWorkspaceExecutionParams {
   episodeId?: string
   currentStage: string
   analysisModel?: string | null
+  screenplayTone?: string | null
   novelText: string
   t: (key: string) => string
   onRefresh: (options?: { scope?: string; mode?: string }) => Promise<void>
@@ -62,6 +64,7 @@ export function useWorkspaceExecution({
   episodeId,
   currentStage,
   analysisModel,
+  screenplayTone,
   novelText,
   t,
   onRefresh,
@@ -200,6 +203,7 @@ export function useWorkspaceExecution({
         model: analysisModel || undefined,
         temperature: 0.7,
         reasoning: true,
+        screenplayTone: screenplayTone || undefined,
       })
       if (runResult.status !== 'completed') {
         throw new Error(runResult.errorMessage || t('execution.storyToScriptFailed'))
@@ -219,7 +223,7 @@ export function useWorkspaceExecution({
       setIsTransitioning(false)
       setTransitionProgress({ message: '', step: '' })
     }
-  }, [analysisModel, episodeId, finalizeStoryToScriptSuccess, novelText, onUpdateConfig, storyToScriptStream, t])
+  }, [analysisModel, screenplayTone, episodeId, finalizeStoryToScriptSuccess, novelText, onUpdateConfig, storyToScriptStream, t])
 
   const runScriptToStoryboardFlow = useCallback(async () => {
     if (!episodeId) {
@@ -253,6 +257,25 @@ export function useWorkspaceExecution({
       setTransitionProgress({ message: '', step: '' })
     }
   }, [analysisModel, episodeId, finalizeScriptToStoryboardSuccess, scriptToStoryboardStream, t])
+
+  const runSingleClipStoryboardFlow = useCallback(async (clipId: string) => {
+    if (!episodeId) return
+    try {
+      await apiFetch(`/api/novel-promotion/${projectId}/script-to-storyboard-stream`, {
+        method: 'POST',
+        body: JSON.stringify({
+          episodeId,
+          retryStepKey: `clip_${clipId}_phase1`,
+          async: true,
+          displayMode: 'detail',
+        }),
+      })
+      await onRefresh()
+    } catch (err: unknown) {
+      if (isAbortError(err)) return
+      alert(`${t('execution.generationFailed')}: ${getErrorMessage(err)}`)
+    }
+  }, [episodeId, projectId, onRefresh, t])
 
   useEffect(() => {
     const active = (
@@ -352,6 +375,7 @@ export function useWorkspaceExecution({
     handleAnalyzeAssets,
     runStoryToScriptFlow,
     runScriptToStoryboardFlow,
+    runSingleClipStoryboardFlow,
     showCreatingToast,
   }
 }

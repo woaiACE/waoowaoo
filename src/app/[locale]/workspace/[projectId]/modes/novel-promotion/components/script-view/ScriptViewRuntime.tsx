@@ -55,6 +55,7 @@ interface ScriptViewProps {
   onClipUpdate?: (clipId: string, data: Partial<Clip>) => void
   onClipDelete?: (clipId: string) => void
   onGenerateStoryboard?: () => void
+  onRegenClipStoryboard?: (clipId: string) => Promise<void>
   isSubmittingStoryboardBuild?: boolean
   assetsLoading?: boolean
   onOpenAssetLibrary?: () => void
@@ -71,6 +72,7 @@ export default function ScriptView({
   onClipUpdate,
   onClipDelete,
   onGenerateStoryboard,
+  onRegenClipStoryboard,
   isSubmittingStoryboardBuild = false,
   assetsLoading = false,
   onOpenAssetLibrary,
@@ -420,6 +422,7 @@ export default function ScriptView({
         onClipEdit={onClipEdit}
         onClipDelete={onClipDelete}
         onClipUpdate={handleClipUpdateWithSaving}
+        onRegenClipStoryboard={onRegenClipStoryboard}
         t={(key, values) => t(key, toTranslationValues(values))}
         tScript={(key, values) => tScript(key, toTranslationValues(values))}
       />

@@ -48,6 +48,28 @@ function parseScreenplay(value: string | null | undefined): ScreenplayData | nul
   }
 }
 
+type RhythmLevel = 'tight' | 'balanced' | 'relaxed'
+interface RhythmBadge { level: RhythmLevel; label: string; colorClass: string }
+
+function calcRhythmBadge(screenplay: ScreenplayData | null): RhythmBadge | null {
+  if (!screenplay?.scenes?.length) return null
+  const totalScenes = screenplay.scenes.length
+  let totalItems = 0, dialogueItems = 0
+  for (const scene of screenplay.scenes) {
+    const items = scene.content || []
+    totalItems += items.length
+    dialogueItems += items.filter((i) => i.type === 'dialogue').length
+  }
+  if (totalItems === 0) return null
+  const sceneFactor = Math.min(totalScenes / 4, 1)
+  const dialogueRatio = dialogueItems / totalItems
+  const densityFactor = Math.min((totalItems / totalScenes) / 6, 1)
+  const score = Math.round(sceneFactor * 40 + dialogueRatio * 40 + densityFactor * 20)
+  if (score >= 60) return { level: 'tight', label: '紧凑', colorClass: 'text-[var(--glass-tone-warning-fg)] bg-[var(--glass-tone-warning-bg)]' }
+  if (score >= 30) return { level: 'balanced', label: '适中', colorClass: 'text-[var(--glass-tone-info-fg)] bg-[var(--glass-tone-info-bg)]' }
+  return { level: 'relaxed', label: '舒展', colorClass: 'text-[var(--glass-tone-success-fg)] bg-[var(--glass-tone-success-bg)]' }
+}
+
 interface ScriptViewScriptPanelProps {
   clips: Clip[]
   selectedClipId: string | null
@@ -56,6 +78,7 @@ interface ScriptViewScriptPanelProps {
   onClipEdit?: (clipId: string) => void
   onClipDelete?: (clipId: string) => void
   onClipUpdate?: (clipId: string, data: Partial<Clip>) => void
+  onRegenClipStoryboard?: (clipId: string) => Promise<void>
   t: (key: string, values?: Record<string, unknown>) => string
   tScript: (key: string, values?: Record<string, unknown>) => string
 }
@@ -120,9 +143,23 @@ export default function ScriptViewScriptPanel({
   onClipEdit,
   onClipDelete,
   onClipUpdate,
+  onRegenClipStoryboard,
   t,
   tScript,
 }: ScriptViewScriptPanelProps) {
+  const [regenClipIds, setRegenClipIds] = useState<Set<string>>(new Set())
+
+  const handleRegenClip = async (e: React.MouseEvent, clipId: string) => {
+    e.stopPropagation()
+    if (!onRegenClipStoryboard || regenClipIds.has(clipId)) return
+    setRegenClipIds((prev) => new Set(prev).add(clipId))
+    try {
+      await onRegenClipStoryboard(clipId)
+    } finally {
+      setRegenClipIds((prev) => { const next = new Set(prev); next.delete(clipId); return next })
+    }
+  }
+
   const handleScriptSave = async (clipId: string, newContent: string, isJson: boolean) => {
     if (!onClipUpdate) return
     const updateData: Partial<Clip> = isJson ? { screenplay: newContent } : { content: newContent }
@@ -171,10 +208,34 @@ export default function ScriptViewScriptPanel({
                   )}
 
                   <div className="flex justify-between mb-2">
-                    <span className="text-xs font-bold px-2 py-0.5 rounded text-[var(--glass-tone-info-fg)] bg-[var(--glass-tone-info-bg)]">
-                      {tScript('segment.title', { index: idx + 1 })} {selectedClipId === clip.id && tScript('segment.selected')}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded text-[var(--glass-tone-info-fg)] bg-[var(--glass-tone-info-bg)]">
+                        {tScript('segment.title', { index: idx + 1 })} {selectedClipId === clip.id && tScript('segment.selected')}
+                      </span>
+                      {(() => {
+                        const badge = calcRhythmBadge(screenplay)
+                        return badge ? (
+                          <span className={`text-xs px-2 py-0.5 rounded font-medium ${badge.colorClass}`}>
+                            {badge.label}
+                          </span>
+                        ) : null
+                      })()}
+                    </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {onRegenClipStoryboard && (
+                        <button
+                          onClick={(e) => void handleRegenClip(e, clip.id)}
+                          disabled={regenClipIds.has(clip.id)}
+                          className="text-[var(--glass-text-tertiary)] text-xs cursor-pointer hover:text-[var(--glass-tone-info-fg)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                        >
+                          {regenClipIds.has(clip.id) ? (
+                            <AppIcon name="loader" className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <AppIcon name="refresh" className="w-3 h-3" />
+                          )}
+                          {tScript('screenplay.regenStoryboard')}
+                        </button>
+                      )}
                       {onClipEdit && (
                         <button
                           onClick={() => onClipEdit(clip.id)}

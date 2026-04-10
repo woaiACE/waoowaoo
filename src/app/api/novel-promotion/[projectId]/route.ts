@@ -295,7 +295,7 @@ export const PATCH = apiHandler(async (
     'analysisModel', 'characterModel', 'locationModel', 'storyboardModel',
     'editModel', 'videoModel', 'audioModel', 'videoRatio', 'artStyle',
     'ttsRate', 'lipSyncEnabled', 'lipSyncMode', 'capabilityOverrides',
-    'colorGradePreset', 'targetPlatform',
+    'colorGradePreset', 'targetPlatform', 'screenplayTone',
   ] as const
 
   const updateData: Record<string, unknown> = {}

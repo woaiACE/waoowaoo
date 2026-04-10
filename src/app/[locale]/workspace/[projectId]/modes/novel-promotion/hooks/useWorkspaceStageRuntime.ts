@@ -17,6 +17,7 @@ interface UseWorkspaceStageRuntimeParams {
   artStyle: string | undefined
   colorGradePreset: string | undefined
   targetPlatform: string | undefined
+  screenplayTone: string | undefined
   videoModel: string | undefined
   capabilityOverrides: CapabilitySelections
   userVideoModels: Array<{
@@ -32,6 +33,7 @@ interface UseWorkspaceStageRuntimeParams {
   runWithRebuildConfirm: (action: 'storyToScript' | 'scriptToStoryboard', operation: () => Promise<void>) => Promise<void>
   runStoryToScriptFlow: () => Promise<void>
   runScriptToStoryboardFlow: () => Promise<void>
+  runSingleClipStoryboardFlow: (clipId: string) => Promise<void>
   handleUpdateClip: (clipId: string, updates: Record<string, unknown>) => Promise<void>
   openAssetLibrary: (characterId?: string | null, refreshAssets?: boolean) => void
   handleStageChange: (stage: string) => void
@@ -69,6 +71,7 @@ export function useWorkspaceStageRuntime({
   artStyle,
   colorGradePreset,
   targetPlatform,
+  screenplayTone,
   videoModel,
   capabilityOverrides,
   userVideoModels,
@@ -77,6 +80,7 @@ export function useWorkspaceStageRuntime({
   runWithRebuildConfirm,
   runStoryToScriptFlow,
   runScriptToStoryboardFlow,
+  runSingleClipStoryboardFlow,
   handleUpdateClip,
   openAssetLibrary,
   handleStageChange,
@@ -101,6 +105,7 @@ export function useWorkspaceStageRuntime({
     artStyle,
     colorGradePreset,
     targetPlatform,
+    screenplayTone,
     videoModel,
     capabilityOverrides,
     userVideoModels: resolvedUserVideoModels,
@@ -109,6 +114,7 @@ export function useWorkspaceStageRuntime({
     onArtStyleChange: (value) => handleUpdateConfig('artStyle', value),
     onColorGradePresetChange: (value) => handleUpdateConfig('colorGradePreset', value),
     onTargetPlatformChange: (value) => handleUpdateConfig('targetPlatform', value),
+    onScreenplayToneChange: (value) => handleUpdateConfig('screenplayTone', value),
     onRunStoryToScript: () => runWithRebuildConfirm('storyToScript', runStoryToScriptFlow),
     onClipUpdate: (clipId, data) => {
       if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -118,6 +124,7 @@ export function useWorkspaceStageRuntime({
     },
     onOpenAssetLibrary: () => openAssetLibrary(),
     onRunScriptToStoryboard: () => runWithRebuildConfirm('scriptToStoryboard', runScriptToStoryboardFlow),
+    onRegenClipStoryboard: runSingleClipStoryboardFlow,
     onStageChange: handleStageChange,
     onGenerateVideo: handleGenerateVideo,
     onGenerateAllVideos: handleGenerateAllVideos,
@@ -142,12 +149,14 @@ export function useWorkspaceStageRuntime({
     isTransitioning,
     openAssetLibrary,
     runScriptToStoryboardFlow,
+    runSingleClipStoryboardFlow,
     runStoryToScriptFlow,
     runWithRebuildConfirm,
     resolvedUserVideoModels,
     capabilityOverrides,
     colorGradePreset,
     targetPlatform,
+    screenplayTone,
     videoModel,
     videoRatio,
   ])

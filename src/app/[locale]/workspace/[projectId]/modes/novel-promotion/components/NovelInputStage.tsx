@@ -20,6 +20,7 @@ import { PROJECT_STORY_INPUT_MIN_ROWS } from '@/lib/ui/textarea-height'
 import { apiFetch } from '@/lib/api-fetch'
 import { expandHomeStory } from '@/lib/home/ai-story-expand'
 import { COLOR_GRADE_PRESETS } from '@/lib/color-grade-presets'
+import { SCREENPLAY_TONE_PRESETS } from '@/lib/screenplay-tone-presets'
 import { TARGET_PLATFORMS, getPlatformVideoRatio } from '@/lib/target-platforms'
 import ProjectTemplateSelector from './ProjectTemplateSelector'
 import type { ProjectTemplate } from '@/lib/project-templates'
@@ -54,6 +55,8 @@ interface NovelInputStageProps {
   onColorGradePresetChange?: (value: string) => void
   targetPlatform?: string
   onTargetPlatformChange?: (value: string) => void
+  screenplayTone?: string
+  onScreenplayToneChange?: (value: string) => void
 }
 
 export default function NovelInputStage({
@@ -74,6 +77,8 @@ export default function NovelInputStage({
   onColorGradePresetChange,
   targetPlatform = 'douyin',
   onTargetPlatformChange,
+  screenplayTone = 'auto',
+  onScreenplayToneChange,
 }: NovelInputStageProps) {
   const t = useTranslations('novelPromotion')
   const homeT = useTranslations('home')
@@ -144,6 +149,7 @@ export default function NovelInputStage({
     // artStyle & colorGrade
     if (cfg.artStyle && cfg.artStyle !== artStyle) onArtStyleChange?.(cfg.artStyle)
     if (cfg.colorGradePreset && cfg.colorGradePreset !== colorGradePreset) onColorGradePresetChange?.(cfg.colorGradePreset)
+    if (cfg.screenplayTone && cfg.screenplayTone !== screenplayTone) onScreenplayToneChange?.(cfg.screenplayTone)
     // platform + videoRatio 联动：先应用平台，再覆盖比例（模板显式声明 videoRatio 优先）
     if (cfg.targetPlatform && cfg.targetPlatform !== targetPlatform) {
       onTargetPlatformChange?.(cfg.targetPlatform)
@@ -153,7 +159,7 @@ export default function NovelInputStage({
     } else if (cfg.videoRatio && cfg.videoRatio !== videoRatio) {
       onVideoRatioChange?.(cfg.videoRatio)
     }
-  }, [videoRatio, artStyle, colorGradePreset, targetPlatform, onVideoRatioChange, onArtStyleChange, onColorGradePresetChange, onTargetPlatformChange])
+  }, [videoRatio, artStyle, colorGradePreset, screenplayTone, targetPlatform, onVideoRatioChange, onArtStyleChange, onColorGradePresetChange, onScreenplayToneChange, onTargetPlatformChange])
 
   // 下拉中使用的简短标签（低信息密度）
   const ratioUsageTagMap: Record<string, string> = {
@@ -299,6 +305,22 @@ export default function NovelInputStage({
           >
             {COLOR_GRADE_PRESETS.map(p => (
               <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* 剧本风格基调 */}
+        <div className="flex items-center gap-2 glass-surface px-3 py-2 rounded-xl flex-1 min-w-[180px]">
+          <AppIcon name="sparkles" className="w-4 h-4 text-[var(--glass-text-tertiary)] flex-shrink-0" />
+          <span className="text-xs text-[var(--glass-text-tertiary)] flex-shrink-0">剧本风格</span>
+          <select
+            value={screenplayTone}
+            onChange={e => onScreenplayToneChange?.(e.target.value)}
+            disabled={isSubmittingTask || isSwitchingStage}
+            className="flex-1 min-w-0 bg-transparent text-xs text-[var(--glass-text-secondary)] outline-none cursor-pointer"
+          >
+            {SCREENPLAY_TONE_PRESETS.map(p => (
+              <option key={p.value} value={p.value} title={p.description}>{p.label}</option>
             ))}
           </select>
         </div>

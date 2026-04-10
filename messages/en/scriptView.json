@@ -54,7 +54,8 @@
         "characters": "Characters",
         "noCharacter": "No character info",
         "noLocation": "No active locations",
-        "noCharacterInClip": "No active characters"
+        "noCharacterInClip": "No active characters",
+        "regenStoryboard": "Regen Storyboard"
     },
     "confirm": {
         "removeCharacter": "Are you sure you want to remove this character from current clip?",

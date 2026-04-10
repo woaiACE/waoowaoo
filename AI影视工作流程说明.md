@@ -243,91 +243,82 @@ function nameMatchesWithAlias(existingName: string, newName: string): boolean
 ## 阶段 3 ▎ 资产制作 (assets)
 
 **Worker:** `image.worker.ts`
-**Handlers:** `character-image-task-handler.ts` / `location-image-task-handler.ts`
+**Handlers:** `character-image-task-handler.ts` / `location-image-task-handler.ts` / `asset-hub-ai-modify.ts`
 
 ⚠️ **本阶段所有图像均为提示词构建用的视觉参考，使用固定宽高比，与项目 `videoRatio` 无关。**
 
 ```
-资产类型            Handler                          固定宽高比   说明
-─────────────────────────────────────────────────────────────────────────
-角色肖像            character-image-task-handler      3:2         左侧面部特写 + 右侧三视图横排，纯白背景
-场景概念图          location-image-task-handler       1:1         单张正方形场景概念图，纯白背景
-道具概念图          location-image-task-handler       3:2         左侧主视图特写 + 右侧三视图横排，纯白背景
-                    (assetType=prop)
-资产 Hub 设计       asset-hub-ai-modify.ts            自定义        支持微调 / 变体生成 / 重绘
+image.worker.ts（资产制作并发池）
+├── character-image-task-handler（角色肖像生成）
+│   ├── 固定宽高比    3:2       左侧面部特写 + 右侧三视图横排，纯白背景
+│   ├── 参考图注入  ✅ 已实现（2026-04）
+│   │   ├── 子形象生成：取同角色主形象（appearanceIndex=0）图片作为 referenceImages
+│   │   │              → findFirst(appearanceIndex=PRIMARY_APPEARANCE_INDEX)
+│   │   └── 主形象初次生成：来源全局资产库（sourceGlobalCharacterId 存在）时
+│   │                       取全局 appearance 图片注入，实现像素级视觉约束
+│   ├── Prompt 构建链
+│   │   ├── artStyleId → getArtStylePrompt()           画风正向提示词
+│   │   ├── → getArtStyleNegativePrompt()              画风负向提示词
+│   │   │   └── Ark 降级兼容  ✅ 已修复（2026-04）
+│   │   │       isArkModelKey() 识别豆包系列模型
+│   │   │       → convertNegativeToPositivePrompt() 将负向词转正向约束追加到 prompt
+│   │   │       （Ark 接收 negativePrompt 但静默丢弃，其他提供商正常透传）
+│   │   ├── → addCharacterPromptSuffix()               注入三视图布局指令
+│   │   └── → generateCleanImageToStorage()            调用图像生成 API → 上传 MinIO
+│   └── Character Bible 锁定  ✅ 已实现（2026-04）
+│       ├── 数据层   CharacterAppearance 追加 bibleLocked Boolean / bibleLockedAt DateTime?
+│       │            → 便携版启动时 prisma db push 自动执行迁移，无需手动操作
+│       ├── API 层   PATCH /character/bible-lock → 锁定指定 appearance（自动解锁同角色其他）
+│       │            DELETE /character/bible-lock → 解锁指定 appearance
+│       ├── Worker  image-task-handler-shared.ts → collectPanelReferenceImages()
+│       │            bibleLocked 优先级 > item.appearance 指定 > 默认第 0 个
+│       │            → 阶段 6 分镜图生成自动使用锁定形象作像素级视觉约束
+│       └── UI 层   CharacterCard 锁定/解锁按钮
+│                    锁定态→琥珀色实心图标 / 未锁定态→透明描边图标
+│
+├── location-image-task-handler（场景 & 道具概念图生成）
+│   ├── 场景概念图   固定宽高比 1:1   单张正方形场景概念图，纯白背景
+│   └── 道具概念图   固定宽高比 3:2   左侧主视图特写 + 右侧三视图横排（assetKind=prop）
+│
+└── asset-hub-ai-modify（全局资产库生成/微调）
+    ├── 用途      全局角色/场景/道具的 AI 设计、微调、变体生成、重绘
+    └── 规格      宽高比自定义，独立于项目 videoRatio
 ```
 
-**Prompt 构建流程（以角色图为例）：**
+**关键逻辑：参考图归一化**
 
-```
-artStyleId → getArtStylePrompt()      画风正向提示词
-          → getArtStyleNegativePrompt() 画风负向提示词（Ark 提供商自动转正向兼容，其他透传）
-          → addCharacterPromptSuffix()  注入三视图布局指令
-          → generateCleanImageToStorage() 调用图像生成 API → 上传 MinIO
+```typescript
+// 将所有来源（URL / Base64 / COS 签名链接）统一转换后注入模型 referenceImages
+normalizeReferenceImagesForGeneration(referenceImages: string[]): Promise<string[]>
 ```
 
-**negativePrompt 兼容性说明（✅ 2026-04 已修复 Ark 静默丢弃问题）：**
-
-```text
-提供商           支持 negativePrompt    处理方式
-──────────────────────────────────────────────────────────────────
-Ark (豆包系列)   ❌ 接收但静默丢弃      ✅ 降级兼容：负向词转正向约束追加到 prompt
-Fal              ✅                     直接透传
-其他提供商        视各自 API 能力        无负向词时不传该参数
-```
-
-### 📋 阶段 3 改进计划进度（2026-04）
+### 📋 阶段 3 改进计划进度
 
 ```text
 阶段 3 已完成
 ├── ✅ ① 角色参考图 Image Input 强注入（2026-04）
-│   ├── 子形象生成时：自动取同角色主形象（appearanceIndex=0）已有图片作为 referenceImages
-│   │       → character-image-task-handler.ts，findFirst(appearanceIndex=PRIMARY_APPEARANCE_INDEX)
-│   ├── 主形象初次生成时：若角色来源于全局资产库（sourceGlobalCharacterId 存在）
-│   │       → 取全局形象的首个 appearance 图片注入，实现像素级视觉约束
-│   └── 归一化：normalizeReferenceImagesForGeneration() 统一转 Base64，向所有支持的模型传入
+│       子形象生成时自动取主形象（appearanceIndex=0）图片作 referenceImages
+│       主形象初次生成且绑定全局资产时，取全局首个 appearance 注入
+│       归一化：normalizeReferenceImagesForGeneration() 统一转 Base64，全模型通用
 │
 ├── ✅ ③ Negative Prompt 降级兼容（2026-04）
-│   ├── 新增 isArkModelKey(modelKey)：按 provider::modelId 格式识别 Ark/豆包系列模型
-│   ├── 新增 convertNegativeToPositivePrompt(negative)：
-│   │       将负向词转为正向等价表述（blurry→sharp focus, ugly→beautiful 等）
-│   ├── character-image-task-handler.ts + location-image-task-handler.ts 均已接入：
-│   │       Ark 模型：negativePrompt 设为 undefined，正向转化词追加到 prompt 末尾
-│   │       非 Ark 模型：negativePrompt 正常透传
-│   └── 源码位置：src/lib/style-categories.ts，通过 src/lib/constants.ts 统一导出
+│       isArkModelKey() 识别豆包系列 → convertNegativeToPositivePrompt() 转正向约束
+│       character-image-task-handler + location-image-task-handler 均已接入
+│       源码：src/lib/style-categories.ts，统一通过 src/lib/constants.ts 导出
 │
-├── ✅ ④ Character Bible 锁定（2026-04）—— 全链路打通，DB 迁移待执行
-│   ├── 数据层
-│   │   ├── prisma/schema.prisma：CharacterAppearance 追加 bibleLocked Boolean @default(false)
-│   │   │                                                            bibleLockedAt DateTime?
-│   │   └── ⚠️  迁移 SQL 待执行（DB 可用后运行）：
-│   │           npx prisma migrate dev --name add-character-bible-lock
-│   ├── API 层
-│   │   └── POST /api/novel-promotion/[projectId]/character/bible-lock
-│   │       ├── PATCH：锁定指定 appearance，自动解锁同角色其他 appearance
-│   │       └── DELETE：解锁指定 appearance
-│   ├── Worker 层
-│   │   └── image-task-handler-shared.ts → collectPanelReferenceImages()
-│   │       bibleLocked=true 的 appearance 优先级高于 item.appearance 指定和默认第0个
-│   │       → 阶段 6 生成分镜图时自动使用锁定形象作为像素级视觉约束
-│   ├── 前端合约层
-│   │   ├── src/lib/assets/contracts.ts：AssetVariantSummary 追加 bibleLocked?: boolean
-│   │   ├── src/lib/assets/mappers.ts：CharacterAppearanceRecord + createVariant 传递字段
-│   │   ├── src/lib/query/hooks/useProjectAssets.ts：mapper 传递 + useCharacterBibleLock hook
-│   │   └── src/types/project.ts：CharacterAppearance 接口追加 bibleLocked?: boolean
-│   └── UI 层
-│       ├── CharacterCard.tsx：锁定/解锁切换按钮（锁定→琥珀色实心 / 解锁→透明描边）
-│       ├── CharacterSection.tsx：调用 useCharacterBibleLock，传 onBibleLock/onBibleUnlock
-│       └── icons/registry.ts：注册 lock / lockOpen 图标
-│
-└── ❌ ② 角色视觉一致性评分——已放弃
-        原计划：CLIP 嵌入余弦相似度评分
-        放弃原因：对当前工作流收益有限，维护成本高，暂不实现
+└── ✅ ④ Character Bible 锁定（2026-04）
+        全链路：DB 字段 → API PATCH/DELETE → Worker 优先级 → UI 切换按钮
+        便携版启动时 prisma db push 自动执行迁移，无需手动操作
+        前端合约：contracts.ts / mappers.ts / useProjectAssets.ts / project.ts 四处同步
+        UI：CharacterSection → useCharacterBibleLock → CharacterCard 锁定按钮
+
+阶段 3 已放弃
+└── ❌ ② 角色视觉一致性评分
+        原计划：CLIP 嵌入余弦相似度评分，生成后图片 vs 参考图对比打分
+        放弃原因：对当前工作流收益有限，维护成本高，不实现
+
+优先级：✅ 全部落地（3 项完成，1 项主动放弃）
 ```
-
----
-
-## 阶段 4 ▎ 剧本生成
 
 ---
 
@@ -336,33 +327,62 @@ Fal              ✅                     直接透传
 **Worker:** `text.worker.ts`
 **Handler:** `story-to-script.ts` + `orchestrator`
 
+这一阶段的作用：把按集小说文本拆成 Clip，并生成可编辑、可重跑分镜的结构化剧本，为阶段 5 分镜拆解提供稳定输入。
+
+```text
+阶段 4 能力树
+├── 1) 文本拆片（episode-split）
+│   ├── 作用：将单集长文本按情节节奏拆分为多个 Clip
+│   └── 结果：写入 novelPromotionClip，成为后续并发生成单位
+│
+├── 2) Clip 级剧本生成（screenplay_<clipId>）
+│   ├── 作用：每个 Clip 独立生成结构化 screenplay JSON
+│   ├── 包含内容：对白 / 旁白 / 动作 / 场景头信息
+│   └── 并发控制：getUserWorkflowConcurrencyConfig() 限制同批 Clip 并发
+│
+├── 3) 剧本风格基调  ✅ 已实现（2026-04）
+│   ├── 作用：在配置阶段选择 tone（自动/甜宠/悬疑/动作等）
+│   ├── 传递链路：ConfigStage → useWorkspaceExecution → story-to-script-stream
+│   └── Prompt 注入：tone_instruction 占位符写入中英模板，worker 注入 screenplayToneInstruction
+│
+├── 4) Clip 级人工编辑（内联）
+│   ├── 作用：对白/旁白/动作在剧本面板中直接修改
+│   └── 结果：以 clip 粒度更新 screenplay，避免整集重做
+│
+├── 5) Clip 级局部重跑分镜  ✅ 已实现（2026-04）
+│   ├── 作用：仅对当前 Clip 重新执行 script-to-storyboard
+│   ├── 触发方式：剧本卡片 hover 按钮“重新生成分镜”
+│   └── 技术要点：retryStepKey = clip_{clipId}_phase1（原子重试入口）
+│
+├── 6) 剧本节奏评分 Badge  ✅ 已实现（2026-04）
+│   ├── 作用：按 Clip 快速给出“紧凑/适中/舒展”节奏反馈
+│   ├── 算法维度：场景数 + 对白占比 + 内容密度（0-100）
+│   └── 展示位置：ScriptViewScriptPanel 的 Clip 标题区
+│
+└── 7) 工件与续跑
+    ├── 工件存储：createArtifact() 持久化中间产物到 run-runtime
+    └── 续跑机制：retryStepKey / retryStepAttempt 支持失败步骤重试
 ```
-输入：novelText（按集）
-  │
-  ▼
-runStoryToScriptOrchestrator()
-  ├── episode-split        将长文本按情节节奏拆分为片段（Clip）
-  │                        → 写入 novelPromotionClip 记录
-  ├── screenplay_<clipId>  每个 Clip 独立生成剧本
-  │   ├── 对白             角色台词（含情绪标注）
-  │   ├── 旁白             叙事旁白文字
-  │   ├── 动作指令          人物动作描述
-  │   └── 情绪标注          场景情绪色彩
-  └── screenplay-convert   可选：剧本格式规范化转换
 
-并发控制：getUserWorkflowConcurrencyConfig() 限制同时执行的 Clip 数量
-断点续跑：retryStepKey / retryStepAttempt 支持指定 Clip 单独重试
-工件存储：createArtifact() 将中间产物持久化到 run-runtime
+### 📋 阶段 4 改进计划进度（按阶段 1 模板）
+
+```text
+阶段 4 已完成
+├── ✅ 剧本风格基调（screenplayTone）全链路贯通
+│       配置选择 → API 入参 → worker 解析 → orchestrator 注入 tone_instruction
+├── ✅ Clip 级局部重跑分镜
+│       ScriptView 卡片按钮触发 script-to-storyboard-stream，按 retryStepKey 仅重跑单 Clip
+└── ✅ 剧本节奏评分 Badge
+        基于 scenes/dialogue/density 的轻量算法，前端即时反馈“紧凑/适中/舒展”
+
+阶段 4 仍未落地
+├── ❌ 多版本剧本对比（同集多 tone 并排对比）
+│       价值：减少试风格成本，提升导演决策效率
+└── ❌ 标准格式预览（可切换行业剧本排版视图）
+        价值：便于编剧审阅与跨团队交接
+
+优先级：🟡 中（核心生产链路已可用，后续以协作体验增强为主）
 ```
-
-### 📋 阶段 4 差距分析 & 改进计划
-
-| 项目 | 内容 |
-|------|------|
-| **缺失功能** | 人工剧本审阅 & 编辑 UI；剧本节奏评分；多版本剧本对比；标准格式预览 |
-| **优先级** | 🟠 高 |
-| **待实现** | ① **独立剧本编辑器页面**：当前 ConfigStage 只能查看剧本文本，补充 Clip 级别的剧本内联编辑（台词/旁白/动作指令可直接改写），改后支持局部重跑 script-to-storyboard ② **剧本节奏自动评分**：LLM 生成完成后计算每幕字数、对话密度、情绪起伏指数，低于节奏阈值时给出"本幕过于平淡"警告，引导用户手动注入冲突点 ③ **多版本剧本对比**：支持同一集同时跑 2 路不同 tone 的剧本（"轻喜剧版" vs "正剧版"），前端卡片对比选择，仅消耗文本 token，成本可控 |
-| **实现好处** | 用户在出图前能发现剧情问题，避免花费视频生成费用后才发现剧本质量差；专业编剧协作模式成为可能 |
 
 ---
 

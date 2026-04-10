@@ -65,6 +65,8 @@ export default function ConfigStage() {
       onColorGradePresetChange={runtime.onColorGradePresetChange}
       targetPlatform={runtime.targetPlatform ?? undefined}
       onTargetPlatformChange={runtime.onTargetPlatformChange}
+      screenplayTone={runtime.screenplayTone ?? undefined}
+      onScreenplayToneChange={runtime.onScreenplayToneChange}
       onNext={runtime.onRunStoryToScript}
       onSmartSplit={handleSmartSplit}
     />
