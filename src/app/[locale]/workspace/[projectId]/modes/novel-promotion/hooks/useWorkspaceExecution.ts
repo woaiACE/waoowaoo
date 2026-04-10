@@ -15,6 +15,7 @@ interface UseWorkspaceExecutionParams {
   currentStage: string
   analysisModel?: string | null
   screenplayTone?: string | null
+  storyRewriteMode?: string | null
   novelText: string
   t: (key: string) => string
   onRefresh: (options?: { scope?: string; mode?: string }) => Promise<void>
@@ -65,6 +66,7 @@ export function useWorkspaceExecution({
   currentStage,
   analysisModel,
   screenplayTone,
+  storyRewriteMode,
   novelText,
   t,
   onRefresh,
@@ -88,6 +90,7 @@ export function useWorkspaceExecution({
   const [scriptToStoryboardConsoleMinimized, setScriptToStoryboardConsoleMinimized] = useState(
     () => readSessionBoolean(scriptToStoryboardMinimizedStorageKey),
   )
+    const [regenClipIds, setRegenClipIds] = useState<Set<string>>(new Set())
 
   const storyToScriptStream = useStoryToScriptRunStream({ projectId, episodeId })
   const scriptToStoryboardStream = useScriptToStoryboardRunStream({ projectId, episodeId })
@@ -204,6 +207,7 @@ export function useWorkspaceExecution({
         temperature: 0.7,
         reasoning: true,
         screenplayTone: screenplayTone || undefined,
+        storyRewriteMode: storyRewriteMode || undefined,
       })
       if (runResult.status !== 'completed') {
         throw new Error(runResult.errorMessage || t('execution.storyToScriptFailed'))
@@ -223,7 +227,7 @@ export function useWorkspaceExecution({
       setIsTransitioning(false)
       setTransitionProgress({ message: '', step: '' })
     }
-  }, [analysisModel, screenplayTone, episodeId, finalizeStoryToScriptSuccess, novelText, onUpdateConfig, storyToScriptStream, t])
+  }, [analysisModel, screenplayTone, storyRewriteMode, episodeId, finalizeStoryToScriptSuccess, novelText, onUpdateConfig, storyToScriptStream, t])
 
   const runScriptToStoryboardFlow = useCallback(async () => {
     if (!episodeId) {
@@ -260,7 +264,8 @@ export function useWorkspaceExecution({
 
   const runSingleClipStoryboardFlow = useCallback(async (clipId: string) => {
     if (!episodeId) return
-    try {
+     setRegenClipIds(prev => new Set(prev).add(clipId))
+     try {
       await apiFetch(`/api/novel-promotion/${projectId}/script-to-storyboard-stream`, {
         method: 'POST',
         body: JSON.stringify({
@@ -268,14 +273,21 @@ export function useWorkspaceExecution({
           retryStepKey: `clip_${clipId}_phase1`,
           async: true,
           displayMode: 'detail',
+          screenplayTone: screenplayTone || undefined,
         }),
       })
       await onRefresh()
     } catch (err: unknown) {
       if (isAbortError(err)) return
       alert(`${t('execution.generationFailed')}: ${getErrorMessage(err)}`)
-    }
-  }, [episodeId, projectId, onRefresh, t])
+     } finally {
+       setRegenClipIds(prev => {
+         const next = new Set(prev)
+         next.delete(clipId)
+         return next
+       })
+     }
+  }, [episodeId, projectId, screenplayTone, onRefresh, t])
 
   useEffect(() => {
     const active = (
@@ -365,6 +377,7 @@ export function useWorkspaceExecution({
     isConfirmingAssets,
     isTransitioning,
     transitionProgress,
+     regenClipIds,
     storyToScriptConsoleMinimized,
     setStoryToScriptConsoleMinimized,
     scriptToStoryboardConsoleMinimized,

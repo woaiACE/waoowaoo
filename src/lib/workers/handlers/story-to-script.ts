@@ -30,7 +30,6 @@ import {
   resolveClipRecordId,
 } from './story-to-script-helpers'
 import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
-import { getScreenplayToneInstruction } from '@/lib/screenplay-tone-presets'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 import { createArtifact, listArtifacts } from '@/lib/run-runtime/service'
 import { assertWorkflowRunActive, withWorkflowRunLease } from '@/lib/run-runtime/workflow-lease'
@@ -68,9 +67,6 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
   const reasoning = payload.reasoning !== false
   const requestedReasoningEffort = parseEffort(payload.reasoningEffort)
   const temperature = parseTemperature(payload.temperature)
-  const screenplayToneInstruction = getScreenplayToneInstruction(
-    typeof payload.screenplayTone === 'string' ? payload.screenplayTone : '',
-  )
 
   if (!episodeId) {
     throw new Error('episodeId is required')
@@ -425,7 +421,6 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
                 name: item.name,
                 introduction: item.introduction || '',
               })),
-              screenplayToneInstruction,
               promptTemplates: {
                 characterPromptTemplate,
                 locationPromptTemplate,

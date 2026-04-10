@@ -17,6 +17,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
     throw new ApiError('INVALID_PARAMS')
   }
 
+  const screenplayTone = typeof body.screenplayTone === 'string' ? body.screenplayTone.trim() : ''
+  const storyRewriteMode = typeof body.storyRewriteMode === 'string' ? body.storyRewriteMode.trim() : ''
+  const sourceText = typeof body.sourceText === 'string' ? body.sourceText.trim() : ''
+  const lengthTarget = typeof body.lengthTarget === 'string' ? body.lengthTarget.trim() : ''
+
   const userConfig = await getUserModelConfig(session.user.id)
   if (!userConfig.analysisModel) {
     throw new ApiError('MISSING_CONFIG')
@@ -38,6 +43,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
     body: {
       prompt,
       analysisModel: userConfig.analysisModel,
+      screenplayTone: screenplayTone || undefined,
+      storyRewriteMode: storyRewriteMode || undefined,
+      sourceText: sourceText || undefined,
+      lengthTarget: lengthTarget || undefined,
     },
     dedupeKey: `home_ai_story_expand:${dedupeDigest}`,
     priority: 1,

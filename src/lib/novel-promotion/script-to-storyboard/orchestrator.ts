@@ -78,6 +78,7 @@ export type ScriptToStoryboardOrchestratorInput = {
     props?: PropAsset[]
   }
   promptTemplates: ScriptToStoryboardPromptTemplates
+  screenplayToneInstruction?: string
   runStep: (
     meta: ScriptToStoryboardStepMeta,
     prompt: string,
@@ -351,6 +352,7 @@ export async function runScriptToStoryboardOrchestrator(
         .replace('{characters_full_description}', filteredFullDescription)
         .replace('{props_description}', filteredPropsDescription)
         .replace('{clip_json}', clipJson)
+        .replace('{tone_instruction}', input.screenplayToneInstruction ?? '')
 
       const screenplay = parseScreenplay(clip.screenplay)
       if (screenplay) {

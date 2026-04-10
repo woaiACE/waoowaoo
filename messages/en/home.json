@@ -21,6 +21,21 @@
     "placeholder": "Enter keywords, story outline, or a short idea...\n\ne.g.\n• ancient palace, revenge, mystery, female lead\n• Act 1: The heroine returns to the capital; Act 2: A chance encounter at the royal banquet",
     "hint": "💡 You can enter keywords, story outlines, or creative descriptions. AI will expand your input into a complete story",
     "startAiWrite": "Start AI Writing",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "streaming": "AI is writing...",
+    "completed": "Generation complete",
+    "accept": "Accept & fill in",
+    "regenerate": "Regenerate",
+    "stop": "Stop generation",
+    "retry": "Retry",
+    "rewriteModeLabel": "Rewrite mode",
+    "lengthTargetLabel": "Length",
+    "lengthShort": "Ultra-short (30s)",
+    "lengthStandard": "Short (1min)",
+    "lengthMedium": "Standard (2min)",
+    "lengthLong": "Long (3-5min)",
+    "sourceTextHint": "Will rewrite based on existing text",
+    "charCount": "{n} chars",
+    "generationFailed": "Generation failed"
   }
 }

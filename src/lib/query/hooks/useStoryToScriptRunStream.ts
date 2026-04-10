@@ -13,6 +13,7 @@ export type StoryToScriptRunParams = {
   reasoning?: boolean
   reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high'
   screenplayTone?: string
+  storyRewriteMode?: string
 }
 
 export type StoryToScriptRunResult = RunResult
@@ -86,6 +87,7 @@ export function useStoryToScriptRunStream({ projectId, episodeId }: UseStoryToSc
       reasoning: params.reasoning,
       reasoningEffort: params.reasoningEffort,
       screenplayTone: params.screenplayTone || undefined,
+      storyRewriteMode: params.storyRewriteMode || undefined,
       async: true,
       displayMode: 'detail',
     }),

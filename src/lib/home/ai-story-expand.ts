@@ -11,6 +11,9 @@ interface ExpandHomeStoryPayload {
 export interface ExpandHomeStoryParams {
   apiFetch: ApiFetchLike
   prompt: string
+  screenplayTone?: string
+  storyRewriteMode?: string
+  sourceText?: string
 }
 
 export interface ExpandHomeStoryResult {
@@ -20,12 +23,18 @@ export interface ExpandHomeStoryResult {
 export async function expandHomeStory({
   apiFetch,
   prompt,
+  screenplayTone,
+  storyRewriteMode,
+  sourceText,
 }: ExpandHomeStoryParams): Promise<ExpandHomeStoryResult> {
   const response = await apiFetch('/api/user/ai-story-expand', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       prompt,
+      screenplayTone: screenplayTone || undefined,
+      storyRewriteMode: storyRewriteMode || undefined,
+      sourceText: sourceText || undefined,
     }),
   })
 

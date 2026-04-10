@@ -975,6 +975,30 @@ function Invoke-Phase8-PrismaDbPush {
         # 注意：prisma db push --skip-generate 仅同步数据库结构但不重新生成客户端，
         # 若客户端未更新，新增字段在运行时会被 Prisma 当作未知字段拒绝。
         Write-Step -Phase 'Prisma' -Message "重新生成 Prisma Client（同步新字段定义）..."
+
+        # EPERM 防护：生成前检查 DLL 是否被旧 Node 进程锁住，等待释放（最多 30s）
+        $dllPath = Join-Path $RepoDir 'node_modules\.prisma\client\query_engine-windows.dll.node'
+        if (Test-Path $dllPath) {
+            $lockWaited = 0
+            while ($lockWaited -lt 30) {
+                try {
+                    $fs = [System.IO.File]::Open($dllPath, 'Open', 'ReadWrite', 'None')
+                    $fs.Close()
+                    $fs.Dispose()
+                    break  # 文件可写，跳出等待
+                } catch {
+                    Write-Step -Phase 'Prisma' -Message "DLL 被占用，等待释放（${lockWaited}s）..."
+                    Start-Sleep -Seconds 2
+                    $lockWaited += 2
+                }
+            }
+            if ($lockWaited -ge 30) {
+                Write-Warn "DLL 超时仍被占用，尝试终止残留 Node 进程..."
+                Get-Process -Name 'node' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 2
+            }
+        }
+
         $generateProcess = Start-Process `
             -FilePath $Script:NpxCmd `
             -ArgumentList 'prisma', 'generate' `
@@ -1001,13 +1025,19 @@ function Invoke-Phase9a-NextBuild {
     Write-Banner 'Phase 9a: Next.js 应用构建'
 
     $nextDir = Join-Path $RepoDir '.next'
+    $buildIdFile = Join-Path $nextDir 'BUILD_ID'
 
-    if (Test-Path $nextDir) {
-        Write-Success '.next 构建目录已存在，跳过构建（如需强制重建请删除 .next 目录）。'
+    if (Test-Path $buildIdFile) {
+        Write-Success '.next 生产构建已存在（BUILD_ID 验证通过），跳过构建。'
         return
     }
 
-    Write-Step -Phase '构建' -Message "首次运行，开始 next build（可能需要5-10分钟，请耐心等待）..."
+    if (Test-Path $nextDir) {
+        Write-Warn '.next 目录存在但缺少 BUILD_ID（可能是 dev 构建或不完整构建），将重新构建。'
+        Remove-Item -Recurse -Force $nextDir -ErrorAction SilentlyContinue
+    }
+
+    Write-Step -Phase '构建' -Message "开始 next build（首次约需5-10分钟，请耐心等待）..."
     Write-Warn "构建期间 CPU 占用较高属于正常现象。"
 
     $env:PATH = "$Script:NodeDir;$($env:PATH)"
@@ -1081,11 +1111,42 @@ function Invoke-Phase9b-StartApp {
 # PHASE 10: 等待应用就绪并唤起浏览器
 # ============================================================
 function Invoke-Phase10-OpenBrowser {
+    param(
+        [System.Diagnostics.Process]$AppProcess
+    )
+
     Write-Banner 'Phase 10: 等待应用就绪'
 
-    Wait-ForPort -Port $Script:PortApp -ServiceName 'waoowaoo 应用' -TimeoutSeconds 120
+    # 在等待端口时同时监测进程是否提前退出，避免傻等 120s
+    $portApp    = $Script:PortApp
+    $elapsed    = 0
+    $timeout    = 120000
+    $intervalMs = 800
+    $appErrLog  = Join-Path $Script:LogRoot 'app-err.log'
 
-    $appUrl = "http://localhost:$Script:PortApp"
+    Write-Host "  [等待] waoowaoo 应用 端口 $portApp 就绪..." -ForegroundColor DarkYellow -NoNewline
+    while ($elapsed -lt $timeout) {
+        if (Test-PortOpen -Port $portApp) {
+            Write-Host ' 就绪！' -ForegroundColor Green
+            break
+        }
+        # 检测进程是否已提前退出
+        if ($null -ne $AppProcess -and $AppProcess.HasExited) {
+            Write-Host ' 进程已退出！' -ForegroundColor Red
+            $errContent = Get-Content $appErrLog -Tail 30 -ErrorAction SilentlyContinue
+            $logContent = Get-Content (Join-Path $Script:LogRoot 'app.log') -Tail 30 -ErrorAction SilentlyContinue
+            throw "应用进程在端口就绪前退出（代码：$($AppProcess.ExitCode)）。`n错误日志：`n$errContent`n应用日志末尾：`n$logContent"
+        }
+        Start-Sleep -Milliseconds $intervalMs
+        $elapsed += $intervalMs
+        Write-Host '.' -ForegroundColor DarkYellow -NoNewline
+    }
+    if (-not (Test-PortOpen -Port $portApp)) {
+        Write-Host ' 超时！' -ForegroundColor Red
+        throw "waoowaoo 应用在 120s 内未就绪，端口 $portApp 无响应。"
+    }
+
+    $appUrl = "http://localhost:$portApp"
     Write-Step -Phase '浏览器' -Message "正在打开 $appUrl ..."
     Start-Process $appUrl
     Write-Success "请在浏览器中访问：$appUrl"
@@ -1161,6 +1222,22 @@ function Invoke-Phase12-GracefulShutdown {
     while ((Test-PortOpen -Port $Script:PortApp) -and $waited -lt 15) {
         Start-Sleep -Seconds 1
         $waited++
+    }
+
+    # 等待 Prisma DLL 文件锁释放（防止下次启动时 prisma generate EPERM）
+    $dllPath = Join-Path $RepoDir 'node_modules\.prisma\client\query_engine-windows.dll.node'
+    if (Test-Path $dllPath) {
+        $waited = 0
+        while ($waited -lt 10) {
+            try {
+                $fs = [System.IO.File]::Open($dllPath, 'Open', 'ReadWrite', 'None')
+                $fs.Close(); $fs.Dispose()
+                break
+            } catch {
+                Start-Sleep -Seconds 1
+                $waited++
+            }
+        }
     }
 
     # 2. 安全关闭 Redis（SHUTDOWN SAVE 确保 AOF 落盘）
@@ -1266,7 +1343,7 @@ function Main {
         Invoke-Phase8-PrismaDbPush
         Invoke-Phase9a-NextBuild
         $appProcess = Invoke-Phase9b-StartApp
-        Invoke-Phase10-OpenBrowser
+        Invoke-Phase10-OpenBrowser -AppProcess $appProcess
 
         $host.UI.RawUI.WindowTitle = "waoowaoo 便携版 - 运行中"
         Invoke-Phase11And12-GuardAndShutdown -AppProcess $appProcess

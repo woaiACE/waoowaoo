@@ -7,14 +7,116 @@ export interface ScreenplayTonePreset {
   value: string
   label: string
   description: string
+  groupId: string
   /** 注入 prompt 的中文风格指令，空字符串表示不限定 */
   toneInstruction: string
+}
+
+export interface ScreenplayToneGroup {
+  id: string
+  label: string
+  icon: string
+}
+
+export const SCREENPLAY_TONE_GROUPS: readonly ScreenplayToneGroup[] = [
+  { id: 'general',  label: '通用',     icon: '✦'  },
+  { id: 'romance',  label: '言情',     icon: '💕' },
+  { id: 'comedy',   label: '喜剧',     icon: '😄' },
+  { id: 'suspense', label: '悬疑犯罪', icon: '🔍' },
+  { id: 'action',   label: '动作爽文', icon: '⚔️' },
+  { id: 'fantasy',  label: '奇幻玄幻', icon: '🔮' },
+  { id: 'drama',    label: '正剧现实', icon: '🎭' },
+  { id: 'kids',     label: '儿童',     icon: '🌈' },
+  { id: 'artfilm',  label: '特殊风格', icon: '🎬' },
+] as const
+
+// ── 故事改写强度 ───────────────────────────────────────────
+
+export interface StoryRewriteMode {
+  value: string
+  label: string
+  description: string
+}
+
+export const STORY_REWRITE_MODES: readonly StoryRewriteMode[] = [
+  {
+    value: 'none',
+    label: '不改写',
+    description: '100% 忠实原文，仅转换格式',
+  },
+  {
+    value: 'conservative',
+    label: '保守改写',
+    description: '保留情节事实，调整台词语气/节奏/氛围',
+  },
+  {
+    value: 'reconstruct',
+    label: '重构改写',
+    description: '保留主线骨架，重建冲突强度与情绪弧线',
+  },
+] as const
+
+/**
+ * 根据 rewriteMode 生成注入 prompt 的改写许可指令
+ * mode 为 null / '' / 'none' 时返回空字符串（不改变忠实原文约束）
+ */
+export function getRewriteModeInstruction(mode: string | null | undefined): string {
+  if (!mode || mode === 'none') return ''
+  if (mode === 'conservative') {
+    return `【改写许可——保守级别】在忠实原文情节事实的前提下，你被允许：
+- 改写台词的语气和措辞，使其符合剧本风格基调
+- 调整场景氛围描述的基调（如光线、色调、节奏感）
+- 调整镜头节奏与视觉节奏的描述
+严禁：增减情节事件、改变人物关系或行为结果。`
+  }
+  if (mode === 'reconstruct') {
+    return `【改写许可——重构级别】在保留主线情节骨架（角色、核心事件、结局走向）的前提下，你被允许：
+- 重写对白强度与冲突张力，使其贴合剧本风格
+- 重构场景氛围和全段情绪弧线
+- 改写角色心理活动与动作细节
+严禁：添加原文完全没有根据的全新情节转折、改变主线人物关系或最终结局。`
+  }
+  return ''
+}
+
+// ── 篇幅目标 ──────────────────────────────────────────────────
+
+export interface LengthTargetOption {
+  value: string
+  label: string
+  hint: string
+}
+
+export const AI_EXPAND_LENGTH_TARGETS: readonly LengthTargetOption[] = [
+  { value: 'short',    label: '超短 (30s)',   hint: '100-200 字，适合竖版超短剧' },
+  { value: 'standard', label: '短片 (1min)',   hint: '300-500 字，标准短剧单集' },
+  { value: 'medium',   label: '标准 (2min)',   hint: '500-800 字，默认长度' },
+  { value: 'long',     label: '长篇 (3-5min)', hint: '800-1500 字，多幕故事' },
+] as const
+
+/**
+ * 为 AI 帮我写生成 length_instruction 块
+ * medium 为默认长度，不注入（保持 prompt 原有篇幅说明）
+ */
+export function getAiExpandLengthInstruction(value: string | null | undefined): string {
+  if (!value || value === 'medium') return ''
+  if (value === 'short') {
+    return `## 篇幅要求\n\n目标篇幅：**超短**。总字数严格控制在 100-200 字，场景极度精简，只保留核心冲突，不超过 200 字。`
+  }
+  if (value === 'standard') {
+    return `## 篇幅要求\n\n目标篇幅：**短片**。总字数控制在 300-500 字，完整呈现冲突和结局，不超过 500 字。`
+  }
+  if (value === 'long') {
+    return `## 篇幅要求\n\n目标篇幅：**长篇**。总字数 800-1500 字，充分展开场景细节和多幕结构，允许多个情节转折，不超过 1500 字。`
+  }
+  return ''
 }
 
 export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   // ── 通用 ──────────────────────────────────────────────────────
   {
     value: 'auto',
+    groupId: 'general',
     label: '自动',
     description: '不限定风格，LLM 自由发挥',
     toneInstruction: '',
@@ -23,6 +125,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   // ── 言情系 ──────────────────────────────────────────────────
   {
     value: 'sweet-romance',
+    groupId: 'romance',
     label: '甜宠言情',
     description: '甜蜜治愈，双向奔赴',
     toneInstruction:
@@ -30,6 +133,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'angst-romance',
+    groupId: 'romance',
     label: '虐恋情深',
     description: '误会拉锯，虐心反转',
     toneInstruction:
@@ -37,6 +141,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'rebirth-revenge',
+    groupId: 'romance',
     label: '重生复仇',
     description: '女主重生打脸爽文',
     toneInstruction:
@@ -44,6 +149,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'ceo-romance',
+    groupId: 'romance',
     label: '霸总甜宠',
     description: '霸道总裁爱上我',
     toneInstruction:
@@ -51,6 +157,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'historical-romance',
+    groupId: 'romance',
     label: '古装言情',
     description: '古风雅韵，宫廷或江湖情缘',
     toneInstruction:
@@ -60,6 +167,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   // ── 喜剧系 ──────────────────────────────────────────────────
   {
     value: 'light-comedy',
+    groupId: 'comedy',
     label: '轻喜剧',
     description: '日常幽默，轻松活泼',
     toneInstruction:
@@ -67,6 +175,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'slapstick',
+    groupId: 'comedy',
     label: '搞笑夸张',
     description: '夸张喜剧，密集笑料',
     toneInstruction:
@@ -74,6 +183,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'satirical',
+    groupId: 'comedy',
     label: '讽刺喜剧',
     description: '职场/社会讽刺，辛辣幽默',
     toneInstruction:
@@ -83,6 +193,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   // ── 悬疑犯罪系 ──────────────────────────────────────────────
   {
     value: 'suspense',
+    groupId: 'suspense',
     label: '悬疑推理',
     description: '烧脑反转，层层铺垫',
     toneInstruction:
@@ -90,6 +201,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'crime-thriller',
+    groupId: 'suspense',
     label: '犯罪惊悚',
     description: '紧张追凶，高压对抗',
     toneInstruction:
@@ -97,6 +209,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'psychological',
+    groupId: 'suspense',
     label: '心理悬疑',
     description: '心智博弈，氛围压抑',
     toneInstruction:
@@ -106,6 +219,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   // ── 动作爽文系 ──────────────────────────────────────────────
   {
     value: 'action-hero',
+    groupId: 'action',
     label: '热血动作',
     description: '燃点满满，激战爽感',
     toneInstruction:
@@ -113,6 +227,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'underdog-rise',
+    groupId: 'action',
     label: '逆袭成长',
     description: '草根逆袭打脸流',
     toneInstruction:
@@ -120,6 +235,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'wuxia',
+    groupId: 'action',
     label: '武侠江湖',
     description: '侠义恩仇，快意恩仇',
     toneInstruction:
@@ -129,6 +245,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   // ── 奇幻玄幻系 ──────────────────────────────────────────────
   {
     value: 'cultivation',
+    groupId: 'fantasy',
     label: '仙侠修仙',
     description: '飞升问道，仙侠浪漫',
     toneInstruction:
@@ -136,6 +253,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'urban-fantasy',
+    groupId: 'fantasy',
     label: '都市异能',
     description: '现代都市异能超能力',
     toneInstruction:
@@ -143,6 +261,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'apocalypse',
+    groupId: 'fantasy',
     label: '末世废土',
     description: '末日生存，人性博弈',
     toneInstruction:
@@ -152,6 +271,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   // ── 正剧与现实系 ────────────────────────────────────────────
   {
     value: 'family-drama',
+    groupId: 'drama',
     label: '家庭伦理',
     description: '亲情纠葛，现实写照',
     toneInstruction:
@@ -159,6 +279,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'workplace',
+    groupId: 'drama',
     label: '职场商战',
     description: '商战谋略，职场博弈',
     toneInstruction:
@@ -166,6 +287,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'youth-campus',
+    groupId: 'drama',
     label: '青春校园',
     description: '青涩情感，校园友谊',
     toneInstruction:
@@ -175,6 +297,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   // ── 儿童类 ──────────────────────────────────────────────────
   {
     value: 'fairy-tale',
+    groupId: 'kids',
     label: '儿童童话',
     description: '温馨奇幻，适合小朋友',
     toneInstruction:
@@ -182,6 +305,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'parent-child',
+    groupId: 'kids',
     label: '亲子成长',
     description: '亲情温暖，陪伴成长',
     toneInstruction:
@@ -189,6 +313,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'kids-adventure',
+    groupId: 'kids',
     label: '儿童冒险',
     description: '探索冒险，童趣满满',
     toneInstruction:
@@ -196,6 +321,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'fable',
+    groupId: 'kids',
     label: '寓言故事',
     description: '寓教于乐，动物角色',
     toneInstruction:
@@ -203,6 +329,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'school-life-kids',
+    groupId: 'kids',
     label: '校园成长',
     description: '校园日常，友谊第一',
     toneInstruction:
@@ -212,6 +339,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   // ── 特殊风格系 ──────────────────────────────────────────────
   {
     value: 'cinematic-art',
+    groupId: 'artfilm',
     label: '文艺电影感',
     description: '慢节奏，意象丰富',
     toneInstruction:
@@ -219,6 +347,7 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
   },
   {
     value: 'documentary',
+    groupId: 'artfilm',
     label: '纪实风格',
     description: '真实感，克制平淡',
     toneInstruction:
@@ -233,4 +362,44 @@ export const SCREENPLAY_TONE_PRESETS: readonly ScreenplayTonePreset[] = [
 export function getScreenplayToneInstruction(value: string | null | undefined): string {
   if (!value || value === 'auto') return ''
   return SCREENPLAY_TONE_PRESETS.find((p) => p.value === value)?.toneInstruction ?? ''
+}
+
+/**
+ * 为 AI 帮我写（ai_story_expand）生成 tone_instruction 块
+ * 有风格时返回完整指令段，否则返回空字符串
+ */
+export function getAiExpandToneInstruction(value: string | null | undefined): string {
+  const instruction = getScreenplayToneInstruction(value)
+  if (!instruction) return ''
+  return `## 风格基调要求\n\n${instruction}`
+}
+
+/**
+ * 为 AI 帮我写（ai_story_expand）生成 rewrite_instruction 块
+ * mode 为 'none' 或空时返回空字符串（纯生成模式）
+ * 有改写模式时返回改写许可与操作要求
+ */
+export function getAiExpandRewriteInstruction(mode: string | null | undefined): string {
+  if (!mode || mode === 'none') return ''
+  if (mode === 'conservative') {
+    return `## 改写模式：保守改写
+
+你收到的是用户已有的故事文本（见下方"原始故事文本"）。你的任务是对其进行**保守风格改写**：
+- 保留全部情节事实、人物关系和事件结果不变
+- 可改写台词的语气与措辞，使其符合风格基调
+- 可调整场景氛围描述（光线、色调、节奏感）
+- 输出与原文篇幅相近的改写版本
+严禁：增减情节事件、改变人物关系或结局。`
+  }
+  if (mode === 'reconstruct') {
+    return `## 改写模式：重构改写
+
+你收到的是用户已有的故事文本（见下方"原始故事文本"）。你的任务是对其进行**重构风格改写**：
+- 保留主线情节骨架（核心角色、关键事件、结局走向）
+- 重写对白的强度与冲突张力，贴合风格基调
+- 重构场景氛围和全段情绪弧线
+- 可改写角色心理活动与动作细节
+严禁：添加原文完全没有根据的全新情节转折、改变主线人物关系或最终结局。`
+  }
+  return ''
 }

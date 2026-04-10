@@ -15,7 +15,6 @@ import { VIDEO_RATIOS } from '@/lib/constants'
 import { DEFAULT_STYLE_PRESET_VALUE, STYLE_PRESETS } from '@/lib/style-presets'
 import { Link, useRouter } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/api-fetch'
-import { expandHomeStory } from '@/lib/home/ai-story-expand'
 import { createHomeProjectLaunch } from '@/lib/home/create-project-launch'
 import { formatDefaultProjectTimestamp } from '@/lib/projects/default-name'
 import { HOME_QUICK_START_MIN_ROWS } from '@/lib/ui/textarea-height'
@@ -55,7 +54,6 @@ export default function HomePage() {
   const [createLoading, setCreateLoading] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [aiWriteOpen, setAiWriteOpen] = useState(false)
-  const [aiWriteLoading, setAiWriteLoading] = useState(false)
 
   // 鉴权
   useEffect(() => {
@@ -119,25 +117,6 @@ export default function HomePage() {
   }
 
   // AI 帮我写 — 直接生成文本并回填首页输入框
-  const handleAiWriteStart = async (prompt: string) => {
-    if (aiWriteLoading) return
-    setAiWriteLoading(true)
-    try {
-      const result = await expandHomeStory({
-        apiFetch,
-        prompt,
-      })
-
-      setInputValue(result.expandedText)
-      setAiWriteOpen(false)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed'
-      window.alert(message)
-    } finally {
-      setAiWriteLoading(false)
-    }
-  }
-
   // 比例选项（带推荐标签）
   const ratioOptions = useMemo(
     () => VIDEO_RATIOS.map((r) => ({ ...r, recommended: r.value === '9:16' })),
@@ -302,9 +281,8 @@ export default function HomePage() {
         {/* AI 帮我写模态框 */}
         <AiWriteModal
           open={aiWriteOpen}
-          loading={aiWriteLoading}
           onClose={() => setAiWriteOpen(false)}
-          onStart={(prompt) => void handleAiWriteStart(prompt)}
+            onAccept={(text) => setInputValue(text)}
           t={(key: string) => t(`aiWrite.${key}`)}
         />
       </main>

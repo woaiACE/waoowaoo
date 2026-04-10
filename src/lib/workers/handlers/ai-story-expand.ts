@@ -6,6 +6,7 @@ import type { TaskJobData } from '@/lib/task/types'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
 import { createWorkerLLMStreamCallbacks, createWorkerLLMStreamContext } from './llm-stream'
+import { getAiExpandToneInstruction, getAiExpandRewriteInstruction, getAiExpandLengthInstruction } from '@/lib/screenplay-tone-presets'
 
 function readText(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -15,6 +16,10 @@ export async function handleAiStoryExpandTask(job: Job<TaskJobData>) {
   const payload = (job.data.payload || {}) as Record<string, unknown>
   const promptInput = readText(payload.prompt).trim()
   const analysisModel = readText(payload.analysisModel).trim()
+  const screenplayTone = readText(payload.screenplayTone).trim()
+  const storyRewriteMode = readText(payload.storyRewriteMode).trim()
+  const sourceText = readText(payload.sourceText).trim()
+  const lengthTarget = readText(payload.lengthTarget).trim()
 
   if (!promptInput) {
     throw new Error('prompt is required')
@@ -23,11 +28,22 @@ export async function handleAiStoryExpandTask(job: Job<TaskJobData>) {
     throw new Error('analysisModel is required')
   }
 
+  const toneInstruction = getAiExpandToneInstruction(screenplayTone)
+  const rewriteInstruction = getAiExpandRewriteInstruction(storyRewriteMode)
+  const lengthInstruction = getAiExpandLengthInstruction(lengthTarget)
+  const sourceTextBlock = sourceText
+    ? `## 原始故事文本（请在此基础上进行改写）\n\n${sourceText}`
+    : ''
+
   const prompt = buildPrompt({
     promptId: PROMPT_IDS.NP_AI_STORY_EXPAND,
     locale: job.data.locale,
     variables: {
       input: promptInput,
+      tone_instruction: toneInstruction,
+      rewrite_instruction: rewriteInstruction,
+      length_instruction: lengthInstruction,
+      source_text_block: sourceTextBlock,
     },
   })
 

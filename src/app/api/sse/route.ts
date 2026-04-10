@@ -96,7 +96,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
     throw new ApiError('INVALID_PARAMS')
   }
 
-  const authResult = projectId === 'global-asset-hub'
+  const VIRTUAL_PROJECT_IDS = new Set(['global-asset-hub', 'home-ai-write'])
+  const authResult = VIRTUAL_PROJECT_IDS.has(projectId)
     ? await requireUserAuth()
     : await requireProjectAuthLight(projectId)
   if (isErrorResponse(authResult)) return authResult

@@ -261,6 +261,7 @@ export interface NovelPromotionProject {
   colorGradePreset: string
   targetPlatform: string
   screenplayTone: string
+  storyRewriteMode: string
   audioUrl: string | null
   media?: MediaRef | null
   srtContent: string | null

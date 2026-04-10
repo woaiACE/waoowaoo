@@ -67,6 +67,8 @@ export default function ConfigStage() {
       onTargetPlatformChange={runtime.onTargetPlatformChange}
       screenplayTone={runtime.screenplayTone ?? undefined}
       onScreenplayToneChange={runtime.onScreenplayToneChange}
+      storyRewriteMode={runtime.storyRewriteMode ?? undefined}
+      onStoryRewriteModeChange={runtime.onStoryRewriteModeChange}
       onNext={runtime.onRunStoryToScript}
       onSmartSplit={handleSmartSplit}
     />

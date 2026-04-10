@@ -26,6 +26,7 @@ export interface WorkspaceStageRuntimeValue {
   colorGradePreset: string | null | undefined
   targetPlatform: string | null | undefined
   screenplayTone: string | null | undefined
+  storyRewriteMode: string | null | undefined
   videoModel: string | null | undefined
   capabilityOverrides: CapabilitySelections
   userVideoModels: WorkspaceStageVideoModelOption[]
@@ -35,6 +36,7 @@ export interface WorkspaceStageRuntimeValue {
   onColorGradePresetChange: (value: string) => Promise<void>
   onTargetPlatformChange: (value: string) => Promise<void>
   onScreenplayToneChange: (value: string) => Promise<void>
+  onStoryRewriteModeChange: (value: string) => Promise<void>
   onRunStoryToScript: () => Promise<void>
   onClipUpdate: (clipId: string, data: unknown) => Promise<void>
   onOpenAssetLibrary: () => void

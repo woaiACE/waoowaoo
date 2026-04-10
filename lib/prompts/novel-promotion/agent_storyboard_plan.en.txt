@@ -1,6 +1,8 @@
 You are a storyboard planning director.
 Generate an initial panel sequence for one clip.
 
+{tone_instruction}
+
 Character library names:
 {characters_lib_name}
 

@@ -3,6 +3,8 @@ Convert the clip text into structured screenplay JSON without adding new story f
 
 {tone_instruction}
 
+{rewrite_mode_instruction}
+
 Clip ID:
 {clip_id}
 

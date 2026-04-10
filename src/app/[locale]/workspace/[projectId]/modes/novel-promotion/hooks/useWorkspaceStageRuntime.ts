@@ -18,6 +18,7 @@ interface UseWorkspaceStageRuntimeParams {
   colorGradePreset: string | undefined
   targetPlatform: string | undefined
   screenplayTone: string | undefined
+  storyRewriteMode: string | undefined
   videoModel: string | undefined
   capabilityOverrides: CapabilitySelections
   userVideoModels: Array<{
@@ -72,6 +73,7 @@ export function useWorkspaceStageRuntime({
   colorGradePreset,
   targetPlatform,
   screenplayTone,
+  storyRewriteMode,
   videoModel,
   capabilityOverrides,
   userVideoModels,
@@ -106,6 +108,7 @@ export function useWorkspaceStageRuntime({
     colorGradePreset,
     targetPlatform,
     screenplayTone,
+    storyRewriteMode,
     videoModel,
     capabilityOverrides,
     userVideoModels: resolvedUserVideoModels,
@@ -115,6 +118,7 @@ export function useWorkspaceStageRuntime({
     onColorGradePresetChange: (value) => handleUpdateConfig('colorGradePreset', value),
     onTargetPlatformChange: (value) => handleUpdateConfig('targetPlatform', value),
     onScreenplayToneChange: (value) => handleUpdateConfig('screenplayTone', value),
+    onStoryRewriteModeChange: (value) => handleUpdateConfig('storyRewriteMode', value),
     onRunStoryToScript: () => runWithRebuildConfirm('storyToScript', runStoryToScriptFlow),
     onClipUpdate: (clipId, data) => {
       if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -157,6 +161,7 @@ export function useWorkspaceStageRuntime({
     colorGradePreset,
     targetPlatform,
     screenplayTone,
+    storyRewriteMode,
     videoModel,
     videoRatio,
   ])

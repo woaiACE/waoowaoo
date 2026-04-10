@@ -17,11 +17,9 @@ import { resolveTaskPresentationState } from '@/lib/task/presentation'
 import { AppIcon } from '@/components/ui/icons'
 import { DEFAULT_STYLE_PRESET_VALUE, STYLE_PRESETS } from '@/lib/style-presets'
 import { PROJECT_STORY_INPUT_MIN_ROWS } from '@/lib/ui/textarea-height'
-import { apiFetch } from '@/lib/api-fetch'
-import { expandHomeStory } from '@/lib/home/ai-story-expand'
 import { COLOR_GRADE_PRESETS } from '@/lib/color-grade-presets'
-import { SCREENPLAY_TONE_PRESETS } from '@/lib/screenplay-tone-presets'
 import { TARGET_PLATFORMS, getPlatformVideoRatio } from '@/lib/target-platforms'
+import { ScreenplayTonePicker } from '@/components/selectors/ScreenplayTonePicker'
 import ProjectTemplateSelector from './ProjectTemplateSelector'
 import type { ProjectTemplate } from '@/lib/project-templates'
 
@@ -57,6 +55,8 @@ interface NovelInputStageProps {
   onTargetPlatformChange?: (value: string) => void
   screenplayTone?: string
   onScreenplayToneChange?: (value: string) => void
+  storyRewriteMode?: string
+  onStoryRewriteModeChange?: (value: string) => void
 }
 
 export default function NovelInputStage({
@@ -79,6 +79,8 @@ export default function NovelInputStage({
   onTargetPlatformChange,
   screenplayTone = 'auto',
   onScreenplayToneChange,
+  storyRewriteMode = 'none',
+  onStoryRewriteModeChange,
 }: NovelInputStageProps) {
   const t = useTranslations('novelPromotion')
   const homeT = useTranslations('home')
@@ -92,7 +94,6 @@ export default function NovelInputStage({
   const [localText, setLocalText] = useState(novelText)
   const [stylePresetValue, setStylePresetValue] = useState<string>(DEFAULT_STYLE_PRESET_VALUE)
   const [aiWriteOpen, setAiWriteOpen] = useState(false)
-  const [aiWriteLoading, setAiWriteLoading] = useState(false)
 
   // 当父组件的 novelText 变化（非本地编辑触发）时，同步到本地 state
   useEffect(() => {
@@ -123,26 +124,6 @@ export default function NovelInputStage({
       onNext()
     }
   }, [localText, onNext, onSmartSplit])
-
-  const handleAiWriteStart = useCallback(async (prompt: string) => {
-    if (aiWriteLoading) return
-    setAiWriteLoading(true)
-    try {
-      const result = await expandHomeStory({
-        apiFetch,
-        prompt,
-      })
-
-      setLocalText(result.expandedText)
-      onNovelTextChange(result.expandedText)
-      setAiWriteOpen(false)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed'
-      window.alert(message)
-    } finally {
-      setAiWriteLoading(false)
-    }
-  }, [aiWriteLoading, onNovelTextChange])
 
   const handleApplyTemplate = useCallback((template: ProjectTemplate) => {
     const cfg = template.config
@@ -310,27 +291,22 @@ export default function NovelInputStage({
         </div>
 
         {/* 剧本风格基调 */}
-        <div className="flex items-center gap-2 glass-surface px-3 py-2 rounded-xl flex-1 min-w-[180px]">
-          <AppIcon name="sparkles" className="w-4 h-4 text-[var(--glass-text-tertiary)] flex-shrink-0" />
-          <span className="text-xs text-[var(--glass-text-tertiary)] flex-shrink-0">剧本风格</span>
-          <select
+        <div className="flex-1 min-w-[180px]">
+          <ScreenplayTonePicker
             value={screenplayTone}
-            onChange={e => onScreenplayToneChange?.(e.target.value)}
+            onChange={(v) => onScreenplayToneChange?.(v)}
             disabled={isSubmittingTask || isSwitchingStage}
-            className="flex-1 min-w-0 bg-transparent text-xs text-[var(--glass-text-secondary)] outline-none cursor-pointer"
-          >
-            {SCREENPLAY_TONE_PRESETS.map(p => (
-              <option key={p.value} value={p.value} title={p.description}>{p.label}</option>
-            ))}
-          </select>
+          />
         </div>
       </div>
 
+      {/* 改写强度（仅在选择了非 auto 风格时显示） */}
       <AiWriteModal
         open={aiWriteOpen}
-        loading={aiWriteLoading}
         onClose={() => setAiWriteOpen(false)}
-        onStart={(prompt) => void handleAiWriteStart(prompt)}
+          onAccept={(text) => { setLocalText(text); onNovelTextChange(text) }}
+          sourceText={localText.trim() || undefined}
+          initialScreenplayTone={screenplayTone}
         t={(key: string) => homeT(`aiWrite.${key}`)}
       />
 
