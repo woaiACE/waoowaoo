@@ -403,3 +403,59 @@ export function getAiExpandRewriteInstruction(mode: string | null | undefined): 
   }
   return ''
 }
+
+// ── 读者画像 ──────────────────────────────────────────────────
+
+export interface ReaderProfileOption {
+  value: string
+  label: string
+  description: string
+  /** 注入 prompt 的读者定向指令，'general' 时为空字符串 */
+  readerInstruction: string
+}
+
+export const AI_EXPAND_READER_PROFILES: readonly ReaderProfileOption[] = [
+  {
+    value: 'general',
+    label: '通用',
+    description: '不限定读者群体，AI 自由发挥',
+    readerInstruction: '',
+  },
+  {
+    value: 'female',
+    label: '女性向',
+    description: '言情、甜宠、逆袭，面向女性读者的情感共鸣',
+    readerInstruction:
+      '## 读者定向\n\n目标读者为女性受众。请重点突出情感细节、人物内心描写与情感弧线，对白应富有情绪张力，情感节奏偏细腻温情或甜蜜撩拨，确保女性读者产生强烈代入感。',
+  },
+  {
+    value: 'male',
+    label: '男性向',
+    description: '爽文、热血、硬核，面向男性读者的爽感驱动',
+    readerInstruction:
+      '## 读者定向\n\n目标读者为男性受众。请强调爽感节奏、实力碾压、逆袭反转等元素，对白简洁干脆，情节推进迅速，冲突激烈直接，确保男性读者产生强烈爽感。',
+  },
+  {
+    value: 'teen',
+    label: '青少年',
+    description: '校园、青春、成长，面向 15-25 岁群体',
+    readerInstruction:
+      '## 读者定向\n\n目标读者为青少年（15-25 岁）。语言风格青春活泼，情节聚焦校园生活、友情、初恋、成长蜕变等主题，角色心理描写贴近当代年轻人，避免过于沉重的成人话题。',
+  },
+  {
+    value: 'kids',
+    label: '儿童',
+    description: '童话、奇幻、欢乐，面向低龄（6-12 岁）读者',
+    readerInstruction:
+      '## 读者定向\n\n目标读者为儿童（6-12 岁）。语言简单易懂，故事充满想象力与正能量，角色行为遵循童话逻辑，结局温暖美好，严禁暴力、恐怖或不适宜儿童的内容。',
+  },
+] as const
+
+/**
+ * 为 AI 帮我写（ai_story_expand）生成 reader_instruction 块
+ * value 为 'general' 或空时返回空字符串
+ */
+export function getReaderInstruction(value: string | null | undefined): string {
+  if (!value || value === 'general') return ''
+  return AI_EXPAND_READER_PROFILES.find((p) => p.value === value)?.readerInstruction ?? ''
+}

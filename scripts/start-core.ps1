@@ -809,12 +809,19 @@ LLM_STREAM_EPHEMERAL_ENABLED=true
 function Invoke-Phase6-NpmInstall {
     Write-Banner 'Phase 6: Node.js 依赖安装检查'
 
-    $nodeModules = Join-Path $RepoDir 'node_modules'
-    $packageJson = Join-Path $RepoDir 'package.json'
+    $nodeModules   = Join-Path $RepoDir 'node_modules'
+    # npm 只有在 install 完全成功后才写 .package-lock.json，用此文件作安装成功标记
+    $installMarker = Join-Path $nodeModules '.package-lock.json'
 
-    if (Test-Path $nodeModules) {
-        Write-Success 'node_modules 已存在，跳过安装。'
+    if ((Test-Path $nodeModules) -and (Test-Path $installMarker)) {
+        Write-Success 'node_modules 已存在（安装完整），跳过安装。'
         return
+    }
+
+    # 如果 node_modules 存在但缺少成功标记 → 上次安装中途失败，需清理后重装
+    if ((Test-Path $nodeModules) -and -not (Test-Path $installMarker)) {
+        Write-Warn 'node_modules 不完整（上次安装未成功），正在清理并重新安装...'
+        Remove-Item -Path $nodeModules -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     Write-Step -Phase '安装' -Message "正在安装 Node.js 依赖（首次安装含 Prisma generate，需要5-15分钟）..."
@@ -823,19 +830,43 @@ function Invoke-Phase6-NpmInstall {
     # 将便携 node\node_modules\.bin 加入 PATH 以支持 npx
     $env:PATH = "$Script:NodeDir;$($env:PATH)"
 
+    # ── 网络优化：走淘宝 CDN 镜像，规避国内网络 ECONNRESET ──
+    $env:npm_config_registry   = 'https://registry.npmmirror.com'
+    $env:PRISMA_ENGINES_MIRROR = 'https://registry.npmmirror.com/-/binary/prisma'
+
+    $maxRetries    = 3
+    $retryDelaySec = 30
+
     Push-Location $RepoDir
     try {
-        # 使用 --prefer-offline 加速（若已有缓存）；--no-audit 跳过安全检查减少网络请求
-        $npmProcess = Start-Process `
-            -FilePath $Script:NpmCmd `
-            -ArgumentList 'install', '--no-audit', '--prefer-offline' `
-            -NoNewWindow `
-            -PassThru `
-            -Wait `
-            -WorkingDirectory $RepoDir
+        for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+            if ($attempt -gt 1) {
+                Write-Step -Phase "安装 $attempt/$maxRetries" -Message "重试 npm install..."
+            }
 
-        if ($npmProcess.ExitCode -ne 0) {
-            throw "npm install 失败，退出代码：$($npmProcess.ExitCode)"
+            $npmProcess = Start-Process `
+                -FilePath $Script:NpmCmd `
+                -ArgumentList 'install', '--no-audit', '--prefer-offline' `
+                -NoNewWindow `
+                -PassThru `
+                -Wait `
+                -WorkingDirectory $RepoDir
+
+            if ($npmProcess.ExitCode -eq 0) {
+                break
+            }
+
+            if ($attempt -lt $maxRetries) {
+                Write-Warn "npm install 第 $attempt 次失败，清理残留并在 ${retryDelaySec} 秒后重试..."
+                # 清理不完整的 node_modules，保证下次安装从干净状态开始
+                if (Test-Path $nodeModules) {
+                    Remove-Item -Path $nodeModules -Recurse -Force -ErrorAction SilentlyContinue
+                }
+                Start-Sleep -Seconds $retryDelaySec
+                $retryDelaySec = [int]($retryDelaySec * 1.5)   # 指数退避
+            } else {
+                throw "npm install 失败，退出代码：$($npmProcess.ExitCode)"
+            }
         }
     }
     finally {

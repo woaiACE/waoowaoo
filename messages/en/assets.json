@@ -325,7 +325,12 @@
         "uploaded": "Uploaded",
         "uploadAudio": "Upload Audio",
         "pause": "Pause",
-        "preview": "Preview Voice"
+        "preview": "Preview Voice",
+        "downloadVoice": "Download Voice",
+        "saveToLibrary": "Save to Library",
+        "savingToLibrary": "Saving...",
+        "savedToLibrary": "Voice of \"{name}\" saved to library",
+        "saveToLibraryFailed": "Save failed: {error}"
     },
     "characterProfile": {
         "importance": {

@@ -36,6 +36,18 @@
     "lengthLong": "Long (3-5min)",
     "sourceTextHint": "Will rewrite based on existing text",
     "charCount": "{n} chars",
-    "generationFailed": "Generation failed"
+    "generationFailed": "Generation failed",
+    "readerProfileLabel": "Audience",
+    "readerGeneral": "General",
+    "readerFemale": "Female",
+    "readerMale": "Male",
+    "readerTeen": "Teen",
+    "readerKids": "Kids",
+    "toneSectionLabel": "Film Style",
+    "idlePlaceholderTitle": "Enter your idea on the left",
+    "idlePlaceholderSubtitle": "AI will generate the story content here in real time",
+    "statusStreaming": "Generating...",
+    "statusCompleted": "Generation complete",
+    "statusIdle": "Awaiting input"
   }
 }

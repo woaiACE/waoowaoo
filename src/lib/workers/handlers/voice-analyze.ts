@@ -229,6 +229,63 @@ export async function handleVoiceAnalyzeTask(job: Job<TaskJobData>) {
     throw lastAnalyzeError || new Error('voice analyze failed')
   }
 
+  // 为没有AI匹配台词的分镜注入旁白（方案B：直接从 srtSegment 创建，不走 AI 分析）
+  // 对话镜头已有角色台词，不再重复注入；只对建立镜头、反应镜头、环境镜头等纯叙述面板注入旁白
+  const aiMatchedPanelIds = new Set<string>(
+    voiceLinesData
+      .filter((l) => l.matchedPanelId != null)
+      .map((l) => l.matchedPanelId!)
+  )
+  for (const storyboard of episode.storyboards || []) {
+    for (const panel of storyboard.panels || []) {
+      // 已有AI匹配的角色对话台词 → 跳过，避免旁白重读对话
+      if (aiMatchedPanelIds.has(panel.id)) continue
+      const srtText = (panel.srtSegment || '').trim()
+      if (!srtText) continue
+      voiceLinesData.push({
+        lineIndex: 0, // 占位，后续按分镜顺序重新分配
+        speaker: '旁白',
+        content: srtText,
+        emotionStrength: 0.15,
+        matchedPanelId: panel.id,
+        matchedStoryboardId: storyboard.id,
+        matchedPanelIndex: panel.panelIndex,
+      })
+    }
+  }
+
+  // 按分镜面板位置（storyboard 顺序 × panelIndex）重新排序并分配 lineIndex
+  // 使序号与实际播放顺序一致，避免旁白序号堆积在对话台词之后
+  const storyboardOrder = new Map<string, number>()
+  ;(episode.storyboards || []).forEach((sb, sbIdx) => { storyboardOrder.set(sb.id, sbIdx) })
+  const panelGlobalOrder = new Map<string, number>()
+  let globalPanelIdx = 0
+  for (const sb of episode.storyboards || []) {
+    for (const panel of sb.panels || []) {
+      panelGlobalOrder.set(panel.id, globalPanelIdx)
+      globalPanelIdx += 1
+    }
+  }
+  const totalPanels = globalPanelIdx
+
+  const getPanelOrder = (line: (typeof voiceLinesData)[0]): number => {
+    if (line.matchedPanelId == null) return totalPanels + line.lineIndex // 无关联面板的行按原 AI lineIndex 追加末尾
+    return panelGlobalOrder.get(line.matchedPanelId) ?? totalPanels
+  }
+
+  voiceLinesData.sort((a, b) => {
+    const orderA = getPanelOrder(a)
+    const orderB = getPanelOrder(b)
+    if (orderA !== orderB) return orderA - orderB
+    // 同一面板内：对话在前（非 '旁白'），旁白在后
+    if (a.speaker !== '旁白' && b.speaker === '旁白') return -1
+    if (a.speaker === '旁白' && b.speaker !== '旁白') return 1
+    return 0
+  })
+
+  // 按排序后的位置重新分配从 1 开始的 lineIndex
+  voiceLinesData.forEach((line, idx) => { line.lineIndex = idx + 1 })
+
   await reportTaskProgress(job, 82, {
     stage: 'voice_analyze_persist',
     stageLabel: '保存台词分析结果',

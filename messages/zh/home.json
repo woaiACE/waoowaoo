@@ -36,6 +36,18 @@
     "lengthLong": "长篇 (3-5min)",
     "sourceTextHint": "将在现有文本基础上改写",
     "charCount": "{n} 字",
-    "generationFailed": "生成失败"
+    "generationFailed": "生成失败",
+    "readerProfileLabel": "读者",
+    "readerGeneral": "通用",
+    "readerFemale": "女性向",
+    "readerMale": "男性向",
+    "readerTeen": "青少年",
+    "readerKids": "儿童",
+    "toneSectionLabel": "影视风格",
+    "idlePlaceholderTitle": "在左侧输入你的创意",
+    "idlePlaceholderSubtitle": "AI 将在此处实时生成故事内容",
+    "statusStreaming": "生成中...",
+    "statusCompleted": "生成完成",
+    "statusIdle": "等待输入"
   }
 }

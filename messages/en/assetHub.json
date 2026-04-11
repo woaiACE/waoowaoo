@@ -79,7 +79,12 @@
         "aiDesign": "AI Design",
         "voiceLibrary": "Voice Library",
         "pause": "Pause",
-        "preview": "Preview Voice"
+        "preview": "Preview Voice",
+        "downloadVoice": "Download Voice",
+        "saveToLibrary": "Save to Library",
+        "savingToLibrary": "Saving...",
+        "savedToLibrary": "Voice of \"{name}\" saved to library",
+        "saveToLibraryFailed": "Save failed: {error}"
     },
     "modal": {
         "newCharacter": "New Character",

@@ -1,7 +1,7 @@
 import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
 import { createScopedLogger } from '@/lib/logging/core'
-import { LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO, addLocationPromptSuffix, addPropPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, isArkModelKey, convertNegativeToPositivePrompt, type ArtStyleValue } from '@/lib/constants'
+import { LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO, addLocationPromptSuffix, addPropPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, isArkModelKey, isGeminiCompatibleModelKey, convertNegativeToPositivePrompt, type ArtStyleValue } from '@/lib/constants'
 import { getColorGradePromptKeywords } from '@/lib/color-grade-presets'
 import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
 import { type TaskJobData } from '@/lib/task/types'
@@ -82,8 +82,9 @@ export async function handleLocationImageTask(job: Job<TaskJobData>) {
   const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
   const artStyleNegativePrompt = getArtStyleNegativePrompt(effectiveArtStyleId)
   const isArkModel = isArkModelKey(modelId)
-  // Ark 豆包不支持 negative_prompt，预先将负向词转换为正向约束备用
-  const positiveNegativeFallback = isArkModel && artStyleNegativePrompt
+  const isNativeNegativeUnsupported = isArkModel || isGeminiCompatibleModelKey(modelId)
+  // Ark 豆包和 Gemini 兼容模型均不支持 negative_prompt，预先将负向词转换为正向约束备用
+  const positiveNegativeFallback = isNativeNegativeUnsupported && artStyleNegativePrompt
     ? convertNegativeToPositivePrompt(artStyleNegativePrompt)
     : null
   const assetType = payload.type === 'prop' ? 'prop' : 'location'
@@ -193,7 +194,7 @@ export async function handleLocationImageTask(job: Job<TaskJobData>) {
       keyPrefix: 'location',
       options: {
         aspectRatio,
-        negativePrompt: isArkModel ? undefined : artStyleNegativePrompt,
+        negativePrompt: isNativeNegativeUnsupported ? undefined : artStyleNegativePrompt,
       },
     })
 

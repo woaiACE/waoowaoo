@@ -61,12 +61,22 @@ export const GET = apiHandler(async (
       continue
     }
 
-    const previewAudioUrl = voice.previewAudioUrl ? signUrlIfNeeded(voice.previewAudioUrl) : undefined
+    if (voice.provider === 'bailian') {
+      const previewAudioUrl = voice.previewAudioUrl ? signUrlIfNeeded(voice.previewAudioUrl) : undefined
+      speakerVoices[speaker] = {
+        provider: 'bailian',
+        voiceType: voice.voiceType,
+        voiceId: voice.voiceId,
+        ...(previewAudioUrl ? { previewAudioUrl } : {}),
+      }
+      continue
+    }
+
+    // local provider
     speakerVoices[speaker] = {
-      provider: 'bailian',
+      provider: 'local',
       voiceType: voice.voiceType,
-      voiceId: voice.voiceId,
-      ...(previewAudioUrl ? { previewAudioUrl } : {}),
+      audioUrl: signUrlIfNeeded(voice.audioUrl),
     }
   }
 

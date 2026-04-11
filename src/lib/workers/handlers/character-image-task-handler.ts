@@ -1,7 +1,7 @@
 import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
 import { createScopedLogger } from '@/lib/logging/core'
-import { CHARACTER_ASSET_IMAGE_RATIO, addCharacterPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, PRIMARY_APPEARANCE_INDEX, isArkModelKey, convertNegativeToPositivePrompt, type ArtStyleValue } from '@/lib/constants'
+import { CHARACTER_ASSET_IMAGE_RATIO, addCharacterPromptSuffix, getArtStylePrompt, getArtStyleNegativePrompt, isArtStyleValue, PRIMARY_APPEARANCE_INDEX, isArkModelKey, isGeminiCompatibleModelKey, convertNegativeToPositivePrompt, type ArtStyleValue } from '@/lib/constants'
 import { getColorGradePromptKeywords } from '@/lib/color-grade-presets'
 import { type TaskJobData } from '@/lib/task/types'
 import { encodeImageUrls } from '@/lib/contracts/image-urls-contract'
@@ -122,8 +122,9 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
   const artStyle = colorKeywords ? `${artStyleBase}, ${colorKeywords}` : artStyleBase
   const artStyleNegativePrompt = getArtStyleNegativePrompt(effectiveArtStyleId)
   const isArkModel = isArkModelKey(modelId)
-  // Ark 豆包不支持 negative_prompt，预先将负向词转换为正向约束备用
-  const positiveNegativeFallback = isArkModel && artStyleNegativePrompt
+  const isNativeNegativeUnsupported = isArkModel || isGeminiCompatibleModelKey(modelId)
+  // Ark 豆包和 Gemini 兼容模型均不支持 negative_prompt，预先将负向词转换为正向约束备用
+  const positiveNegativeFallback = isNativeNegativeUnsupported && artStyleNegativePrompt
     ? convertNegativeToPositivePrompt(artStyleNegativePrompt)
     : null
   const descriptions = parseJsonStringArray(appearance.descriptions)
@@ -207,7 +208,7 @@ export async function handleCharacterImageTask(job: Job<TaskJobData>) {
       options: {
         referenceImages: primaryReferenceImages.length > 0 ? primaryReferenceImages : undefined,
         aspectRatio: CHARACTER_ASSET_IMAGE_RATIO,
-        negativePrompt: isArkModel ? undefined : artStyleNegativePrompt,
+        negativePrompt: isNativeNegativeUnsupported ? undefined : artStyleNegativePrompt,
       },
     })
 

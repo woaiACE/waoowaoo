@@ -6,6 +6,7 @@ import { normalizeToBase64ForGeneration } from '@/lib/media/outbound-image'
 import { extractStorageKey, getSignedUrl, toFetchableUrl, uploadObject } from '@/lib/storage'
 import { resolveStorageKeyFromMediaValue } from '@/lib/media/service'
 import { synthesizeWithBailianTTS } from '@/lib/providers/bailian'
+import { synthesizeWithLocalIndexTTS } from '@/lib/providers/local-indextts'
 import {
   parseSpeakerVoiceMap,
   resolveVoiceBindingForProvider,
@@ -261,6 +262,15 @@ export async function generateVoiceLine(params: {
       audioData,
       audioDuration: result.audioDuration ?? getWavDurationFromBuffer(audioData),
     }
+  } else if (providerKey === 'local') {
+    if (!voiceBinding || voiceBinding.provider !== 'local') {
+      throw new Error('请先为该发言人设置参考音频')
+    }
+    const fullAudioUrl = await resolveReferenceAudioUrl(voiceBinding.referenceAudioUrl)
+    generated = await synthesizeWithLocalIndexTTS({
+      text,
+      referenceAudioUrl: fullAudioUrl,
+    })
   } else {
     throw new Error(`AUDIO_PROVIDER_UNSUPPORTED: ${audioSelection.provider}`)
   }

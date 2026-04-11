@@ -6,7 +6,7 @@ import type { TaskJobData } from '@/lib/task/types'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
 import { createWorkerLLMStreamCallbacks, createWorkerLLMStreamContext } from './llm-stream'
-import { getAiExpandToneInstruction, getAiExpandRewriteInstruction, getAiExpandLengthInstruction } from '@/lib/screenplay-tone-presets'
+import { getAiExpandToneInstruction, getAiExpandRewriteInstruction, getAiExpandLengthInstruction, getReaderInstruction } from '@/lib/screenplay-tone-presets'
 
 function readText(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -31,6 +31,8 @@ export async function handleAiStoryExpandTask(job: Job<TaskJobData>) {
   const toneInstruction = getAiExpandToneInstruction(screenplayTone)
   const rewriteInstruction = getAiExpandRewriteInstruction(storyRewriteMode)
   const lengthInstruction = getAiExpandLengthInstruction(lengthTarget)
+  const readerProfile = readText(payload.readerProfile).trim()
+  const readerInstruction = getReaderInstruction(readerProfile)
   const sourceTextBlock = sourceText
     ? `## 原始故事文本（请在此基础上进行改写）\n\n${sourceText}`
     : ''
@@ -43,6 +45,7 @@ export async function handleAiStoryExpandTask(job: Job<TaskJobData>) {
       tone_instruction: toneInstruction,
       rewrite_instruction: rewriteInstruction,
       length_instruction: lengthInstruction,
+      reader_instruction: readerInstruction,
       source_text_block: sourceTextBlock,
     },
   })

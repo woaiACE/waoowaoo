@@ -502,6 +502,16 @@ export function isArkModelKey(modelKey: string): boolean {
 }
 
 /**
+ * 判断模型是否为 Gemini 兼容型（gemini-compatible 自定义供应商）
+ *
+ * Gemini 兼容接口不支持 negativePrompt 选项，传入会抛出
+ * GEMINI_COMPATIBLE_IMAGE_OPTION_UNSUPPORTED 异常，需在调用方跳过。
+ */
+export function isGeminiCompatibleModelKey(modelKey: string): boolean {
+  return modelKey.split('::')[0]?.toLowerCase().startsWith('gemini-compatible:') ?? false
+}
+
+/**
  * 将负向提示词转换为等价的正向约束表述
  *
  * 用于 Ark 豆包等不支持 negative_prompt 的提供商：

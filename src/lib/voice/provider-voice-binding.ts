@@ -1,6 +1,6 @@
 type VoiceSource = 'character' | 'speaker'
 
-export type SupportedAudioProviderKey = 'fal' | 'bailian'
+export type SupportedAudioProviderKey = 'fal' | 'bailian' | 'local'
 
 export interface CharacterVoiceFields {
   customVoiceUrl?: string | null
@@ -28,7 +28,13 @@ export type BailianSpeakerVoiceEntry = {
   previewAudioUrl?: string
 }
 
-export type SpeakerVoiceEntry = FalSpeakerVoiceEntry | BailianSpeakerVoiceEntry
+export type LocalSpeakerVoiceEntry = {
+  provider: 'local'
+  voiceType: string
+  audioUrl: string
+}
+
+export type SpeakerVoiceEntry = FalSpeakerVoiceEntry | BailianSpeakerVoiceEntry | LocalSpeakerVoiceEntry
 export type SpeakerVoiceMap = Record<string, SpeakerVoiceEntry>
 
 export type FalVoiceGenerationBinding = {
@@ -43,7 +49,13 @@ export type BailianVoiceGenerationBinding = {
   voiceId: string
 }
 
-export type VoiceGenerationBinding = FalVoiceGenerationBinding | BailianVoiceGenerationBinding
+export type LocalVoiceGenerationBinding = {
+  provider: 'local'
+  source: VoiceSource
+  referenceAudioUrl: string
+}
+
+export type VoiceGenerationBinding = FalVoiceGenerationBinding | BailianVoiceGenerationBinding | LocalVoiceGenerationBinding
 
 export type SpeakerVoicePatch =
   | {
@@ -56,6 +68,11 @@ export type SpeakerVoicePatch =
     voiceType?: string
     voiceId: string
     previewAudioUrl?: string
+  }
+  | {
+    provider: 'local'
+    voiceType?: string
+    audioUrl: string
   }
 
 function readTrimmedString(input: unknown): string | null {
@@ -97,6 +114,17 @@ function normalizeRawSpeakerVoiceEntry(raw: unknown, speaker: string): SpeakerVo
       voiceType,
       voiceId,
       ...(preview ? { previewAudioUrl: preview } : {}),
+    }
+  }
+
+  if (provider === 'local') {
+    if (!audioUrl) {
+      throw new Error(`SPEAKER_VOICE_ENTRY_INVALID_LOCAL_AUDIO: ${speaker}`)
+    }
+    return {
+      provider: 'local',
+      voiceType,
+      audioUrl,
     }
   }
 
@@ -151,7 +179,7 @@ export function parseSpeakerVoiceMap(raw: string | null | undefined): SpeakerVoi
 }
 
 function normalizeProviderKey(providerKey: string): SupportedAudioProviderKey | null {
-  if (providerKey === 'fal' || providerKey === 'bailian') {
+  if (providerKey === 'fal' || providerKey === 'bailian' || providerKey === 'local') {
     return providerKey
   }
   return null
@@ -193,6 +221,17 @@ export function resolveVoiceBindingForProvider(params: {
     return toFalBinding('speaker', readTrimmedString(params.speakerVoice.audioUrl))
   }
 
+  if (providerKey === 'local') {
+    const fromCharacter = characterAudioUrl
+      ? { provider: 'local' as const, source: 'character' as const, referenceAudioUrl: characterAudioUrl }
+      : null
+    if (fromCharacter) return fromCharacter
+    if (params.speakerVoice?.provider !== 'local') return null
+    const audioUrl = readTrimmedString(params.speakerVoice.audioUrl)
+    if (!audioUrl) return null
+    return { provider: 'local' as const, source: 'speaker' as const, referenceAudioUrl: audioUrl }
+  }
+
   const fromCharacter = toBailianBinding('character', characterVoiceId)
   if (fromCharacter) return fromCharacter
   if (params.speakerVoice?.provider !== 'bailian') return null
@@ -216,7 +255,7 @@ export function hasAnyVoiceBinding(params: {
   if (characterAudioUrl || characterVoiceId) return true
 
   if (!params.speakerVoice) return false
-  if (params.speakerVoice.provider === 'fal') {
+  if (params.speakerVoice.provider === 'fal' || params.speakerVoice.provider === 'local') {
     return !!readTrimmedString(params.speakerVoice.audioUrl)
   }
   return !!readTrimmedString(params.speakerVoice.voiceId)
@@ -224,7 +263,7 @@ export function hasAnyVoiceBinding(params: {
 
 export function getSpeakerVoicePreviewUrl(speakerVoice?: SpeakerVoiceEntry | null): string | null {
   if (!speakerVoice) return null
-  if (speakerVoice.provider === 'fal') {
+  if (speakerVoice.provider === 'fal' || speakerVoice.provider === 'local') {
     return readTrimmedString(speakerVoice.audioUrl)
   }
   return readTrimmedString(speakerVoice.previewAudioUrl)

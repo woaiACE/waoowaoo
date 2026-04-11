@@ -140,11 +140,11 @@ export const TTS_VOICES = [
 //
 // 说明：新 API（STYLE_CATEGORIES / getStyleById / assembleImagePrompt）
 // 请从 '@/lib/style-categories' 直接导入，此处只保留向后兼容出口。
-import { getAllStyleItems, getStyleById, getArtStyleNegativePrompt, isValidStyleId, isArkModelKey, convertNegativeToPositivePrompt } from '@/lib/style-categories'
+import { getAllStyleItems, getStyleById, getArtStyleNegativePrompt, isValidStyleId, isArkModelKey, isGeminiCompatibleModelKey, convertNegativeToPositivePrompt } from '@/lib/style-categories'
 import type { ArtStyleValue } from '@/lib/style-categories'
 
 // re-export 供 Worker 层直接使用，避免 import 路径散乱
-export { getArtStyleNegativePrompt, isArkModelKey, convertNegativeToPositivePrompt }
+export { getArtStyleNegativePrompt, isArkModelKey, isGeminiCompatibleModelKey, convertNegativeToPositivePrompt }
 
 // ArtStyleValue 严格联合类型 re-export（保持调用方 import 路径不变）
 export type { ArtStyleValue }

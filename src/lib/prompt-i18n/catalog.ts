@@ -84,7 +84,7 @@ export const PROMPT_CATALOG: Record<PromptId, PromptCatalogEntry> = {
   },
   [PROMPT_IDS.NP_AI_STORY_EXPAND]: {
     pathStem: 'novel-promotion/ai_story_expand',
-    variableKeys: ['input', 'tone_instruction', 'rewrite_instruction', 'source_text_block', 'length_instruction'],
+    variableKeys: ['input', 'tone_instruction', 'rewrite_instruction', 'source_text_block', 'length_instruction', 'reader_instruction'],
   },
   [PROMPT_IDS.NP_CHARACTER_CREATE]: {
     pathStem: 'novel-promotion/character_create',

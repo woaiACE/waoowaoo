@@ -269,6 +269,8 @@ export default function CharacterCard({
         characterId={character.id}
         characterName={character.name}
         customVoiceUrl={character.customVoiceUrl}
+        voiceId={character.voiceId}
+        voiceType={character.voiceType}
         projectId={projectId}
         onVoiceChange={onVoiceChange}
         onVoiceDesign={onVoiceDesign}
@@ -452,6 +454,8 @@ export default function CharacterCard({
       characterId={character.id}
       characterName={character.name}
       customVoiceUrl={character.customVoiceUrl}
+      voiceId={character.voiceId}
+      voiceType={character.voiceType}
       projectId={projectId}
       onVoiceChange={onVoiceChange}
       onVoiceDesign={onVoiceDesign}

@@ -8,13 +8,15 @@
 import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { shouldShowError } from '@/lib/error-utils'
-import { useUploadProjectCharacterVoice } from '@/lib/query/mutations'
+import { useUploadProjectCharacterVoice, useSaveCharacterVoiceToLibrary } from '@/lib/query/mutations'
 import { AppIcon } from '@/components/ui/icons'
 
 interface VoiceSettingsProps {
     characterId: string
     characterName: string
     customVoiceUrl: string | null | undefined
+    voiceId?: string | null
+    voiceType?: string | null
     projectId: string
     onVoiceChange?: (characterId: string, customVoiceUrl?: string) => void
     onVoiceDesign?: (characterId: string, characterName: string) => void
@@ -35,6 +37,8 @@ export default function VoiceSettings({
     characterId,
     characterName,
     customVoiceUrl,
+    voiceId,
+    voiceType,
     projectId,
     onVoiceChange,
     onVoiceDesign,
@@ -44,9 +48,11 @@ export default function VoiceSettings({
     const t = useTranslations('assets')
     // 🔥 使用 mutation
     const uploadVoice = useUploadProjectCharacterVoice(projectId)
+    const saveToLibrary = useSaveCharacterVoiceToLibrary()
     const voiceFileInputRef = useRef<HTMLInputElement>(null)
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const [isPreviewingVoice, setIsPreviewingVoice] = useState(false)
+    const [isSavingToLibrary, setIsSavingToLibrary] = useState(false)
 
     const hasCustomVoice = !!customVoiceUrl
 
@@ -105,6 +111,39 @@ export default function VoiceSettings({
                         voiceFileInputRef.current.value = ''
                     }
                 }
+            }
+        )
+    }
+
+    // 下载音色文件
+    const handleDownloadVoice = () => {
+        if (!customVoiceUrl) return
+        const a = document.createElement('a')
+        a.href = customVoiceUrl
+        a.download = `${characterName}_voice.wav`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+    }
+
+    // 保存音色到全局音色库
+    const handleSaveToLibrary = async () => {
+        if (!customVoiceUrl) return
+        setIsSavingToLibrary(true)
+        saveToLibrary.mutate(
+            { name: characterName, voiceId, voiceType, customVoiceUrl },
+            {
+                onSuccess: () => {
+                    alert(t('tts.savedToLibrary', { name: characterName }))
+                },
+                onError: (error) => {
+                    if (shouldShowError(error)) {
+                        alert(t('tts.saveToLibraryFailed', { error: error.message }))
+                    }
+                },
+                onSettled: () => {
+                    setIsSavingToLibrary(false)
+                },
             }
         )
     }
@@ -216,6 +255,31 @@ export default function VoiceSettings({
                                 {isPreviewingVoice ? t('tts.pause') : t('tts.preview')}
                             </div>
                         </button>
+                    )}
+
+                    {/* 下载 + 存入音色库 - 仅在有音频时显示 */}
+                    {hasCustomVoice && (
+                        <div className="flex gap-2 mt-2">
+                            <button
+                                onClick={handleDownloadVoice}
+                                className="flex-1 px-2 py-1.5 bg-[var(--glass-bg-surface)] border border-[var(--glass-stroke-base)] rounded-lg text-xs text-[var(--glass-text-secondary)] font-medium hover:border-[var(--glass-stroke-focus)] hover:text-[var(--glass-tone-info-fg)] transition-all whitespace-nowrap"
+                            >
+                                <div className="flex items-center justify-center gap-1">
+                                    <AppIcon name="download" className="w-3.5 h-3.5 flex-shrink-0" />
+                                    <span>{t('tts.downloadVoice')}</span>
+                                </div>
+                            </button>
+                            <button
+                                onClick={handleSaveToLibrary}
+                                disabled={isSavingToLibrary || saveToLibrary.isPending}
+                                className="flex-1 px-2 py-1.5 bg-[var(--glass-bg-surface)] border border-[var(--glass-stroke-base)] rounded-lg text-xs text-[var(--glass-text-secondary)] font-medium hover:border-[var(--glass-stroke-success)] hover:text-[var(--glass-tone-success-fg)] transition-all whitespace-nowrap disabled:opacity-50"
+                            >
+                                <div className="flex items-center justify-center gap-1">
+                                    <AppIcon name="folderCards" className="w-3.5 h-3.5 flex-shrink-0" />
+                                    <span>{isSavingToLibrary ? t('tts.savingToLibrary') : t('tts.saveToLibrary')}</span>
+                                </div>
+                            </button>
+                        </div>
                     )}
                 </div>
             )}

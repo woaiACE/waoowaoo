@@ -21,6 +21,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const storyRewriteMode = typeof body.storyRewriteMode === 'string' ? body.storyRewriteMode.trim() : ''
   const sourceText = typeof body.sourceText === 'string' ? body.sourceText.trim() : ''
   const lengthTarget = typeof body.lengthTarget === 'string' ? body.lengthTarget.trim() : ''
+  const readerProfile = typeof body.readerProfile === 'string' ? body.readerProfile.trim() : ''
 
   const userConfig = await getUserModelConfig(session.user.id)
   if (!userConfig.analysisModel) {
@@ -28,7 +29,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   const dedupeDigest = createHash('sha1')
-    .update(`${session.user.id}:home-story-expand:${prompt}`)
+    .update(`${session.user.id}:home-story-expand:${prompt}:${readerProfile}`)
     .digest('hex')
     .slice(0, 16)
 
@@ -47,6 +48,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       storyRewriteMode: storyRewriteMode || undefined,
       sourceText: sourceText || undefined,
       lengthTarget: lengthTarget || undefined,
+      readerProfile: readerProfile || undefined,
     },
     dedupeKey: `home_ai_story_expand:${dedupeDigest}`,
     priority: 1,

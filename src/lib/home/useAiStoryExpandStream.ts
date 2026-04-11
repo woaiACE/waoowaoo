@@ -26,6 +26,7 @@ export interface AiStoryExpandParams {
   storyRewriteMode?: string
   sourceText?: string
   lengthTarget?: string
+  readerProfile?: string
 }
 
 export interface UseAiStoryExpandStreamReturn {
@@ -48,6 +49,8 @@ export function useAiStoryExpandStream(): UseAiStoryExpandStreamReturn {
   const eventSourceRef = useRef<EventSource | null>(null)
   const taskIdRef = useRef<string | null>(null)
   const outputAccRef = useRef('')
+  const reasoningAccRef = useRef('')
+  const textAccRef = useRef('')
 
   const closeSSE = useCallback(() => {
     if (eventSourceRef.current) {
@@ -69,6 +72,8 @@ export function useAiStoryExpandStream(): UseAiStoryExpandStreamReturn {
     closeSSE()
     taskIdRef.current = null
     outputAccRef.current = ''
+    reasoningAccRef.current = ''
+    textAccRef.current = ''
     setStatus('idle')
     setOutputText('')
     setExpandedResult('')
@@ -90,6 +95,8 @@ export function useAiStoryExpandStream(): UseAiStoryExpandStreamReturn {
     const ac = new AbortController()
     abortRef.current = ac
     outputAccRef.current = ''
+    reasoningAccRef.current = ''
+    textAccRef.current = ''
     setOutputText('')
     setExpandedResult('')
     setErrorMessage('')
@@ -106,6 +113,7 @@ export function useAiStoryExpandStream(): UseAiStoryExpandStreamReturn {
           storyRewriteMode: params.storyRewriteMode || undefined,
           sourceText: params.sourceText || undefined,
           lengthTarget: params.lengthTarget || undefined,
+          readerProfile: params.readerProfile || undefined,
         }),
         signal: ac.signal,
       })
@@ -161,9 +169,10 @@ export function useAiStoryExpandStream(): UseAiStoryExpandStreamReturn {
             const lifecycleType = typeof inner.lifecycleType === 'string' ? inner.lifecycleType : ''
             if (lifecycleType === 'task.completed') {
               clearTimeout(timeout)
+              // 优先用服务端返回的 expandedText（纯正文），否则用本地积累的纯文本
               const result = typeof inner.expandedText === 'string'
                 ? inner.expandedText.trim()
-                : outputAccRef.current.trim()
+                : textAccRef.current.trim() || outputAccRef.current.trim()
               sseSuccess = true
               source.close()
               eventSourceRef.current = null
@@ -186,7 +195,7 @@ export function useAiStoryExpandStream(): UseAiStoryExpandStreamReturn {
         }
 
         // 处理 task.stream 事件
-        // SSEEvent 结构: { taskId, payload: { stream: { delta: string } } }
+        // SSEEvent 结构: { taskId, payload: { stream: { kind: 'reasoning'|'text', delta: string } } }
         const handleStream = (event: MessageEvent<string>) => {
           try {
             const envelope = JSON.parse(event.data || '{}') as Record<string, unknown>
@@ -194,10 +203,24 @@ export function useAiStoryExpandStream(): UseAiStoryExpandStreamReturn {
             const inner = (envelope.payload ?? {}) as Record<string, unknown>
             const streamObj = (inner.stream ?? {}) as Record<string, unknown>
             const delta = typeof streamObj.delta === 'string' ? streamObj.delta : ''
-            if (delta) {
-              outputAccRef.current += delta
-              setOutputText(outputAccRef.current)
+            if (!delta) return
+            const kind = typeof streamObj.kind === 'string' ? streamObj.kind : 'text'
+            if (kind === 'reasoning') {
+              reasoningAccRef.current += delta
+            } else {
+              textAccRef.current += delta
             }
+            // 构建结构化输出字符串，与 getStageOutput 保持一致
+            const reasoning = reasoningAccRef.current
+            const text = textAccRef.current
+            if (reasoning && text) {
+              outputAccRef.current = `【思考过程】\n${reasoning}\n\n【最终结果】\n${text}`
+            } else if (reasoning) {
+              outputAccRef.current = `【思考过程】\n${reasoning}`
+            } else {
+              outputAccRef.current = text
+            }
+            setOutputText(outputAccRef.current)
           } catch {
             // 忽略 JSON 解析错误
           }

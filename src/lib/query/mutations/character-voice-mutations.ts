@@ -89,3 +89,37 @@ export function useSaveProjectDesignedVoice(projectId: string) {
         onSuccess: invalidateProjectAssets,
     })
 }
+
+/**
+ * 保存音色到全局音色库
+ */
+export function useSaveCharacterVoiceToLibrary() {
+    return useMutation({
+        mutationFn: async ({
+            name,
+            voiceId,
+            voiceType,
+            customVoiceUrl,
+        }: {
+            name: string
+            voiceId?: string | null
+            voiceType?: string | null
+            customVoiceUrl: string
+        }) => {
+            return await requestJsonWithError<{ success: boolean; voice: unknown }>(
+                '/api/asset-hub/voices',
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        voiceId: voiceId ?? null,
+                        voiceType: voiceType ?? 'uploaded',
+                        customVoiceUrl,
+                    }),
+                },
+                '保存到音色库失败',
+            )
+        },
+    })
+}

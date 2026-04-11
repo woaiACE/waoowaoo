@@ -8,13 +8,15 @@
 import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { shouldShowError } from '@/lib/error-utils'
-import { useUploadCharacterVoice } from '@/lib/query/mutations'
+import { useUploadCharacterVoice, useSaveCharacterVoiceToLibrary } from '@/lib/query/mutations'
 import { AppIcon } from '@/components/ui/icons'
 
 interface VoiceSettingsProps {
     characterId: string
     characterName: string
     customVoiceUrl: string | null | undefined
+    voiceId?: string | null
+    voiceType?: string | null
     projectId?: string  // 可选，Asset Hub 不需要
     onVoiceChange?: (characterId: string, customVoiceUrl?: string) => void
     onVoiceDesign?: (characterId: string, characterName: string) => void
@@ -26,6 +28,8 @@ export default function VoiceSettings({
     characterId,
     characterName,
     customVoiceUrl,
+    voiceId,
+    voiceType,
     projectId,
     onVoiceChange,
     onVoiceDesign,
@@ -35,10 +39,12 @@ export default function VoiceSettings({
     const t = useTranslations('assetHub')
     // 🔥 使用 mutation hook
     const uploadVoice = useUploadCharacterVoice()
+    const saveToLibrary = useSaveCharacterVoiceToLibrary()
     void projectId
     const voiceFileInputRef = useRef<HTMLInputElement>(null)
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const [isPreviewingVoice, setIsPreviewingVoice] = useState(false)
+    const [isSavingToLibrary, setIsSavingToLibrary] = useState(false)
     type UploadedVoiceResult = { audioUrl?: string }
 
     const hasCustomVoice = !!customVoiceUrl
@@ -95,6 +101,39 @@ export default function VoiceSettings({
                         voiceFileInputRef.current.value = ''
                     }
                 }
+            }
+        )
+    }
+
+    // 下载音色文件
+    const handleDownloadVoice = () => {
+        if (!customVoiceUrl) return
+        const a = document.createElement('a')
+        a.href = customVoiceUrl
+        a.download = `${characterName}_voice.wav`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+    }
+
+    // 保存音色到全局音色库
+    const handleSaveToLibrary = () => {
+        if (!customVoiceUrl) return
+        setIsSavingToLibrary(true)
+        saveToLibrary.mutate(
+            { name: characterName, voiceId, voiceType, customVoiceUrl },
+            {
+                onSuccess: () => {
+                    alert(t('voiceSettings.savedToLibrary', { name: characterName }))
+                },
+                onError: (error) => {
+                    if (shouldShowError(error)) {
+                        alert(t('voiceSettings.saveToLibraryFailed', { error: error.message }))
+                    }
+                },
+                onSettled: () => {
+                    setIsSavingToLibrary(false)
+                },
             }
         )
     }
@@ -186,6 +225,31 @@ export default function VoiceSettings({
                         {isPreviewingVoice ? t('voiceSettings.pause') : t('voiceSettings.preview')}
                     </div>
                 </button>
+            )}
+
+            {/* 下载 + 存入音色库 - 仅在有音频时显示 */}
+            {hasCustomVoice && (
+                <div className="flex gap-2 mt-2">
+                    <button
+                        onClick={handleDownloadVoice}
+                        className="glass-btn-base glass-btn-secondary flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap"
+                    >
+                        <div className="flex items-center justify-center gap-1">
+                            <AppIcon name="download" className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>{t('voiceSettings.downloadVoice')}</span>
+                        </div>
+                    </button>
+                    <button
+                        onClick={handleSaveToLibrary}
+                        disabled={isSavingToLibrary || saveToLibrary.isPending}
+                        className="glass-btn-base glass-btn-secondary flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap disabled:opacity-50"
+                    >
+                        <div className="flex items-center justify-center gap-1">
+                            <AppIcon name="folderCards" className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>{isSavingToLibrary ? t('voiceSettings.savingToLibrary') : t('voiceSettings.saveToLibrary')}</span>
+                        </div>
+                    </button>
+                </div>
             )}
         </div>
     )

@@ -325,7 +325,12 @@
         "uploaded": "已上传",
         "uploadAudio": "上传音频",
         "pause": "暂停",
-        "preview": "试听音色"
+        "preview": "试听音色",
+        "downloadVoice": "下载音色",
+        "saveToLibrary": "存入音色库",
+        "savingToLibrary": "保存中...",
+        "savedToLibrary": "已将「{name}」的音色存入音色库",
+        "saveToLibraryFailed": "保存失败: {error}"
     },
     "characterProfile": {
         "importance": {
