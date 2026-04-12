@@ -5,7 +5,8 @@
     "storyboard": "Storyboard",
     "video": "Video",
     "editor": "AI Editor",
-    "editorComingSoon": "Coming soon, follow us for updates"
+    "editorComingSoon": "Coming soon, follow us for updates",
+    "editorNeedsVideo": "Please complete the video generation stage first"
   },
   "buttons": {
     "assetLibrary": "Asset Library",

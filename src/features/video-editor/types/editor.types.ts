@@ -123,6 +123,7 @@ export interface ComputedClip extends VideoClip {
 // ========================================
 
 export interface SaveEditorProjectRequest {
+    episodeId: string
     projectData: VideoEditorProject
 }
 

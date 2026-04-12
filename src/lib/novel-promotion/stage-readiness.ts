@@ -13,6 +13,7 @@ type EpisodeClipLike = {
 
 type StoryboardPanelLike = {
   videoUrl?: string | null
+  lipSyncVideoUrl?: string | null
   [key: string]: unknown
 }
 
@@ -60,7 +61,8 @@ export function hasVideoArtifacts(storyboards: unknown[] | null | undefined) {
   if (!Array.isArray(storyboards) || storyboards.length === 0) return false
   return storyboards.some((storyboard) => isStoryboardLike(storyboard)
     && Array.isArray(storyboard.panels)
-    && storyboard.panels.some((panel) => isStoryboardPanelLike(panel) && hasNonEmptyText(panel.videoUrl)))
+    && storyboard.panels.some((panel) => isStoryboardPanelLike(panel)
+      && (hasNonEmptyText(panel.lipSyncVideoUrl) || hasNonEmptyText(panel.videoUrl))))
 }
 
 export function resolveEpisodeStageArtifacts(episode: EpisodeLike | null | undefined): StageArtifactReadiness {

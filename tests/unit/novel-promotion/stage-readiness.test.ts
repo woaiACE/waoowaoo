@@ -23,8 +23,9 @@ describe('stage readiness', () => {
     expect(hasStoryboardArtifacts([{ panels: [{ id: 'panel-1' }] }])).toBe(true)
   })
 
-  it('treats video as ready only when at least one panel has videoUrl', () => {
+  it('treats video as ready when at least one panel has videoUrl or lipSyncVideoUrl', () => {
     expect(hasVideoArtifacts([{ panels: [{ id: 'panel-1', videoUrl: '' }] }])).toBe(false)
+    expect(hasVideoArtifacts([{ panels: [{ id: 'panel-1', videoUrl: '', lipSyncVideoUrl: 'https://example.com/lipsync.mp4' }] }])).toBe(true)
     expect(hasVideoArtifacts([{ panels: [{ id: 'panel-1', videoUrl: 'https://example.com/video.mp4' }] }])).toBe(true)
   })
 

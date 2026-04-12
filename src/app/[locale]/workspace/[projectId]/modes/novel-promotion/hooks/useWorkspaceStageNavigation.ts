@@ -51,9 +51,9 @@ export function useWorkspaceStageNavigation({
       id: 'editor',
       icon: 'E',
       label: t('stages.editor'),
-      status: 'empty',
-      disabled: true,
-      disabledLabel: t('stages.editorComingSoon'),
+      status: getStageStatus('editor'),
+      disabled: !stageArtifacts.hasVideo,
+      disabledLabel: !stageArtifacts.hasVideo ? t('stages.editorNeedsVideo') : undefined,
     },
   ]
 }

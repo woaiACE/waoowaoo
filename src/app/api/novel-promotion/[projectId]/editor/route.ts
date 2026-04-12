@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireProjectAuthLight, isErrorResponse } from '@/lib/api-auth'
 import { apiHandler, ApiError } from '@/lib/api-errors'
+import { migrateProjectData, validateProjectData } from '@/features/video-editor/utils/migration'
 
 /**
  * GET /api/novel-promotion/[projectId]/editor
@@ -32,10 +33,18 @@ export const GET = apiHandler(async (
         return NextResponse.json({ projectData: null }, { status: 200 })
     }
 
+    const raw = JSON.parse(editorProject.projectData)
+    const migrated = migrateProjectData(raw)
+    const validation = validateProjectData(migrated)
+    if (!validation.valid) {
+        // Log but don't block — avoid locking users out of stale data
+        console.warn(`[editor GET] validation warnings for episode ${episodeId}:`, validation.errors)
+    }
+
     return NextResponse.json({
         id: editorProject.id,
         episodeId: editorProject.episodeId,
-        projectData: JSON.parse(editorProject.projectData),
+        projectData: migrated,
         renderStatus: editorProject.renderStatus,
         outputUrl: editorProject.outputUrl,
         updatedAt: editorProject.updatedAt
