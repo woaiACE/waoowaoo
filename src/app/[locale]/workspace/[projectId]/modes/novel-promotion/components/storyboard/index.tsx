@@ -144,7 +144,7 @@ export default function StoryboardStage({
     updatePanelActingNotesMutation,
   })
 
-  const { data: voiceLinesData } = useVoiceLines(episodeId)
+  const { data: voiceLinesData } = useVoiceLines(projectId, episodeId)
   const batchGenerateVoices = useBatchGenerateVoices(projectId, episodeId)
 
   const pendingVoiceLineIds = useMemo(() => {
@@ -156,15 +156,15 @@ export default function StoryboardStage({
     const promises: Promise<unknown>[] = []
     if (pendingPanelCount > 0) promises.push(handleGenerateAllPanels())
     if (pendingVoiceLineIds.length > 0) {
-      promises.push(batchGenerateVoices.mutateAsync({ lineIds: pendingVoiceLineIds }))
+      promises.push(batchGenerateVoices.mutateAsync({ episodeId }))
     }
     await Promise.allSettled(promises)
-  }, [pendingPanelCount, handleGenerateAllPanels, pendingVoiceLineIds, batchGenerateVoices])
+  }, [pendingPanelCount, handleGenerateAllPanels, pendingVoiceLineIds, batchGenerateVoices, episodeId])
 
   const handleGenerateAllVoices = useCallback(async () => {
     if (pendingVoiceLineIds.length === 0) return
-    await batchGenerateVoices.mutateAsync({ lineIds: pendingVoiceLineIds })
-  }, [pendingVoiceLineIds, batchGenerateVoices])
+    await batchGenerateVoices.mutateAsync({ episodeId })
+  }, [pendingVoiceLineIds, batchGenerateVoices, episodeId])
 
   return (
       <StoryboardStageShell

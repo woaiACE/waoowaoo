@@ -27,7 +27,7 @@ export const PATCH = apiHandler(async (
     const count = await prisma.novelPromotionPanel.count({
       where: {
         id: { in: panelIds },
-        storyboard: { episode: { novelPromotionProject: { id: projectId } } },
+        storyboard: { episode: { novelPromotionProject: { projectId } } },
       },
     })
     if (count !== panelIds.length) {
@@ -47,7 +47,7 @@ export const PATCH = apiHandler(async (
     const storyboard = await prisma.novelPromotionStoryboard.findFirst({
       where: {
         id: body.storyboardId,
-        episode: { novelPromotionProject: { id: projectId } },
+        episode: { novelPromotionProject: { projectId } },
       },
     })
     if (!storyboard) throw new ApiError('FORBIDDEN')
@@ -89,7 +89,7 @@ export const DELETE = apiHandler(async (
   const count = await prisma.novelPromotionPanel.count({
     where: {
       id: { in: panelIds },
-      storyboard: { episode: { novelPromotionProject: { id: projectId } } },
+      storyboard: { episode: { novelPromotionProject: { projectId } } },
     },
   })
   if (count !== panelIds.length) throw new ApiError('FORBIDDEN')

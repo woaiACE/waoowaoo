@@ -41,17 +41,28 @@ export interface MatchedVoiceLinesData {
 /**
  * 获取语音数据
  */
-export function useVoiceLines(episodeId: string | null) {
+export function useVoiceLines(projectId: string | null, episodeId: string | null) {
     return useQuery({
         queryKey: queryKeys.voiceLines.all(episodeId || ''),
         queryFn: async () => {
-            if (!episodeId) throw new Error('Episode ID is required')
-            const res = await apiFetch(`/api/novel-promotion/episodes/${episodeId}/voice-lines`)
+            if (!projectId || !episodeId) throw new Error('Project ID and Episode ID are required')
+            const res = await apiFetch(`/api/novel-promotion/${projectId}/voice-lines?episodeId=${episodeId}`)
             if (!res.ok) throw new Error('Failed to fetch voice lines')
-            const data = await res.json()
-            return data as VoiceLinesData
+            const data = await res.json() as { voiceLines?: Array<{ id: string; content?: string; speaker?: string; audioUrl?: string | null }> }
+            const raw = data.voiceLines || []
+            const lines: VoiceLine[] = raw.map((vl) => ({
+                id: vl.id,
+                panelId: '',
+                text: vl.content ?? '',
+                characterId: null,
+                characterName: vl.speaker ?? null,
+                audioUrl: vl.audioUrl ?? null,
+                lineTaskRunning: false,
+                errorMessage: null,
+            }))
+            return { lines } as VoiceLinesData
         },
-        enabled: !!episodeId,
+        enabled: !!projectId && !!episodeId,
     })
 }
 
@@ -109,12 +120,12 @@ export function useBatchGenerateVoices(projectId: string | null, episodeId: stri
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: async ({ lineIds }: { lineIds: string[] }) => {
+        mutationFn: async ({ episodeId: targetEpisodeId }: { episodeId: string }) => {
             if (!projectId) throw new Error('Project ID is required')
-            const res = await apiFetch(`/api/novel-promotion/${projectId}/batch-generate-voices`, {
+            const res = await apiFetch(`/api/novel-promotion/${projectId}/voice-generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lineIds }),
+                body: JSON.stringify({ episodeId: targetEpisodeId, all: true }),
             })
             if (!res.ok) {
                 const error = await res.json()

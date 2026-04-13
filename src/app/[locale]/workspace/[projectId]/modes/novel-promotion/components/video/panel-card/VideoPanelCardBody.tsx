@@ -131,6 +131,7 @@ export default function VideoPanelCardBody({ runtime }: VideoPanelCardBodyProps)
                     )}
                     disabled={
                       taskStatus.isVideoTaskRunning
+                      || !panel.imageApproved
                       || !panel.imageUrl
                       || !linkedNextPanel.imageUrl
                       || !layout.flModel
@@ -174,6 +175,7 @@ export default function VideoPanelCardBody({ runtime }: VideoPanelCardBodyProps)
                       )}
                     disabled={
                       taskStatus.isVideoTaskRunning
+                      || !panel.imageApproved
                       || !panel.imageUrl
                       || !videoModel.selectedModel
                       || videoModel.missingCapabilityFields.length > 0
