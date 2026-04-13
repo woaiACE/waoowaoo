@@ -15,6 +15,9 @@ type ShowToast = (message: string, type?: ToastType, duration?: number) => void
 type TranslateValues = Record<string, string | number | Date>
 type Translate = (key: string, values?: TranslateValues) => string
 
+const GLOBAL_ANALYZE_RESULT_INTERVAL_MS = 300
+const GLOBAL_ANALYZE_RESULT_TIMEOUT_MS = 30_000
+
 interface UseAssetsGlobalActionsParams {
   projectId: string
   triggerGlobalAnalyze?: boolean
@@ -170,8 +173,8 @@ export function useAssetsGlobalActions({
 
       try {
         const result = await waitForTaskResult(completion.finishedTaskId, {
-          intervalMs: 100,
-          timeoutMs: 2_000,
+          intervalMs: GLOBAL_ANALYZE_RESULT_INTERVAL_MS,
+          timeoutMs: GLOBAL_ANALYZE_RESULT_TIMEOUT_MS,
         }) as { stats?: { newCharacters?: number; newLocations?: number } }
         await Promise.resolve(onRefresh())
         onGlobalAnalyzeComplete?.()
