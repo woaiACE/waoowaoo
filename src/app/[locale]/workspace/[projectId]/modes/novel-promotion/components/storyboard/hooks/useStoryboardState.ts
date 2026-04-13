@@ -30,6 +30,7 @@ export interface StoryboardPanel {
   imageUrl?: string | null
   photographyRules?: string | null  // 单镜头摄影规则JSON
   actingNotes?: string | null       // 演技指导数据JSON
+  imageApproved?: boolean           // 人工审核通过
   imageTaskRunning?: boolean  // 任务态运行状态（由 tasks 派生）
 }
 
@@ -146,6 +147,7 @@ export function useStoryboardState({
         imageUrl: p.imageUrl,
         photographyRules: p.photographyRules,
         actingNotes: p.actingNotes,
+        imageApproved: p.imageApproved ?? false,
         imageTaskRunning: p.imageTaskRunning || false
       }
     })

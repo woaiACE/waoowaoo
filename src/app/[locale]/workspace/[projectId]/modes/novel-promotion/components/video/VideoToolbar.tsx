@@ -9,6 +9,8 @@ interface VideoToolbarProps {
   runningCount: number
   videosWithUrl: number
   failedCount: number
+  approvedCount?: number      // 已审核副本数
+  totalWithImages?: number    // 有图片的副本总数
   isAnyTaskRunning: boolean
   isDownloading: boolean
   onGenerateAll: () => void
@@ -23,6 +25,8 @@ export default function VideoToolbar({
   runningCount,
   videosWithUrl,
   failedCount,
+  approvedCount,
+  totalWithImages,
   isAnyTaskRunning,
   isDownloading,
   onGenerateAll,
@@ -65,6 +69,16 @@ export default function VideoToolbar({
             )}
             {failedCount > 0 && (
               <span className="text-[var(--glass-tone-danger-fg)] ml-2">({t('toolbar.failedShots', { count: failedCount })})</span>
+            )}
+            {typeof approvedCount === 'number' && typeof totalWithImages === 'number' && totalWithImages > 0 && (
+              <span className={[
+                'ml-2 font-medium',
+                approvedCount === totalWithImages
+                  ? 'text-green-500'
+                  : 'text-[var(--glass-tone-warning-fg)]',
+              ].join(' ')}>
+                (审核 {approvedCount}/{totalWithImages})
+              </span>
             )}
           </span>
         </div>

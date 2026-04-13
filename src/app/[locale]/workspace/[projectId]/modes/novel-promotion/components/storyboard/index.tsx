@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback, useMemo } from 'react'
 import { NovelPromotionStoryboard, NovelPromotionClip } from '@/types/project'
 import { CharacterPickerModal, LocationPickerModal } from '../PanelEditForm'
 import ImageEditModal from './ImageEditModal'
@@ -10,6 +11,7 @@ import StoryboardToolbar from './StoryboardToolbar'
 import StoryboardCanvas from './StoryboardCanvas'
 import { useStoryboardStageController } from './hooks/useStoryboardStageController'
 import { useStoryboardModalRuntime } from './hooks/useStoryboardModalRuntime'
+import { useVoiceLines, useBatchGenerateVoices } from '@/lib/query/hooks/useVoiceLines'
 
 interface StoryboardStageProps {
   projectId: string
@@ -142,6 +144,28 @@ export default function StoryboardStage({
     updatePanelActingNotesMutation,
   })
 
+  const { data: voiceLinesData } = useVoiceLines(episodeId)
+  const batchGenerateVoices = useBatchGenerateVoices(projectId, episodeId)
+
+  const pendingVoiceLineIds = useMemo(() => {
+    if (!voiceLinesData?.lines) return []
+    return voiceLinesData.lines.filter((l) => !l.audioUrl && !l.lineTaskRunning).map((l) => l.id)
+  }, [voiceLinesData?.lines])
+
+  const handleGenerateAllImagesAndVoices = useCallback(async () => {
+    const promises: Promise<unknown>[] = []
+    if (pendingPanelCount > 0) promises.push(handleGenerateAllPanels())
+    if (pendingVoiceLineIds.length > 0) {
+      promises.push(batchGenerateVoices.mutateAsync({ lineIds: pendingVoiceLineIds }))
+    }
+    await Promise.allSettled(promises)
+  }, [pendingPanelCount, handleGenerateAllPanels, pendingVoiceLineIds, batchGenerateVoices])
+
+  const handleGenerateAllVoices = useCallback(async () => {
+    if (pendingVoiceLineIds.length === 0) return
+    await batchGenerateVoices.mutateAsync({ lineIds: pendingVoiceLineIds })
+  }, [pendingVoiceLineIds, batchGenerateVoices])
+
   return (
       <StoryboardStageShell
         isTransitioning={isTransitioning}
@@ -158,8 +182,12 @@ export default function StoryboardStage({
           isBatchSubmitting={isEpisodeBatchSubmitting}
           addingStoryboardGroup={addingStoryboardGroup}
           addingStoryboardGroupState={addingStoryboardGroupState}
+          pendingVoiceCount={pendingVoiceLineIds.length}
+          isBatchVoiceSubmitting={batchGenerateVoices.isPending}
           onDownloadAllImages={downloadAllImages}
           onGenerateAllPanels={handleGenerateAllPanels}
+          onGenerateAllImagesAndVoices={handleGenerateAllImagesAndVoices}
+          onGenerateAllVoices={() => { void handleGenerateAllVoices() }}
           onAddStoryboardGroupAtStart={() => addStoryboardGroup(0)}
           onBack={onBack}
         />

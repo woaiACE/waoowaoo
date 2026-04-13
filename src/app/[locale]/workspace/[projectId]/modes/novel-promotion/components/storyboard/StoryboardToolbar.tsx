@@ -16,8 +16,12 @@ interface StoryboardToolbarProps {
   isBatchSubmitting: boolean
   addingStoryboardGroup: boolean
   addingStoryboardGroupState: TaskPresentationState | null
+  pendingVoiceCount?: number
+  isBatchVoiceSubmitting?: boolean
   onDownloadAllImages: () => Promise<void>
   onGenerateAllPanels: () => Promise<void>
+  onGenerateAllImagesAndVoices?: () => void
+  onGenerateAllVoices?: () => void
   onAddStoryboardGroupAtStart: () => void
   onBack: () => void
 }
@@ -31,8 +35,12 @@ export default function StoryboardToolbar({
   isBatchSubmitting,
   addingStoryboardGroup,
   addingStoryboardGroupState,
+  pendingVoiceCount,
+  isBatchVoiceSubmitting,
   onDownloadAllImages,
   onGenerateAllPanels,
+  onGenerateAllImagesAndVoices,
+  onGenerateAllVoices,
   onAddStoryboardGroupAtStart,
   onBack,
 }: StoryboardToolbarProps) {
@@ -46,8 +54,12 @@ export default function StoryboardToolbar({
         runningCount={runningCount}
         pendingPanelCount={pendingPanelCount}
         isBatchSubmitting={isBatchSubmitting}
+        pendingVoiceCount={pendingVoiceCount}
+        isBatchVoiceSubmitting={isBatchVoiceSubmitting}
         onDownloadAllImages={onDownloadAllImages}
         onGenerateAllPanels={onGenerateAllPanels}
+        onGenerateAllImagesAndVoices={onGenerateAllImagesAndVoices}
+        onGenerateAllVoices={onGenerateAllVoices}
         onBack={onBack}
       />
 

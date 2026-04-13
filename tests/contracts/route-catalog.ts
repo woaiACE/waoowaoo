@@ -111,6 +111,7 @@ const ROUTE_FILES = [
   'src/app/api/novel-promotion/[projectId]/modify-storyboard-image/route.ts',
   'src/app/api/novel-promotion/[projectId]/panel-link/route.ts',
   'src/app/api/novel-promotion/[projectId]/panel-variant/route.ts',
+  'src/app/api/novel-promotion/[projectId]/panel/approve/route.ts',
   'src/app/api/novel-promotion/[projectId]/panel/route.ts',
   'src/app/api/novel-promotion/[projectId]/panel/select-candidate/route.ts',
   'src/app/api/novel-promotion/[projectId]/photography-plan/route.ts',

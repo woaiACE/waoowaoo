@@ -48,6 +48,8 @@ interface PanelCardProps {
   onInsertAfter?: () => void  // 在此镜头后插入
   onVariant?: () => void  // 生成镜头变体
   isInsertDisabled?: boolean  // 插入按钮是否禁用
+  onApprove?: (panelId: string) => void  // 审核通过
+  onRevoke?: (panelId: string) => void   // 撤销审核
 }
 
 export default function PanelCard({
@@ -84,14 +86,20 @@ export default function PanelCard({
   onPreviewImage,
   onInsertAfter,
   onVariant,
-  isInsertDisabled
+  isInsertDisabled,
+  onApprove,
+  onRevoke,
 }: PanelCardProps) {
   const t = useTranslations('storyboard')
+  const isApproved = panel.imageApproved ?? false
   return (
     <GlassSurface
       variant="elevated"
       padded={false}
-      className="relative h-full overflow-visible transition-all hover:shadow-[var(--glass-shadow-md)] group/card"
+      className={[
+        'relative h-full overflow-visible transition-all hover:shadow-[var(--glass-shadow-md)] group/card',
+        isApproved ? 'ring-2 ring-green-500/60' : '',
+      ].join(' ')}
       data-storyboard-id={storyboardId}
     >
       {/* 删除按钮 - 右上角外部 */}
@@ -139,8 +147,22 @@ export default function PanelCard({
               hasImage={!!imageUrl}
             />
           </div>
-        )}
-      </div>
+        )}        {/* 审核按钮 - 图片左下角 */}
+        {imageUrl && !isSubmittingPanelImageTask && (onApprove || onRevoke) && (
+          <button
+            onClick={() => isApproved ? onRevoke?.(panel.id) : onApprove?.(panel.id)}
+            className={[
+              'absolute bottom-2 left-2 z-20 flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium shadow transition-all',
+              isApproved
+                ? 'bg-green-500 text-white hover:bg-green-600'
+                : 'bg-black/50 text-white hover:bg-green-500',
+            ].join(' ')}
+            title={isApproved ? '撤销审核' : '审核通过，允许出视频'}
+          >
+            <AppIcon name={isApproved ? 'badgeCheck' : 'check'} className="h-3 w-3" />
+            {isApproved ? '已审核' : '审核'}
+          </button>
+        )}      </div>
 
       {/* 分镜信息编辑区 */}
       <div className="p-3">

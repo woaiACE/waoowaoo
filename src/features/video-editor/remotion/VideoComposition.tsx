@@ -1,6 +1,6 @@
 import React from 'react'
 import { AbsoluteFill, Sequence, Video, Audio, useCurrentFrame, interpolate } from 'remotion'
-import { VideoClip, BgmClip, EditorConfig } from '../types/editor.types'
+import { VideoClip, BgmClip, EditorConfig, ClipAttachment } from '../types/editor.types'
 import { computeClipPositions } from '../utils/time-utils'
 
 interface VideoCompositionProps {
@@ -165,6 +165,7 @@ const ClipRenderer: React.FC<ClipRendererProps> = ({
             <Video
                 src={clip.src}
                 startFrom={clip.trim?.from || 0}
+                {...(clip.trim?.to != null ? { endAt: clip.trim.to } : {})}
                 style={{
                     width: '100%',
                     height: '100%',
@@ -185,6 +186,7 @@ const ClipRenderer: React.FC<ClipRendererProps> = ({
                 <SubtitleOverlay
                     text={clip.attachment.subtitle.text}
                     style={clip.attachment.subtitle.style}
+                    custom={clip.attachment.subtitle.custom}
                 />
             )}
         </AbsoluteFill>
@@ -192,43 +194,70 @@ const ClipRenderer: React.FC<ClipRendererProps> = ({
 }
 
 /**
- * 字幕叠加层
+ * 字幕叠加层 - 支持 4 种预设样式 + 自定义覆盖
  */
 interface SubtitleOverlayProps {
     text: string
-    style: 'default' | 'cinematic'
+    style: 'default' | 'cinematic' | 'minimal' | 'bold'
+    custom?: NonNullable<ClipAttachment['subtitle']>['custom']
 }
 
-const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ text, style }) => {
-    const styles = {
-        default: {
-            background: 'rgba(0, 0, 0, 0.7)',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            fontSize: '24px',
-            color: 'white'
-        },
-        cinematic: {
-            background: 'transparent',
-            padding: '12px 24px',
-            fontSize: '28px',
-            color: 'white',
-            textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)',
-            fontWeight: 'bold' as const
-        }
+const SUBTITLE_PRESETS: Record<string, React.CSSProperties> = {
+    default: {
+        background: 'rgba(0,0,0,0.7)',
+        padding: '8px 16px',
+        borderRadius: '4px',
+        fontSize: '24px',
+        color: 'white',
+    },
+    cinematic: {
+        background: 'transparent',
+        padding: '12px 24px',
+        fontSize: '28px',
+        color: 'white',
+        textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
+        fontWeight: 'bold' as const,
+    },
+    minimal: {
+        background: 'transparent',
+        padding: '8px 16px',
+        fontSize: '20px',
+        color: 'rgba(255,255,255,0.9)',
+        letterSpacing: '0.02em',
+    },
+    bold: {
+        background: 'rgba(0,0,0,0.85)',
+        padding: '10px 20px',
+        borderRadius: '2px',
+        fontSize: '32px',
+        fontWeight: 900,
+        color: 'white',
+        letterSpacing: '0.05em',
+    },
+}
+
+const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ text, style, custom }) => {
+    const base = SUBTITLE_PRESETS[style] ?? SUBTITLE_PRESETS.default
+
+    // 应用 custom 覆盖
+    const textStyle: React.CSSProperties = {
+        ...base,
+        ...(custom?.fontSize    != null && { fontSize: `${custom.fontSize}px` }),
+        ...(custom?.color               && { color: custom.color }),
+        ...(custom?.strokeColor         && { WebkitTextStroke: `1px ${custom.strokeColor}` }),
+        ...(custom?.bgOpacity   != null && { background: `rgba(0,0,0,${custom.bgOpacity})` }),
     }
 
+    const positionMap: Record<string, React.CSSProperties> = {
+        bottom: { justifyContent: 'flex-end', paddingBottom: '60px' },
+        top:    { justifyContent: 'flex-start', paddingTop: '60px' },
+        center: { justifyContent: 'center' },
+    }
+    const containerStyle = positionMap[custom?.position ?? 'bottom'] ?? positionMap.bottom
+
     return (
-        <AbsoluteFill
-            style={{
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                paddingBottom: '60px'
-            }}
-        >
-            <div style={styles[style]}>
-                {text}
-            </div>
+        <AbsoluteFill style={{ alignItems: 'center', ...containerStyle }}>
+            <div style={textStyle}>{text}</div>
         </AbsoluteFill>
     )
 }

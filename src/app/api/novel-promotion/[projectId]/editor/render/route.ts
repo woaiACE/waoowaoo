@@ -20,7 +20,7 @@ export const POST = apiHandler(async (
     if (isErrorResponse(authResult)) return authResult
 
     const body = await request.json()
-    const { editorProjectId } = body
+    const { editorProjectId, targetPlatform } = body
 
     if (!editorProjectId) {
         throw new ApiError('INVALID_PARAMS')
@@ -53,7 +53,7 @@ export const POST = apiHandler(async (
         }
     })
 
-    return NextResponse.json({ id: updated.id, status: updated.renderStatus })
+    return NextResponse.json({ id: updated.id, status: updated.renderStatus, targetPlatform: targetPlatform ?? null })
 })
 
 /**
@@ -79,7 +79,7 @@ export const GET = apiHandler(async (
 
     const editorProject = await prisma.videoEditorProject.findUnique({
         where: { id },
-        select: { id: true, renderStatus: true, outputUrl: true }
+        select: { id: true, renderStatus: true, outputUrl: true, renderProgress: true, renderError: true }
     })
 
     if (!editorProject) {
@@ -90,5 +90,7 @@ export const GET = apiHandler(async (
         id: editorProject.id,
         status: editorProject.renderStatus ?? 'idle',
         outputUrl: editorProject.outputUrl ?? null,
+        progress: editorProject.renderProgress ?? null,
+        error: editorProject.renderError ?? null,
     })
 })

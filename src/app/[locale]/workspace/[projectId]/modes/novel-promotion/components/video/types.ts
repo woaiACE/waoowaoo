@@ -58,6 +58,7 @@ export interface Panel {
   lipSyncTaskRunning?: boolean | null
   lipSyncErrorMessage?: string | null  // 口型同步错误消息
   lipSyncErrorCode?: string | null
+  imageApproved?: boolean | null  // 人工审核通过，允许出视频
 }
 
 export interface Storyboard {
@@ -98,6 +99,7 @@ export interface VideoPanel {
   lipSyncTaskId?: string
   lipSyncErrorMessage?: string  // 口型同步错误消息
   lipSyncErrorCode?: string
+  imageApproved?: boolean  // 图片已人工审核通过
 }
 
 // 匹配的配音信息

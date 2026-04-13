@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { queueRedis } from '@/lib/redis'
 import { QUEUE_NAME } from '@/lib/task/queues'
 import { TASK_TYPE, type TaskJobData } from '@/lib/task/types'
+import { submitTask } from '@/lib/task/submitter'
+import { composeModelKey } from '@/lib/model-config-contract'
 import { getUserWorkflowConcurrencyConfig } from '@/lib/config-service'
 import { reportTaskProgress, withTaskLifecycle } from './shared'
 import { withUserConcurrencyGate } from './user-concurrency-gate'
@@ -213,6 +215,37 @@ async function handleVideoPanelTask(job: Job<TaskJobData>) {
       videoGenerationMode: generationMode,
     },
   })
+
+  // 视频就绪后，检查是否配音已就绪，自动触发 Lip Sync 任务
+  try {
+    const readyVoiceLine = await prisma.novelPromotionVoiceLine.findFirst({
+      where: { matchedPanelId: panel.id, audioUrl: { not: null } },
+      select: { id: true },
+    })
+    if (readyVoiceLine) {
+      const pref = await prisma.userPreference.findUnique({
+        where: { userId: job.data.userId },
+        select: { lipSyncModel: true },
+      })
+      const DEFAULT_LIPSYNC_MODEL = composeModelKey('fal', 'fal-ai/kling-video/lipsync/audio-to-video')
+      const lipSyncModel = (typeof pref?.lipSyncModel === 'string' && pref.lipSyncModel.trim())
+        ? pref.lipSyncModel.trim()
+        : DEFAULT_LIPSYNC_MODEL
+      await submitTask({
+        userId: job.data.userId,
+        locale: job.data.locale,
+        projectId: job.data.projectId,
+        episodeId: job.data.episodeId,
+        type: TASK_TYPE.LIP_SYNC,
+        targetType: 'NovelPromotionPanel',
+        targetId: panel.id,
+        payload: { lipSyncModel, voiceLineId: readyVoiceLine.id },
+        dedupeKey: `lip_sync:${panel.id}:${readyVoiceLine.id}`,
+      })
+    }
+  } catch {
+    // Lip Sync 自动触发失败不影响视频生成结果
+  }
 
   return {
     panelId: panel.id,

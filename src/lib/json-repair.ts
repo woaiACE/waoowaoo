@@ -69,7 +69,12 @@ export function safeParseJson(input: string): unknown {
     } catch { /* continue to repair */ }
 
     // Last resort: jsonrepair on the extracted substring
-    return JSON.parse(jsonrepair(extracted))
+    try {
+        return JSON.parse(jsonrepair(extracted))
+    } catch (repairError) {
+        const repairMsg = repairError instanceof Error ? repairError.message : String(repairError)
+        throw new Error(`json parse repair failed: ${repairMsg}`)
+    }
 }
 
 /**

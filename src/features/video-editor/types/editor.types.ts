@@ -64,7 +64,14 @@ export interface ClipAttachment {
     }
     subtitle?: {
         text: string
-        style: 'default' | 'cinematic'
+        style: 'default' | 'cinematic' | 'minimal' | 'bold'
+        custom?: {
+            fontSize?: number        // 16-56 px
+            color?: string           // '#ffffff'
+            strokeColor?: string     // '描边颜色'
+            bgOpacity?: number       // 0-1
+            position?: 'bottom' | 'top' | 'center'
+        }
     }
 }
 
@@ -91,6 +98,7 @@ export interface ClipMetadata {
 export interface BgmClip {
     id: string
     src: string
+    title?: string                 // 文件名，供 Timeline 显示
     startFrame: number             // 绝对定位
     durationInFrames: number
     volume: number
@@ -131,6 +139,7 @@ export interface RenderRequest {
     editorProjectId: string
     format: 'mp4' | 'webm'
     quality: 'draft' | 'high'
+    targetPlatform?: string   // 平台预设
 }
 
 export interface RenderStatus {

@@ -224,6 +224,7 @@ function shouldRetryStepError(error: unknown, message: string, retryable: boolea
     || lowerMessage.includes('unexpected end of json input')
     || lowerMessage.includes('json format invalid')
     || lowerMessage.includes('invalid json output')
+    || lowerMessage.includes('object key expected')
     || lowerMessage.includes('parse')
 }
 

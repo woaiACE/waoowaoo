@@ -476,6 +476,9 @@ export function useVideoStageRuntime({
   const failedCount = allPanels.filter((panel) => !!panel.videoErrorMessage || !!panel.lipSyncErrorMessage).length
   const isAnyTaskRunning = runningCount > 0 || isSubmittingVideoBatch
   const canSubmitBatchGenerate = !!batchSelectedModel && batchMissingCapabilityFields.length === 0
+  // 审核进度统计
+  const panelsWithImage = allPanels.filter((p) => !!p.imageUrl)
+  const approvedCount = panelsWithImage.filter((p) => p.imageApproved).length
 
   const handleOpenBatchGenerateModal = useCallback(() => {
     if (isAnyTaskRunning) return
@@ -514,6 +517,8 @@ export function useVideoStageRuntime({
         runningCount={runningCount}
         videosWithUrl={videosWithUrl}
         failedCount={failedCount}
+        approvedCount={approvedCount}
+        totalWithImages={panelsWithImage.length}
         isAnyTaskRunning={isAnyTaskRunning}
         isDownloading={isDownloading}
         onGenerateAll={handleOpenBatchGenerateModal}

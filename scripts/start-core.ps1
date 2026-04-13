@@ -11,7 +11,10 @@
 [CmdletBinding()]
 param(
     [Parameter()]
-    [string]$RepoDir = ''
+    [string]$RepoDir = '',
+
+    # 指定此开关可跳过 BUILD_ID / git commit 检查，强制重新执行 next build
+    [switch]$ForceRebuild
 )
 
 # 若未传入 RepoDir，则以本脚本的父目录（项目根）作为默认值
@@ -460,11 +463,18 @@ function Invoke-Phase2And3-DownloadEngines {
     # ── MariaDB ──────────────────────────────────────────────
     if (-not (Test-Path $Script:MySqldExe)) {
         Write-Step -Phase '检查' -Message "MariaDB 未找到，准备下载..."
-        Write-Warn "MariaDB ZIP 约 180MB，首次下载需要几分钟，请耐心等待..."
 
-        $mariaDbZip = Join-Path $tempDir "mariadb-$($Script:MariaDbVersion)-winx64.zip"
+        $mariaDbZipName = "mariadb-$($Script:MariaDbVersion)-winx64.zip"
+        $mariaDbZip = Join-Path $tempDir $mariaDbZipName
+        # 支持用户预先将 ZIP 放入 engines\mysql 目录（离线部署）
+        $mariaDbZipPreplaced = Join-Path $Script:MySqlDir $mariaDbZipName
 
-        if (-not (Test-Path $mariaDbZip)) {
+        if (Test-Path $mariaDbZipPreplaced) {
+            Write-Success "检测到预置 MariaDB ZIP：$mariaDbZipPreplaced，跳过下载。"
+            $mariaDbZip = $mariaDbZipPreplaced
+        }
+        elseif (-not (Test-Path $mariaDbZip)) {
+            Write-Warn "MariaDB ZIP 约 180MB，首次下载需要几分钟，请耐心等待..."
             Invoke-SafeDownload `
                 -Url $Script:MariaDbUrl `
                 -Destination $mariaDbZip `
@@ -473,7 +483,10 @@ function Invoke-Phase2And3-DownloadEngines {
         }
 
         Expand-ZipTo -ZipPath $mariaDbZip -TargetDir $Script:MySqlDir -FlattenTopLevel
-        Remove-Item -Path $mariaDbZip -Force -ErrorAction SilentlyContinue
+        # 若使用的是预置文件，解压后不删除，方便重复使用
+        if ($mariaDbZip -ne $mariaDbZipPreplaced) {
+            Remove-Item -Path $mariaDbZip -Force -ErrorAction SilentlyContinue
+        }
     }
     else {
         Write-Success "MariaDB 已就绪：$Script:MySqldExe"
@@ -1055,16 +1068,57 @@ function Invoke-Phase8-PrismaDbPush {
 function Invoke-Phase9a-NextBuild {
     Write-Banner 'Phase 9a: Next.js 应用构建'
 
-    $nextDir = Join-Path $RepoDir '.next'
-    $buildIdFile = Join-Path $nextDir 'BUILD_ID'
+    $nextDir       = Join-Path $RepoDir '.next'
+    $buildIdFile   = Join-Path $nextDir 'BUILD_ID'
+    $gitCommitFile = Join-Path $nextDir 'GIT_COMMIT'   # 构建时写入，用于跨启动检测代码变更
 
-    if (Test-Path $buildIdFile) {
-        Write-Success '.next 生产构建已存在（BUILD_ID 验证通过），跳过构建。'
+    # ── 获取当前 git HEAD commit hash ────────────────────────
+    $currentCommit = ''
+    try {
+        $gitOutput = & git -C $RepoDir rev-parse HEAD 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $currentCommit = $gitOutput.Trim()
+        }
+    }
+    catch { <# git 不可用，跳过 commit 比对 #> }
+
+    # ── 是否需要重建 ─────────────────────────────────────────
+    $needRebuild  = $false
+    $rebuildReason = ''
+
+    if ($ForceRebuild) {
+        $needRebuild  = $true
+        $rebuildReason = '--ForceRebuild 参数指定，强制重建'
+    }
+    elseif (-not (Test-Path $buildIdFile)) {
+        $needRebuild  = $true
+        $rebuildReason = '首次构建或 .next 目录已清除'
+    }
+    elseif ($currentCommit -ne '') {
+        if (-not (Test-Path $gitCommitFile)) {
+            # 旧版构建没有 GIT_COMMIT 文件 → 无法确认是否最新，保守重建
+            $needRebuild  = $true
+            $rebuildReason = '构建缺少 git 版本记录，保守重建以确保同步'
+        }
+        else {
+            $lastCommit = (Get-Content $gitCommitFile -ErrorAction SilentlyContinue).Trim()
+            if ($lastCommit -ne $currentCommit) {
+                $needRebuild  = $true
+                $rebuildReason = "git HEAD 已变更（上次: $($lastCommit.Substring(0,[Math]::Min(8,$lastCommit.Length)))... 当前: $($currentCommit.Substring(0,8))...）"
+            }
+        }
+    }
+
+    if (-not $needRebuild) {
+        Write-Success ".next 生产构建与当前代码一致（git: $($currentCommit.Substring(0,8))...），跳过构建。"
         return
     }
 
+    Write-Step -Phase '构建' -Message "触发原因：$rebuildReason"
+
+    # 清除旧构建
     if (Test-Path $nextDir) {
-        Write-Warn '.next 目录存在但缺少 BUILD_ID（可能是 dev 构建或不完整构建），将重新构建。'
+        Write-Step -Phase '清理' -Message '正在清除旧 .next 目录...'
         Remove-Item -Recurse -Force $nextDir -ErrorAction SilentlyContinue
     }
 
@@ -1089,6 +1143,12 @@ function Invoke-Phase9a-NextBuild {
     }
     finally {
         Pop-Location
+    }
+
+    # 构建成功后写入 git commit hash，供下次启动比对
+    if ($currentCommit -ne '' -and (Test-Path $buildIdFile)) {
+        Set-Content -Path $gitCommitFile -Value $currentCommit -Encoding ASCII -Force
+        Write-Step -Phase '版本' -Message "已记录构建版本：$($currentCommit.Substring(0,8))..."
     }
 
     Write-Success 'Next.js 构建完成。'

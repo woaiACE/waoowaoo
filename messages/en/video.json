@@ -148,11 +148,16 @@
       "back": "← Back",
       "saveDirty": "Save *",
       "saved": "Saved",
-      "export": "Export Video"
+      "export": "Export Video",
+      "platform": "Platform"
     },
     "left": {
       "title": "Media Library",
-      "description": "Clips imported from the video stage will appear here"
+      "description": "Clips imported from the video stage will appear here",
+      "noVideoPanels": "No panels with video yet",
+      "addPanel": "Add to timeline",
+      "panelAdded": "Added",
+      "panelFallback": "Panel"
     },
     "right": {
       "title": "Properties",
@@ -162,7 +167,28 @@
       "transitionLabel": "Transition to Next Clip",
       "deleteConfirm": "Delete this clip?",
       "deleteClip": "Delete Clip",
-      "selectClipHint": "Select a clip to view properties"
+      "selectClipHint": "Select a clip to view properties",
+      "voiceVolume": "Voice Volume",
+      "trimLabel": "Trim",
+      "trimFrom": "In Point (default: 0)",
+      "trimTo": "Out Point (default: end)",
+      "subtitleStyle": "Subtitle Style",
+      "subtitlePosition": "Position",
+      "subtitleFontSize": "Font Size",
+      "subtitleColor": "Text Color",
+      "subtitleStroke": "Stroke Color",
+      "subtitleBgOpacity": "Background Opacity",
+      "subtitleStyles": {
+        "default": "Default",
+        "cinematic": "Cinematic",
+        "minimal": "Minimal",
+        "bold": "Bold"
+      },
+      "subtitlePositions": {
+        "bottom": "Bottom",
+        "top": "Top",
+        "center": "Center"
+      }
     },
     "preview": {
       "emptyStartEditing": "Add media to start editing"
@@ -172,7 +198,10 @@
       "videoTrack": "Video",
       "emptyHint": "Drag video clips from media library to here",
       "audioTrack": "Voice",
-      "audioBadge": "A"
+      "audioBadge": "A",
+      "bgmAdd": "Add BGM",
+      "bgmRemove": "Remove BGM",
+      "bgmVolume": "Volume"
     },
     "transition": {
       "title": "Transition",

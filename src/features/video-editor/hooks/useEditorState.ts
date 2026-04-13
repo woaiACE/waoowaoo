@@ -101,6 +101,14 @@ export function useEditorState({ episodeId, initialProject }: UseEditorStateProp
         setIsDirty(true)
     }, [])
 
+    const updateBgm = useCallback((bgmId: string, updates: Partial<Omit<BgmClip, 'id'>>) => {
+        setProject(prev => ({
+            ...prev,
+            bgmTrack: prev.bgmTrack.map(b => b.id === bgmId ? { ...b, ...updates } : b)
+        }))
+        setIsDirty(true)
+    }, [])
+
     // ========================================
     // 播放控制
     // ========================================
@@ -158,6 +166,7 @@ export function useEditorState({ episodeId, initialProject }: UseEditorStateProp
         // BGM actions
         addBgm,
         removeBgm,
+        updateBgm,
 
         // Playback
         play,

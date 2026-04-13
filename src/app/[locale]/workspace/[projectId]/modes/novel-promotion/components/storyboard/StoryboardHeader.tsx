@@ -12,8 +12,12 @@ interface StoryboardHeaderProps {
   runningCount: number
   pendingPanelCount: number
   isBatchSubmitting: boolean
+  pendingVoiceCount?: number
+  isBatchVoiceSubmitting?: boolean
   onDownloadAllImages: () => void
   onGenerateAllPanels: () => void
+  onGenerateAllImagesAndVoices?: () => void
+  onGenerateAllVoices?: () => void
   onBack: () => void
 }
 
@@ -24,8 +28,12 @@ export default function StoryboardHeader({
   runningCount,
   pendingPanelCount,
   isBatchSubmitting,
+  pendingVoiceCount = 0,
+  isBatchVoiceSubmitting = false,
   onDownloadAllImages,
   onGenerateAllPanels,
+  onGenerateAllImagesAndVoices,
+  onGenerateAllVoices,
   onBack
 }: StoryboardHeaderProps) {
   const t = useTranslations('storyboard')
@@ -71,6 +79,30 @@ export default function StoryboardHeader({
             disabled={runningCount > 0}
           >
             {t('header.generateAllPanels')} ({pendingPanelCount})
+          </GlassButton>
+        ) : null}
+
+        {(pendingPanelCount > 0 || pendingVoiceCount > 0) && onGenerateAllImagesAndVoices ? (
+          <GlassButton
+            variant="primary"
+            loading={isBatchSubmitting || isBatchVoiceSubmitting}
+            onClick={onGenerateAllImagesAndVoices}
+            disabled={runningCount > 0}
+          >
+            {t('header.generateAllImagesAndVoices')}
+            {pendingPanelCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-white/25 text-white">图{pendingPanelCount}</span>}
+            {pendingVoiceCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-white/25 text-white">音{pendingVoiceCount}</span>}
+          </GlassButton>
+        ) : null}
+
+        {pendingVoiceCount > 0 && onGenerateAllVoices ? (
+          <GlassButton
+            variant="primary"
+            loading={isBatchVoiceSubmitting}
+            onClick={onGenerateAllVoices}
+            disabled={runningCount > 0}
+          >
+            {t('header.generateAllVoices')} ({pendingVoiceCount})
           </GlassButton>
         ) : null}
 

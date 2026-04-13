@@ -76,17 +76,29 @@ export function generateClipId(): string {
 }
 
 /**
+ * 将宽高比字符串转换为像素尺寸
+ */
+export function ratioToSize(ratio?: string | null): { width: number; height: number } {
+    if (ratio === '9:16') return { width: 1080, height: 1920 }
+    if (ratio === '1:1')  return { width: 1080, height: 1080 }
+    if (ratio === '4:3')  return { width: 1440, height: 1080 }
+    if (ratio === '3:4')  return { width: 1080, height: 1440 }
+    return { width: 1920, height: 1080 } // 默认 16:9
+}
+
+/**
  * 创建默认编辑器项目
  */
-export function createDefaultProject(episodeId: string): VideoEditorProject {
+export function createDefaultProject(episodeId: string, videoRatio?: string | null): VideoEditorProject {
+    const { width, height } = ratioToSize(videoRatio)
     return {
         id: `editor_${Date.now()}`,
         episodeId,
         schemaVersion: '1.0',
         config: {
             fps: 30,
-            width: 1920,
-            height: 1080
+            width,
+            height
         },
         timeline: [],
         bgmTrack: []

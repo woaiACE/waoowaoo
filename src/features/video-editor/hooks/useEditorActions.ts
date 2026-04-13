@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react'
 import { VideoClip, VideoEditorProject } from '../types/editor.types'
+import { ratioToSize } from '../utils/time-utils'
 import { apiFetch } from '@/lib/api-fetch'
 
 interface UseEditorActionsProps {
@@ -27,7 +28,8 @@ interface PanelData {
 export function createProjectFromPanels(
     episodeId: string,
     panels: PanelData[],
-    voiceLines?: Array<{ id: string; speaker: string; content: string; audioUrl?: string | null }>
+    voiceLines?: Array<{ id: string; speaker: string; content: string; audioUrl?: string | null }>,
+    videoRatio?: string | null
 ): VideoEditorProject {
     // 过滤出有视频的面板
     const videoPanels = panels.filter(p => p.videoUrl)
@@ -70,8 +72,7 @@ export function createProjectFromPanels(
         schemaVersion: '1.0',
         config: {
             fps: 30,
-            width: 1920,
-            height: 1080
+            ...ratioToSize(videoRatio)
         },
         timeline,
         bgmTrack: []
@@ -94,7 +95,7 @@ export function useEditorActions({ projectId, episodeId }: UseEditorActionsProps
         }
 
         return response.json()
-    }, [projectId])
+    }, [projectId, episodeId])
 
     /**
      * 加载项目
@@ -114,14 +115,15 @@ export function useEditorActions({ projectId, episodeId }: UseEditorActionsProps
     /**
      * 发起渲染导出
      */
-    const startRender = useCallback(async (editorProjectId: string) => {
+    const startRender = useCallback(async (editorProjectId: string, targetPlatform?: string) => {
         const response = await apiFetch(`/api/novel-promotion/${projectId}/editor/render`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 editorProjectId,
                 format: 'mp4',
-                quality: 'high'
+                quality: 'high',
+                targetPlatform
             })
         })
 

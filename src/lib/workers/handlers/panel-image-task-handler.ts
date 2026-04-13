@@ -303,11 +303,14 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
       },
     })
   } else {
+    // 重新生成图片时，清除旧审核状态，防止旧审核为新图片背书
     await prisma.novelPromotionPanel.update({
       where: { id: panel.id },
       data: {
         previousImageUrl: panel.imageUrl,
         candidateImages: JSON.stringify(candidates),
+        imageApproved: false,
+        imageApprovedAt: null,
       },
     })
   }

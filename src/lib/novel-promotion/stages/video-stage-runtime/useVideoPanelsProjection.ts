@@ -99,6 +99,7 @@ export function useVideoPanelsProjection({
             panelLipState?.phase === 'failed'
               ? panelLipState.lastError?.message || panel.lipSyncErrorMessage || undefined
               : panel.lipSyncErrorMessage || undefined,
+          imageApproved: panel.imageApproved ?? false,
         })
       })
     })

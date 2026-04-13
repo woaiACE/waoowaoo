@@ -15,9 +15,44 @@ import {
 } from '@/lib/model-capabilities/lookup'
 import { resolveBuiltinPricing } from '@/lib/model-pricing/lookup'
 import { resolveProjectModelCapabilityGenerationOptions } from '@/lib/config-service'
+import { inferPanelVideoDuration } from '@/lib/video/infer-panel-duration'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function parseDurationValue(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  return null
+}
+
+function applyAutoDuration(
+  payload: Record<string, unknown>,
+  panel: {
+    shotType?: string | null
+    duration?: number | null
+    matchedVoiceLines?: { audioDuration?: number | null }[]
+  },
+): Record<string, unknown> {
+  const userOptions = isRecord(payload.generationOptions) ? payload.generationOptions : {}
+  const voiceLines = Array.isArray(panel.matchedVoiceLines) ? panel.matchedVoiceLines : []
+  const inferredDuration = inferPanelVideoDuration(panel, voiceLines)
+  const userDuration = parseDurationValue(userOptions.duration)
+  const resolvedDuration = userDuration === null
+    ? inferredDuration
+    : Math.max(userDuration, inferredDuration)
+
+  return {
+    ...payload,
+    generationOptions: {
+      ...userOptions,
+      duration: resolvedDuration,
+    },
+  }
 }
 
 function toVideoRuntimeSelections(value: unknown): Record<string, CapabilityValue> {
@@ -213,12 +248,18 @@ export const POST = apiHandler(async (
       where: {
         storyboard: { episodeId },
         imageUrl: { not: null },
+        imageApproved: true, // 只对人工审核通过的 Panel 提交视频任务
         OR: [
           { videoUrl: null },
           { videoUrl: '' },
         ],
       },
-      select: { id: true },
+      select: {
+        id: true,
+        shotType: true,
+        duration: true,
+        matchedVoiceLines: { select: { audioDuration: true } },
+      },
     })
 
     if (panels.length === 0) {
@@ -226,8 +267,10 @@ export const POST = apiHandler(async (
     }
 
     const results = await Promise.all(
-      panels.map(async (panel) =>
-        submitTask({
+      panels.map(async (panel) => {
+        const patchedBody = applyAutoDuration(body, panel)
+
+        return submitTask({
           userId: session.user.id,
           locale,
           requestId: getRequestId(request),
@@ -236,13 +279,13 @@ export const POST = apiHandler(async (
           type: TASK_TYPE.VIDEO_PANEL,
           targetType: 'NovelPromotionPanel',
           targetId: panel.id,
-          payload: withTaskUiPayload(body, {
+          payload: withTaskUiPayload(patchedBody, {
             hasOutputAtStart: await hasPanelVideoOutput(panel.id),
           }),
           dedupeKey: `video_panel:${panel.id}`,
-          billingInfo: buildVideoPanelBillingInfoOrThrow(body),
-        }),
-      ),
+          billingInfo: buildVideoPanelBillingInfoOrThrow(patchedBody),
+        })
+      }),
     )
 
     return NextResponse.json({ tasks: results, total: panels.length })
@@ -256,12 +299,19 @@ export const POST = apiHandler(async (
 
   const panel = await prisma.novelPromotionPanel.findFirst({
     where: { storyboardId, panelIndex: Number(panelIndex) },
-    select: { id: true },
+    select: {
+      id: true,
+      shotType: true,
+      duration: true,
+      matchedVoiceLines: { select: { audioDuration: true } },
+    },
   })
 
   if (!panel) {
     throw new ApiError('NOT_FOUND')
   }
+
+  const patchedBody = applyAutoDuration(body, panel)
 
   const result = await submitTask({
     userId: session.user.id,
@@ -271,11 +321,11 @@ export const POST = apiHandler(async (
     type: TASK_TYPE.VIDEO_PANEL,
     targetType: 'NovelPromotionPanel',
     targetId: panel.id,
-    payload: withTaskUiPayload(body, {
+    payload: withTaskUiPayload(patchedBody, {
       hasOutputAtStart: await hasPanelVideoOutput(panel.id),
     }),
     dedupeKey: `video_panel:${panel.id}`,
-    billingInfo: buildVideoPanelBillingInfoOrThrow(body),
+    billingInfo: buildVideoPanelBillingInfoOrThrow(patchedBody),
   })
 
   return NextResponse.json(result)

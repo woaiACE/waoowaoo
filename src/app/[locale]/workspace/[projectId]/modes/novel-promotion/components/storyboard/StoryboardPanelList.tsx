@@ -41,6 +41,8 @@ interface StoryboardPanelListProps {
   onInsertAfter: (panelIndex: number) => void
   onVariant: (panelIndex: number) => void
   isInsertDisabled: (panelId: string) => boolean
+  onApprovePanel?: (panelId: string) => void
+  onRevokePanel?: (panelId: string) => void
 }
 
 export default function StoryboardPanelList({
@@ -76,6 +78,8 @@ export default function StoryboardPanelList({
   onInsertAfter,
   onVariant,
   isInsertDisabled,
+  onApprovePanel,
+  onRevokePanel,
 }: StoryboardPanelListProps) {
   const displayImages = useMemo(() => textPanels.map((panel) => panel.imageUrl || null), [textPanels])
   const isVertical = ASPECT_RATIO_CONFIGS[videoRatio]?.isVertical ?? false
@@ -141,6 +145,8 @@ export default function StoryboardPanelList({
               onInsertAfter={() => onInsertAfter(index)}
               onVariant={() => onVariant(index)}
               isInsertDisabled={isInsertDisabled(panel.id)}
+              onApprove={onApprovePanel}
+              onRevoke={onRevokePanel}
             />
           </div>
         )

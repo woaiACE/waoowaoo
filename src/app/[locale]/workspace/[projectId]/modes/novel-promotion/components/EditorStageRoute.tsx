@@ -53,7 +53,7 @@ export default function EditorStageRoute() {
             )
             .filter((p) => !!p.videoUrl)
 
-          const project = createProjectFromPanels(eid, panels)
+          const project = createProjectFromPanels(eid, panels, undefined, runtime.videoRatio)
           setInitialProject(project)
         }
       } catch (err) {
@@ -92,6 +92,7 @@ export default function EditorStageRoute() {
       projectId={projectId}
       episodeId={episodeId}
       initialProject={initialProject}
+      storyboards={storyboards}
       onBack={() => runtime.onStageChange('videos')}
     />
   )

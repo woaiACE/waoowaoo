@@ -60,6 +60,8 @@
         "panelsCount": "{count} panels",
         "generatingStatus": "({count} generating)",
         "generateAllPanels": "Generate All Panels",
+        "generateAllImagesAndVoices": "Generate Images & Voices",
+        "generateAllVoices": "Generate Voices",
         "generatePendingPanels": "Generate {count} panels without images",
         "downloadAll": "Download All",
         "downloading": "Packing...",

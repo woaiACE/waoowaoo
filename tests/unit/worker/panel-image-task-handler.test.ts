@@ -233,6 +233,8 @@ describe('worker panel-image-task-handler behavior', () => {
       data: {
         previousImageUrl: 'cos/panel-old.png',
         candidateImages: JSON.stringify(['cos/panel-regenerated.png']),
+        imageApproved: false,
+        imageApprovedAt: null,
       },
     })
   })

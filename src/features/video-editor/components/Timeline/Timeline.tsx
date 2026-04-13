@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import {
     DndContext,
@@ -18,17 +18,21 @@ import {
     useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { VideoClip, TimelineState, EditorConfig } from '../../types/editor.types'
+import { VideoClip, BgmClip, TimelineState, EditorConfig } from '../../types/editor.types'
 import { framesToTime } from '../../utils/time-utils'
 
 interface TimelineProps {
     clips: VideoClip[]
+    bgmTrack: BgmClip[]
     timelineState: TimelineState
     config: EditorConfig
     onReorder: (fromIndex: number, toIndex: number) => void
     onSelectClip: (clipId: string | null) => void
     onZoomChange: (zoom: number) => void
     onSeek?: (frame: number) => void
+    onAddBgm: (bgm: Omit<BgmClip, 'id'>) => void
+    onRemoveBgm: (bgmId: string) => void
+    onUpdateBgm: (bgmId: string, updates: Partial<Omit<BgmClip, 'id'>>) => void
 }
 
 /**
@@ -37,14 +41,19 @@ interface TimelineProps {
  */
 export const Timeline: React.FC<TimelineProps> = ({
     clips,
+    bgmTrack,
     timelineState,
     config,
     onReorder,
     onSelectClip,
     onZoomChange,
-    onSeek
+    onSeek,
+    onAddBgm,
+    onRemoveBgm,
+    onUpdateBgm
 }) => {
     const t = useTranslations('video')
+    const bgmInputRef = useRef<HTMLInputElement>(null)
     // 计算总时长和播放头位置
     const totalDuration = clips.reduce((sum, clip) => sum + clip.durationInFrames, 0)
     const playheadPosition = totalDuration > 0 ? (timelineState.currentFrame / totalDuration) * 100 : 0
@@ -259,11 +268,13 @@ export const Timeline: React.FC<TimelineProps> = ({
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                height: '40px',
+                minHeight: '40px',
                 background: 'var(--glass-bg-surface-strong)',
                 border: '1px solid var(--glass-stroke-base)',
                 borderRadius: '6px',
-                padding: '0 12px'
+                padding: '0 12px',
+                gap: '8px',
+                flexWrap: 'wrap'
             }}>
                 <span style={{
                     fontSize: '12px',
@@ -273,6 +284,93 @@ export const Timeline: React.FC<TimelineProps> = ({
                 }}>
                     BGM
                 </span>
+
+                {/* BGM 片段列表 */}
+                <div style={{ display: 'flex', gap: '6px', flex: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {bgmTrack.map((bgm) => (
+                        <div
+                            key={bgm.id}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'var(--glass-tone-info-bg, rgba(99,102,241,0.15))',
+                                border: '1px solid var(--glass-tone-info-border, rgba(99,102,241,0.3))',
+                                borderRadius: '4px',
+                                padding: '2px 6px',
+                                fontSize: '11px',
+                                color: 'var(--glass-tone-info-fg, #818cf8)'
+                            }}
+                        >
+                            <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {bgm.title || 'BGM'}
+                            </span>
+                            {/* 音量滑块 */}
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.05"
+                                value={bgm.volume}
+                                onChange={(e) => onUpdateBgm(bgm.id, { volume: parseFloat(e.target.value) })}
+                                style={{ width: '60px', cursor: 'pointer' }}
+                                title={`${t('editor.timeline.bgmVolume')}: ${Math.round(bgm.volume * 100)}%`}
+                            />
+                            {/* 删除按钮 */}
+                            <button
+                                onClick={() => onRemoveBgm(bgm.id)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: 'var(--glass-text-tertiary)',
+                                    padding: '0',
+                                    lineHeight: 1,
+                                    fontSize: '14px'
+                                }}
+                                title={t('editor.timeline.bgmRemove')}
+                            >
+                                ×
+                            </button>
+                        </div>
+                    ))}
+                </div>
+
+                {/* 添加 BGM 按钮 */}
+                <input
+                    ref={bgmInputRef}
+                    type="file"
+                    accept="audio/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const src = URL.createObjectURL(file)
+                        onAddBgm({
+                            src,
+                            title: file.name.replace(/\.[^.]+$/, ''),
+                            startFrame: 0,
+                            durationInFrames: config.fps * 60, // 默认 1 分钟，播放完自动停
+                            volume: 0.5
+                        })
+                        // reset so same file can be re-selected
+                        e.target.value = ''
+                    }}
+                />
+                <button
+                    onClick={() => bgmInputRef.current?.click()}
+                    style={{
+                        background: 'none',
+                        border: '1px dashed var(--glass-stroke-base)',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        color: 'var(--glass-text-secondary)',
+                        padding: '2px 8px',
+                        fontSize: '12px'
+                    }}
+                >
+                    + {t('editor.timeline.bgmAdd')}
+                </button>
             </div>
         </div>
     )

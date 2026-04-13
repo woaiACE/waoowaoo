@@ -462,6 +462,22 @@ videoRatio → getSizeMapForModel(modelId) → size 参数
 
 ### 📋 阶段 6 差距分析 & 改进计划
 
+```text
+阶段 6 已完成
+└── ✅ 分镜图审核关卡（Stage Gate）（2026-04）
+        DB 层：NovelPromotionPanel 新增 imageApproved Boolean @default(false)
+               + imageApprovedAt DateTime?（已通过 prisma db push 落库）
+        API 层：PATCH /api/novel-promotion/[projectId]/panel/approve
+                → 支持 panelIds[] 批量审核 / storyboardId 整分镜批量审核
+                DELETE /api/novel-promotion/[projectId]/panel/approve
+                → 撤销审核（imageApproved=false）
+        安全：重新生成图片时 panel-image-task-handler 自动将 imageApproved 重置为 false
+              防止旧审核为新生成图片背书
+        前端：PanelCard 图片左下角"审核 / 已审核"切换按钮 + 绿色边框环指示
+              usePanelApprove hook 封装 PATCH/DELETE + invalidateQueries
+              StoryboardGroup 集成；支持逐帧点击审核
+```
+
 | 项目 | 内容 |
 |------|------|
 | **缺失功能** | 角色参考图 Image Input 强注入（当前仅 prompt 文字）；构图规则自动注入；跨帧一致性自动 QC；批量生成前预检关卡 |
@@ -495,6 +511,17 @@ videoRatio → getSizeMapForModel(modelId) → size 参数
 ```
 
 ### 📋 阶段 7 差距分析 & 改进计划
+
+```text
+阶段 7 已完成
+└── ✅ 一键出图+配音并行批量按钮（2026-04）
+        StoryboardHeader 新增"一键出图+配音"按钮
+        → 同时触发 handleGenerateAllPanels（批量图片，10并发）
+          + useBatchGenerateVoices.mutateAsync({ lineIds })（批量配音）
+          两路 Promise.allSettled 并发，互不阻塞
+        → 角标实时显示：图X 音Y（待生成数量）
+        → 当 pendingPanelCount > 0 或 pendingVoiceCount > 0 时显示按钮
+```
 
 | 项目 | 内容 |
 |------|------|
@@ -532,12 +559,32 @@ videoRatio → getSizeMapForModel(modelId) → size 参数
 
 ### 📋 阶段 8 差距分析 & 改进计划
 
+```text
+阶段 8 已完成
+├── ✅ Stage Gate 人工审核关卡（2026-04）
+│       批量视频生成（all: true）仅提交 imageApproved=true 的 Panel
+│       未审核的 Panel 不消耗视频 API 费用
+│       VideoStage 工具栏显示"审核 X/Y"计数：全数审核字色变绿，部分审核显示警告色
+│
+├── ✅ 视频时长自动推算 inferPanelVideoDuration（2026-04）
+│       规则：max(台词总时长 + 0.5s 缓冲, shotType 最短时长, LLM 分镜建议时长)
+│       四舍五入至 0.5s 粒度，上限 15s
+│       批量提交时若用户未指定 duration，自动注入推算值
+│       数据来源：NovelPromotionVoiceLine.audioDuration + panel.duration
+│
+└── ✅ 视频完成后自动触发 Lip Sync（2026-04）
+        video.worker.ts 写入 videoUrl 后，查询对应 Panel 已完成配音
+        有配音则自动 submitTask(LIP_SYNC)，dedupeKey=lip_sync:{panelId}:{voiceLineId}
+        读取用户 userPreference.lipSyncModel，fallback=fal/kling-video/lipsync
+        整个流程包裹 try/catch，Lip Sync 失败不影响视频生成结果
+```
+
 | 项目 | 内容 |
 |------|------|
-| **缺失功能** | 首尾帧全局引导 UI；视频时长与台词时长自动匹配；运镜模板 UI；模型能力差异提示；批量运镜参数统一配置 |
+| **缺失功能** | 首尾帧全局引导 UI；运镜模板 UI；模型能力差异提示；批量运镜参数统一配置 |
 | **优先级** | 🟠 高 |
-| **待实现** | ① **首尾帧引导检查**：批量提交视频生成前，自动检测哪些 Clip 的首/尾 Panel 未设置 FirstLastFrame 约束，以警告列表形式提示用户补全，引导充分利用已有的首尾帧功能 ② **台词时长→视频时长自动建议**：读取 Panel 关联 VoiceLine 预估时长（字数/语速），在视频时长输入框旁展示"建议 X 秒"，减少视频时长与配音对不上的问题 ③ **运镜模板 UI**：在 VideoRenderPanel 中新增运镜模板选择器（推进 / 拉开 / 横移 / 环绕 / 跟随 / 俯冲），选择后自动转换为目标模型（Kling/Seedance/Vidu）的最优运镜关键词填充到 videoPrompt ④ **模型能力矩阵提示**：选择视频模型时，实时显示该模型是否支持音效同步、首尾帧、运镜指令等能力，避免用户选错模型导致参数静默丢弃 |
-| **实现好处** | 首尾帧引导使镜头衔接流畅度显著提升；运镜模板解决"全集都是原地缩放"的最大用户痛点；自动时长建议减少音画不同步问题 |
+| **待实现** | ① **首尾帧引导检查**：批量提交视频生成前，自动检测哪些 Clip 的首/尾 Panel 未设置 FirstLastFrame 约束，以警告列表形式提示用户补全，引导充分利用已有的首尾帧功能 ② **运镜模板 UI**：在 VideoRenderPanel 中新增运镜模板选择器（推进 / 拉开 / 横移 / 环绕 / 跟随 / 俯冲），选择后自动转换为目标模型（Kling/Seedance/Vidu）的最优运镜关键词填充到 videoPrompt ③ **模型能力矩阵提示**：选择视频模型时，实时显示该模型是否支持音效同步、首尾帧、运镜指令等能力，避免用户选错模型导致参数静默丢弃 |
+| **实现好处** | 首尾帧引导使镜头衔接流畅度显著提升；运镜模板解决"全集都是原地缩放"的最大用户痛点 |
 
 ---
 
@@ -588,12 +635,19 @@ Remotion v4 渲染引擎
 
 ### 📋 阶段 10 差距分析 & 改进计划
 
+```text
+阶段 10 已完成
+└── ✅ 前端剪辑台路由连接（2026-04）
+        EditorStageRoute.tsx 已连接 VideoEditorStage 组件
+        用户可从阶段 10 入口进入剪辑台界面
+```
+
 | 项目 | 内容 |
 |------|------|
-| **缺失功能** | 前端剪辑台入口（`VideoEditorProject` 后端已有，前端路由未连接）；LUT 调色；BGM 混音；多平台格式导出；字幕样式设计；片头/片尾模板 |
+| **缺失功能** | LUT 调色；BGM 混音；多平台格式导出；字幕样式设计；片头/片尾模板 |
 | **优先级** | 🔴 最高（交付链路必须） |
-| **待实现** | ① **连接前端剪辑台路由**（最紧急）：`VideoEditorProject` 数据模型与 Remotion v4 后端渲染已就绪，补充 Stage 10 的前端页面路由入口和 `VideoEditorStage` 组件，让用户能进入剪辑台 ② **LUT 调色选择器**：在剪辑台新增调色面板，提供预设 LUT 风格（电影感橙青 / 暖黄复古 / 冷蓝科幻 / 黑白默片），渲染时作为滤镜叠加到 Remotion 合成轨道 ③ **BGM 混音时间轴**：将阶段 7.5 生成的 BGM 显示在时间轴独立音频轨道，支持音量淡入淡出曲线编辑、循环截断、与 TTS 人声分轨混合 ④ **多平台格式导出**：抖音（1080×1920 H.264）/ B站（1920×1080 H.264）/ YouTube（2160×3840 H.265）预设导出按钮，调用 Remotion 渲染参数适配 ⑤ **字幕样式设计器**：提供样式选择（宋体黑边 / 综艺花字 / 电影英文字幕风），字号、颜色、位置可配置 ⑥ **片头/片尾模板**：内置 3-5 套片头/片尾 Remotion 动画模板，用户填入剧名和集数信息后自动渲染拼接 |
-| **实现好处** | 这是整条生产线的最后一公里，缺失导致用户无法交付成品；LUT 调色使全集视觉统一感质量提升最明显；多平台导出直接支撑分发变现 |
+| **待实现** | ① **LUT 调色选择器**：在剪辑台新增调色面板，提供预设 LUT 风格（电影感橙青 / 暖黄复古 / 冷蓝科幻 / 黑白默片），渲染时作为滤镜叠加到 Remotion 合成轨道 ② **BGM 混音时间轴**：将阶段 7.5 生成的 BGM 显示在时间轴独立音频轨道，支持音量淡入淡出曲线编辑、循环截断、与 TTS 人声分轨混合 ③ **多平台格式导出**：抖音（1080×1920 H.264）/ B站（1920×1080 H.264）/ YouTube（2160×3840 H.265）预设导出按钮，调用 Remotion 渲染参数适配 ④ **字幕样式设计器**：提供样式选择（宋体黑边 / 综艺花字 / 电影英文字幕风），字号、颜色、位置可配置 ⑤ **片头/片尾模板**：内置 3-5 套片头/片尾 Remotion 动画模板，用户填入剧名和集数信息后自动渲染拼接 |
+| **实现好处** | LUT 调色使全集视觉统一感质量提升最明显；多平台导出直接支撑分发变现 |
 
 ---
 

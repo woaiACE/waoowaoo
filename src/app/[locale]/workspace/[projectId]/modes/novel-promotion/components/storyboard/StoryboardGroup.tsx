@@ -15,6 +15,7 @@ import StoryboardGroupFailedAlert from './StoryboardGroupFailedAlert'
 import StoryboardGroupDialogs from './StoryboardGroupDialogs'
 import type { StoryboardGroupProps } from './StoryboardGroup.types'
 import { AppIcon } from '@/components/ui/icons'
+import { usePanelApprove } from './hooks/usePanelApprove'
 
 export default function StoryboardGroup({
   storyboard,
@@ -88,6 +89,8 @@ export default function StoryboardGroup({
     onInsertPanel,
     onPanelVariant,
   })
+
+  const { approvePanels, revokePanels } = usePanelApprove({ projectId, episodeId })
 
   const {
     panelTaskErrorMap,
@@ -237,6 +240,8 @@ export default function StoryboardGroup({
           insertingAfterPanelId === panelId ||
           submittingVariantPanelId === panelId
         }
+        onApprovePanel={(panelId) => approvePanels([panelId])}
+        onRevokePanel={(panelId) => revokePanels([panelId])}
       />
 
       <StoryboardGroupDialogs

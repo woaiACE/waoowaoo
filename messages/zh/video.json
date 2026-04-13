@@ -148,11 +148,16 @@
       "back": "← 返回",
       "saveDirty": "保存 *",
       "saved": "已保存",
-      "export": "导出视频"
+      "export": "导出视频",
+      "platform": "平台"
     },
     "left": {
       "title": "素材库",
-      "description": "从视频阶段导入的片段将显示在这里"
+      "description": "从视频阶段导入的片段将显示在这里",
+      "noVideoPanels": "暂无已生成视频的镜头",
+      "addPanel": "添加到时间轴",
+      "panelAdded": "已添加",
+      "panelFallback": "镜头"
     },
     "right": {
       "title": "属性",
@@ -162,7 +167,28 @@
       "transitionLabel": "转场到下一片段",
       "deleteConfirm": "确定删除此片段？",
       "deleteClip": "删除片段",
-      "selectClipHint": "选择一个片段查看属性"
+      "selectClipHint": "选择一个片段查看属性",
+      "voiceVolume": "配音音量",
+      "trimLabel": "裁剪",
+      "trimFrom": "入点 (默：0)",
+      "trimTo": "出点 (默：结尾)",
+      "subtitleStyle": "字幕样式",
+      "subtitlePosition": "位置",
+      "subtitleFontSize": "字号",
+      "subtitleColor": "文字颜色",
+      "subtitleStroke": "描边颜色",
+      "subtitleBgOpacity": "背景透明度",
+      "subtitleStyles": {
+        "default": "默认",
+        "cinematic": "电影感",
+        "minimal": "简约",
+        "bold": "粗体强调"
+      },
+      "subtitlePositions": {
+        "bottom": "底部",
+        "top": "顶部",
+        "center": "居中"
+      }
     },
     "preview": {
       "emptyStartEditing": "添加素材开始编辑"
@@ -172,7 +198,10 @@
       "videoTrack": "视频",
       "emptyHint": "从素材库拖拽视频片段到这里",
       "audioTrack": "配音",
-      "audioBadge": "配"
+      "audioBadge": "配",
+      "bgmAdd": "添加 BGM",
+      "bgmRemove": "移除 BGM",
+      "bgmVolume": "音量"
     },
     "transition": {
       "title": "转场效果",
