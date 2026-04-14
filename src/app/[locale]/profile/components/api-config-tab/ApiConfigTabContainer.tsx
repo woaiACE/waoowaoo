@@ -28,7 +28,7 @@ interface TestStep {
 }
 type TestStatus = 'idle' | 'testing' | 'passed' | 'failed'
 
-type CustomProviderType = 'gemini-compatible' | 'openai-compatible'
+type CustomProviderType = 'gemini-compatible' | 'openai-compatible' | 'lmstudio'
 
 const Icons = {
   settings: () => (
@@ -168,7 +168,12 @@ export function ApiConfigTabContainer() {
       name,
       baseUrl,
       apiKey,
-      apiMode: newGeminiProvider.apiType === 'openai-compatible' ? 'openai-official' : 'gemini-sdk',
+      apiMode: newGeminiProvider.apiType === 'gemini-compatible'
+        ? 'gemini-sdk'
+        : newGeminiProvider.apiType === 'openai-compatible'
+          ? 'openai-official'
+          : undefined,
+      gatewayRoute: newGeminiProvider.apiType === 'lmstudio' ? 'openai-compat' : undefined,
     })
 
     setNewGeminiProvider({ name: '', baseUrl: '', apiKey: '', apiType: 'gemini-compatible' })
@@ -288,6 +293,7 @@ export function ApiConfigTabContainer() {
             onReorderProviders={reorderProviders}
             onDeleteModel={deleteModel}
             onUpdateModel={updateModel}
+            onUpdateDefaultModel={updateDefaultModel}
             onDeleteProvider={deleteProvider}
             onAddModel={addModel}
             onFlushConfig={flushConfig}
@@ -372,6 +378,7 @@ export function ApiConfigTabContainer() {
               >
                 <option value="gemini-compatible">{t('apiTypeGeminiCompatible')}</option>
                 <option value="openai-compatible">{t('apiTypeOpenAICompatible')}</option>
+                <option value="lmstudio">{t('apiTypeLmStudio')}</option>
               </select>
               <div className="pointer-events-none absolute right-3 top-3 text-[var(--glass-text-tertiary)]">
                 <Icons.chevronDown />

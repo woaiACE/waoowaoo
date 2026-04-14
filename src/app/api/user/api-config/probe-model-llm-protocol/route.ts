@@ -36,7 +36,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const providerId = readRequiredString(body.providerId, 'providerId')
   const modelId = readRequiredString(body.modelId, 'modelId')
 
-  if (getProviderKey(providerId) !== 'openai-compatible') {
+  const providerKey = getProviderKey(providerId)
+  if (providerKey !== 'openai-compatible' && providerKey !== 'lmstudio') {
     throw new ApiError('INVALID_PARAMS', {
       code: 'MODEL_LLM_PROTOCOL_PROBE_PROVIDER_INVALID',
       field: 'providerId',

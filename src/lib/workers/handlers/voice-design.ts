@@ -5,7 +5,9 @@ import {
   validateVoicePrompt,
   type VoiceDesignInput,
 } from '@/lib/providers/bailian/voice-design'
-import { getProviderConfig } from '@/lib/api-config'
+import { createLocalVoiceDesign } from '@/lib/providers/local-indextts'
+import { getProviderConfig, resolveModelSelectionOrSingle, getProviderKey } from '@/lib/api-config'
+import { prisma } from '@/lib/prisma'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
 import { TASK_TYPE, type TaskJobData } from '@/lib/task/types'
@@ -46,14 +48,43 @@ export async function handleVoiceDesignTask(job: Job<TaskJobData>) {
   })
   await assertTaskActive(job, 'voice_design_submit')
 
-  const { apiKey } = await getProviderConfig(job.data.userId, 'bailian')
   const input: VoiceDesignInput = {
     voicePrompt,
     previewText,
     preferredName,
     language,
   }
-  const designed = await createVoiceDesign(input, apiKey)
+
+  let pref: { voiceDesignModel: string | null } | null = null
+  try {
+    pref = await prisma.userPreference.findUnique({
+      where: { userId: job.data.userId },
+      select: { voiceDesignModel: true },
+    })
+  } catch {
+    pref = null
+  }
+
+  let designed
+  try {
+    if (pref?.voiceDesignModel) {
+      const selection = await resolveModelSelectionOrSingle(job.data.userId, pref.voiceDesignModel, 'audio')
+      const providerKey = getProviderKey(selection.provider).toLowerCase()
+      if (providerKey === 'local') {
+        const providerConfig = await getProviderConfig(job.data.userId, selection.provider)
+        designed = await createLocalVoiceDesign(input, providerConfig.baseUrl)
+      } else {
+        const { apiKey } = await getProviderConfig(job.data.userId, selection.provider)
+        designed = await createVoiceDesign(input, apiKey)
+      }
+    } else {
+      const { apiKey } = await getProviderConfig(job.data.userId, 'bailian')
+      designed = await createVoiceDesign(input, apiKey)
+    }
+  } catch {
+    const { apiKey } = await getProviderConfig(job.data.userId, 'bailian')
+    designed = await createVoiceDesign(input, apiKey)
+  }
   if (!designed.success) {
     throw new Error(designed.error || '声音设计失败')
   }

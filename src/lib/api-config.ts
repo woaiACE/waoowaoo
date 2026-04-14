@@ -67,7 +67,7 @@ function normalizeProviderBaseUrl(providerId: string, rawBaseUrl?: string): stri
 
   const baseUrl = readTrimmedString(rawBaseUrl)
   if (!baseUrl) return undefined
-  if (providerKey !== 'openai-compatible') return baseUrl
+  if (providerKey !== 'openai-compatible' && providerKey !== 'lmstudio') return baseUrl
 
   try {
     const parsed = new URL(baseUrl)
@@ -169,9 +169,9 @@ function parseCustomProviders(rawProviders: string | null | undefined): CustomPr
       gatewayRoute = undefined
     } else if (!isGatewayRoute(gatewayRouteRaw)) {
       throw new Error(`PROVIDER_GATEWAY_ROUTE_INVALID: providers[${index}].gatewayRoute`)
-    } else if (providerKey === 'openai-compatible' && gatewayRouteRaw === 'official') {
+    } else if ((providerKey === 'openai-compatible' || providerKey === 'lmstudio') && gatewayRouteRaw === 'official') {
       throw new Error(`PROVIDER_GATEWAY_ROUTE_INVALID: providers[${index}].gatewayRoute`)
-    } else if (providerKey !== 'openai-compatible' && gatewayRouteRaw === 'openai-compat') {
+    } else if (providerKey !== 'openai-compatible' && providerKey !== 'lmstudio' && gatewayRouteRaw === 'openai-compat') {
       throw new Error(`PROVIDER_GATEWAY_ROUTE_INVALID: providers[${index}].gatewayRoute`)
     } else {
       gatewayRoute = gatewayRouteRaw
@@ -334,7 +334,7 @@ export async function resolveModelSelection(
   }
 
   const providerKey = getProviderKey(exact.provider).toLowerCase()
-  const llmProtocol = mediaType === 'llm' && providerKey === 'openai-compatible'
+  const llmProtocol = mediaType === 'llm' && (providerKey === 'openai-compatible' || providerKey === 'lmstudio')
     ? (exact.llmProtocol || 'chat-completions')
     : undefined
   const compatMediaTemplate = (mediaType === 'image' || mediaType === 'video') && providerKey === 'openai-compatible'
@@ -365,7 +365,7 @@ async function resolveSingleModelSelection(
 
   const model = models[0]
   const providerKey = getProviderKey(model.provider).toLowerCase()
-  const llmProtocol = mediaType === 'llm' && providerKey === 'openai-compatible'
+  const llmProtocol = mediaType === 'llm' && (providerKey === 'openai-compatible' || providerKey === 'lmstudio')
     ? (model.llmProtocol || 'chat-completions')
     : undefined
   const compatMediaTemplate = (mediaType === 'image' || mediaType === 'video') && providerKey === 'openai-compatible'
@@ -419,14 +419,15 @@ export async function getProviderConfig(userId: string, providerId: string): Pro
   const { providers } = await readUserConfig(userId)
   const provider = pickProviderStrict(providers, providerId)
 
-  if (!provider.apiKey) {
+  const providerKey = getProviderKey(provider.id).toLowerCase()
+  if (!provider.apiKey && providerKey !== 'lmstudio' && providerKey !== 'local') {
     throw new Error(`PROVIDER_API_KEY_MISSING: ${provider.id}`)
   }
 
   return {
     id: provider.id,
     name: provider.name,
-    apiKey: decryptApiKey(provider.apiKey),
+    apiKey: provider.apiKey ? decryptApiKey(provider.apiKey) : '',
     baseUrl: normalizeProviderBaseUrl(provider.id, provider.baseUrl),
     apiMode: provider.apiMode,
     gatewayRoute: provider.gatewayRoute,
@@ -504,5 +505,12 @@ export async function hasApiConfig(userId: string): Promise<boolean> {
   })
 
   const providers = parseCustomProviders(pref?.customProviders)
-  return providers.some((provider) => !!provider.apiKey)
+  return providers.some((provider) => {
+    if (provider.apiKey) return true
+    const providerKey = getProviderKey(provider.id).toLowerCase()
+    if (providerKey === 'lmstudio' || providerKey === 'local') {
+      return typeof provider.baseUrl === 'string' && provider.baseUrl.trim().length > 0
+    }
+    return false
+  })
 }

@@ -54,7 +54,10 @@ export function ProviderCardShell({
   const compatibilityLayerLabel = getCompatibilityLayerBadgeLabel(provider.id, t)
   const providerKey = getProviderKey(provider.id)
   const isVerifiable = VERIFIABLE_PROVIDER_KEYS.has(providerKey)
-  const canTest = isVerifiable && !!provider.hasApiKey
+  const isConfigured = providerKey === 'lmstudio' || providerKey === 'local'
+    ? typeof provider.baseUrl === 'string' && provider.baseUrl.trim().length > 0
+    : !!provider.hasApiKey
+  const canTest = isVerifiable && isConfigured
   const isHidden = provider.hidden === true
   const hiddenToggleLabel = isHidden
     ? (showProviderLabel || t('showProvider'))
@@ -95,8 +98,8 @@ export function ProviderCardShell({
             </span>
           )}
           {/* 连接状态图标 */}
-          <span title={provider.hasApiKey ? t('connected') : t('notConfigured')}>
-            <StatusIcon connected={!!provider.hasApiKey} />
+          <span title={isConfigured ? t('connected') : t('notConfigured')}>
+            <StatusIcon connected={isConfigured} />
           </span>
         </div>
         <div className="flex items-center gap-1.5">

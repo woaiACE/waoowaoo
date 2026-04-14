@@ -34,6 +34,7 @@ interface StoredProvider {
   id?: string
   name?: string
   apiKey?: string
+  baseUrl?: string
 }
 
 interface UserModelOption {
@@ -55,6 +56,7 @@ interface UserModelsPayload {
 
 const AUDIO_MODEL_EXCLUDED_IDS = new Set([
   'qwen-voice-design',
+  'local-indextts-voice-design',
 ])
 
 function isUnifiedModelType(type: unknown): type is UnifiedModelType {
@@ -154,7 +156,15 @@ function parseStoredProviders(rawProviders: string | null | undefined): StoredPr
 }
 
 function hasStoredProviderApiKey(provider: StoredProvider): boolean {
-  return typeof provider.apiKey === 'string' && provider.apiKey.trim().length > 0
+  const providerId = typeof provider.id === 'string' ? provider.id.trim() : ''
+  const providerKey = providerId.includes(':') ? providerId.slice(0, providerId.indexOf(':')) : providerId
+  const apiKey = typeof provider.apiKey === 'string' ? provider.apiKey.trim() : ''
+  if (apiKey.length > 0) return true
+  if (providerKey === 'lmstudio' || providerKey === 'local') {
+    const baseUrl = typeof provider.baseUrl === 'string' ? provider.baseUrl.trim() : ''
+    return baseUrl.length > 0
+  }
+  return false
 }
 
 function isUserSelectableModel(model: StoredModel): boolean {

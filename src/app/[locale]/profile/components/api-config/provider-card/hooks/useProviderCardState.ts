@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   encodeModelKey,
   PRESET_MODELS,
@@ -19,6 +19,8 @@ import type {
 import { VERIFIABLE_PROVIDER_KEYS } from '../types'
 import type { CustomModel } from '../../types'
 import { apiFetch } from '@/lib/api-fetch'
+import type { LmStudioNativeModel } from '@/lib/lmstudio/native'
+import type { LmStudioRuntimeStats } from '@/lib/lmstudio/runtime'
 import {
   useAssistantChat,
   type AssistantDraftModel,
@@ -46,6 +48,7 @@ interface UseProviderCardStateParams {
   onUpdateApiKey: ProviderCardProps['onUpdateApiKey']
   onUpdateBaseUrl: ProviderCardProps['onUpdateBaseUrl']
   onUpdateModel: ProviderCardProps['onUpdateModel']
+  onUpdateDefaultModel: ProviderCardProps['onUpdateDefaultModel']
   onAddModel: ProviderCardProps['onAddModel']
   onFlushConfig: ProviderCardProps['onFlushConfig']
   t: ProviderCardTranslator
@@ -83,6 +86,7 @@ interface ProviderConnectionPayload {
 }
 
 type LlmProtocolType = 'responses' | 'chat-completions'
+type LmStudioStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 type ProbeModelLlmProtocolSuccessResponse = {
   success: true
@@ -103,11 +107,20 @@ function readProbeFailureCode(value: unknown): string {
   return typeof value === 'string' ? value : 'PROBE_INCONCLUSIVE'
 }
 
+function resolveLmStudioManageFailureMessage(error: unknown, t: ProviderCardTranslator): string {
+  const message = error instanceof Error ? error.message : ''
+  if (message === 'LMSTUDIO_BASE_URL_REQUIRED') return t('lmStudioBaseUrlRequired')
+  if (message === 'LMSTUDIO_BASE_URL_INVALID') return t('lmStudioBaseUrlInvalid')
+  if (message.includes('fetch failed') || message.includes('Network')) return t('lmStudioNetworkError')
+  return message || t('lmStudioManageFailed')
+}
+
 export function shouldProbeModelLlmProtocol(params: {
   providerId: string
   modelType: ProviderCardModelType
 }): boolean {
-  return getProviderKey(params.providerId) === 'openai-compatible' && params.modelType === 'llm'
+  const providerKey = getProviderKey(params.providerId)
+  return (providerKey === 'openai-compatible' || providerKey === 'lmstudio') && params.modelType === 'llm'
 }
 
 export function shouldReprobeModelLlmProtocol(params: {
@@ -117,7 +130,8 @@ export function shouldReprobeModelLlmProtocol(params: {
 }): boolean {
   if (!shouldProbeModelLlmProtocol({ providerId: params.providerId, modelType: 'llm' })) return false
   if (params.originalModel.type !== 'llm') return false
-  if (getProviderKey(params.originalModel.provider) !== 'openai-compatible') return false
+  const providerKey = getProviderKey(params.originalModel.provider)
+  if (providerKey !== 'openai-compatible' && providerKey !== 'lmstudio') return false
   return params.originalModel.modelId !== params.nextModelId || params.originalModel.provider !== params.providerId
 }
 
@@ -176,7 +190,7 @@ export function buildProviderConnectionPayload(params: {
   const compatibleBaseUrl = params.baseUrl?.trim()
   const llmModel = params.llmModel?.trim()
   const isCompatibleProvider =
-    params.providerKey === 'openai-compatible' || params.providerKey === 'gemini-compatible'
+    params.providerKey === 'openai-compatible' || params.providerKey === 'gemini-compatible' || params.providerKey === 'lmstudio'
 
   if (isCompatibleProvider && compatibleBaseUrl) {
     return {
@@ -333,6 +347,18 @@ export interface UseProviderCardStateResult {
   handleForceSaveKey: () => void
   handleTestOnly: () => void
   handleDismissTest: () => void
+  lmStudioModels: LmStudioNativeModel[]
+  lmStudioStatus: LmStudioStatus
+  lmStudioMessage: string | null
+  lmStudioBusyKey: string | null
+  lmStudioRuntime: LmStudioRuntimeStats | null
+  refreshLmStudioModels: () => Promise<void>
+  isLmStudioModelEnabled: (modelKey: string) => boolean
+  isLmStudioModelDefault: (modelKey: string) => boolean
+  handleUseLmStudioForAnalysis: (modelKey: string) => Promise<void>
+  handleEnableLocalBridge: (target: 'audio' | 'voiceDesign') => Promise<void>
+  handleLoadLmStudioModel: (modelKey: string) => Promise<void>
+  handleUnloadLmStudioModel: (instanceId: string) => Promise<void>
   isModelSavePending: boolean
   assistantEnabled: boolean
   isAssistantOpen: boolean
@@ -359,6 +385,7 @@ export function useProviderCardState({
   onUpdateApiKey,
   onUpdateBaseUrl,
   onUpdateModel,
+  onUpdateDefaultModel,
   onAddModel,
   onFlushConfig,
   t,
@@ -376,17 +403,23 @@ export function useProviderCardState({
   const [editModel, setEditModel] = useState<ModelFormState>(EMPTY_MODEL_FORM)
   const [keyTestStatus, setKeyTestStatus] = useState<KeyTestStatus>('idle')
   const [keyTestSteps, setKeyTestSteps] = useState<KeyTestStep[]>([])
+  const [lmStudioModels, setLmStudioModels] = useState<LmStudioNativeModel[]>([])
+  const [lmStudioStatus, setLmStudioStatus] = useState<LmStudioStatus>('idle')
+  const [lmStudioMessage, setLmStudioMessage] = useState<string | null>(null)
+  const [lmStudioBusyKey, setLmStudioBusyKey] = useState<string | null>(null)
+  const [lmStudioRuntime, setLmStudioRuntime] = useState<LmStudioRuntimeStats | null>(null)
   const [isModelSavePending, setIsModelSavePending] = useState(false)
   const [isAssistantOpen, setIsAssistantOpen] = useState(false)
   const [assistantSavedEvent, setAssistantSavedEvent] = useState<AssistantSavedEvent | null>(null)
 
   const providerKey = getProviderKey(provider.id)
+  const isLmStudioProvider = providerKey === 'lmstudio'
   const assistantEnabled = providerKey === 'openai-compatible'
   const isPresetProvider = PRESET_PROVIDERS.some(
     (presetProvider) => presetProvider.id === provider.id,
   )
   const showBaseUrlEdit =
-    ['gemini-compatible', 'openai-compatible'].includes(providerKey) &&
+    ['gemini-compatible', 'openai-compatible', 'lmstudio', 'local'].includes(providerKey) &&
     Boolean(onUpdateBaseUrl)
   const tutorial = getProviderTutorial(provider.id)
 
@@ -699,6 +732,89 @@ export function useProviderCardState({
     setBatchMode(false)
   }
 
+  const ensureConfiguredModelEnabled = useCallback(async (input: {
+    providerId: string
+    modelId: string
+    name: string
+    type: CustomModel['type']
+    defaultField?: 'analysisModel' | 'audioModel' | 'voiceDesignModel'
+    llmProtocol?: 'responses' | 'chat-completions'
+  }) => {
+    const modelKey = encodeModelKey(input.providerId, input.modelId)
+    const currentModels = allModels || models
+    const existing = currentModels.find((model) => model.modelKey === modelKey)
+
+    if (existing) {
+      onUpdateModel?.(modelKey, {
+        name: input.name,
+        enabled: true,
+        ...(input.type === 'llm' && input.llmProtocol
+          ? {
+            llmProtocol: existing.llmProtocol || input.llmProtocol,
+            llmProtocolCheckedAt: existing.llmProtocolCheckedAt || new Date().toISOString(),
+          }
+          : {}),
+      })
+    } else {
+      onAddModel({
+        modelId: input.modelId,
+        modelKey,
+        name: input.name,
+        type: input.type,
+        provider: input.providerId,
+        price: 0,
+        ...(input.type === 'llm' && input.llmProtocol
+          ? {
+            llmProtocol: input.llmProtocol,
+            llmProtocolCheckedAt: new Date().toISOString(),
+          }
+          : {}),
+      })
+    }
+
+    if (input.defaultField) {
+      onUpdateDefaultModel?.(input.defaultField, modelKey)
+    }
+
+    return modelKey
+  }, [allModels, models, onAddModel, onUpdateDefaultModel, onUpdateModel])
+
+  const isLmStudioModelEnabled = useCallback((modelId: string) => {
+    const modelKey = encodeModelKey(provider.id, modelId)
+    const currentModels = allModels || models
+    return currentModels.some((model) => model.modelKey === modelKey && model.enabled)
+  }, [allModels, models, provider.id])
+
+  const isLmStudioModelDefault = useCallback((modelId: string) => {
+    const modelKey = encodeModelKey(provider.id, modelId)
+    return defaultModels.analysisModel === modelKey
+  }, [defaultModels.analysisModel, provider.id])
+
+  const handleUseLmStudioForAnalysis = useCallback(async (modelId: string) => {
+    const matched = lmStudioModels.find((model) => model.key === modelId)
+    await ensureConfiguredModelEnabled({
+      providerId: provider.id,
+      modelId,
+      name: matched?.displayName || modelId,
+      type: 'llm',
+      defaultField: 'analysisModel',
+      llmProtocol: 'chat-completions',
+    })
+    setLmStudioMessage(t('lmStudioBindSuccess', { model: matched?.displayName || modelId }))
+  }, [ensureConfiguredModelEnabled, lmStudioModels, provider.id, t])
+
+  const handleEnableLocalBridge = useCallback(async (target: 'audio' | 'voiceDesign') => {
+    const isVoiceDesign = target === 'voiceDesign'
+    await ensureConfiguredModelEnabled({
+      providerId: 'local',
+      modelId: isVoiceDesign ? 'local-indextts-voice-design' : 'local-indextts-speech',
+      name: isVoiceDesign ? 'Local Voice Design Bridge' : 'Local IndexTTS Bridge',
+      type: 'audio',
+      defaultField: isVoiceDesign ? 'voiceDesignModel' : 'audioModel',
+    })
+    setLmStudioMessage(t(isVoiceDesign ? 'lmStudioLocalVoiceDesignEnabled' : 'lmStudioLocalTtsEnabled'))
+  }, [ensureConfiguredModelEnabled, t])
+
   const upsertModelFromAssistantDraft = useCallback((draft: AssistantDraftModel) => {
     const modelKey = encodeModelKey(draft.provider, draft.modelId)
     const checkedAt = new Date().toISOString()
@@ -768,6 +884,124 @@ export function useProviderCardState({
     flushConfigBeforeProbe,
   ])
 
+  const callLmStudioNativeApi = useCallback(async (payload: Record<string, unknown>) => {
+    const response = await apiFetch('/api/user/api-config/lmstudio-native', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        baseUrl: provider.baseUrl || '',
+        apiKey: provider.apiKey || '',
+        ...payload,
+      }),
+    })
+    if (!response.ok) {
+      throw new Error('LMSTUDIO_NATIVE_REQUEST_FAILED')
+    }
+    const data = await response.json() as {
+      success?: boolean
+      message?: string
+      models?: LmStudioNativeModel[]
+      runtime?: LmStudioRuntimeStats
+    }
+    if (!data.success) {
+      throw new Error(typeof data.message === 'string' && data.message.trim() ? data.message : 'LMSTUDIO_NATIVE_REQUEST_FAILED')
+    }
+    return data
+  }, [provider.apiKey, provider.baseUrl])
+
+  const refreshLmStudioModels = useCallback(async () => {
+    if (!isLmStudioProvider) return
+    if (!provider.baseUrl || provider.baseUrl.trim().length === 0) {
+      setLmStudioStatus('error')
+      setLmStudioMessage(t('lmStudioBaseUrlRequired'))
+      setLmStudioModels([])
+      setLmStudioRuntime(null)
+      return
+    }
+
+    setLmStudioStatus('loading')
+    setLmStudioMessage(null)
+    try {
+      const data = await callLmStudioNativeApi({ action: 'list' }) as {
+        models?: LmStudioNativeModel[]
+        runtime?: LmStudioRuntimeStats
+      }
+      const nextModels = Array.isArray(data.models)
+        ? [...data.models].sort((left, right) => Number(right.isLoaded) - Number(left.isLoaded) || left.displayName.localeCompare(right.displayName))
+        : []
+      setLmStudioModels(nextModels)
+      setLmStudioRuntime(data.runtime ?? null)
+      setLmStudioStatus('ready')
+      setLmStudioMessage(nextModels.length === 0 ? t('lmStudioNoModels') : null)
+    } catch (error) {
+      setLmStudioStatus('error')
+      setLmStudioRuntime(null)
+      setLmStudioMessage(resolveLmStudioManageFailureMessage(error, t))
+    }
+  }, [callLmStudioNativeApi, isLmStudioProvider, provider.baseUrl, t])
+
+  const handleLoadLmStudioModel = useCallback(async (modelKey: string) => {
+    const matched = lmStudioModels.find((model) => model.key === modelKey)
+    setLmStudioBusyKey(modelKey)
+    setLmStudioMessage(null)
+    try {
+      await callLmStudioNativeApi({
+        action: 'load',
+        model: modelKey,
+        contextLength: matched?.maxContextLength ? Math.min(matched.maxContextLength, 65536) : undefined,
+        flashAttention: matched?.type === 'llm' ? true : undefined,
+      })
+      if (matched?.type === 'llm') {
+        await ensureConfiguredModelEnabled({
+          providerId: provider.id,
+          modelId: modelKey,
+          name: matched.displayName || modelKey,
+          type: 'llm',
+          defaultField: 'analysisModel',
+          llmProtocol: 'chat-completions',
+        })
+      }
+      await refreshLmStudioModels()
+      setLmStudioMessage(
+        matched?.type === 'llm'
+          ? t('lmStudioLoadAutoEnabled', { model: matched?.displayName || modelKey })
+          : t('lmStudioLoadSuccess', { model: matched?.displayName || modelKey }),
+      )
+    } catch (error) {
+      setLmStudioMessage(resolveLmStudioManageFailureMessage(error, t))
+      setLmStudioStatus('error')
+    } finally {
+      setLmStudioBusyKey(null)
+    }
+  }, [callLmStudioNativeApi, defaultModels.analysisModel, ensureConfiguredModelEnabled, lmStudioModels, provider.id, refreshLmStudioModels, t])
+
+  const handleUnloadLmStudioModel = useCallback(async (instanceId: string) => {
+    setLmStudioBusyKey(instanceId)
+    setLmStudioMessage(null)
+    try {
+      await callLmStudioNativeApi({ action: 'unload', instanceId })
+      setLmStudioMessage(t('lmStudioUnloadSuccess', { model: instanceId }))
+      await refreshLmStudioModels()
+    } catch (error) {
+      setLmStudioMessage(resolveLmStudioManageFailureMessage(error, t))
+      setLmStudioStatus('error')
+    } finally {
+      setLmStudioBusyKey(null)
+    }
+  }, [callLmStudioNativeApi, refreshLmStudioModels, t])
+
+  useEffect(() => {
+    if (!isLmStudioProvider) return
+    if (!provider.baseUrl || provider.baseUrl.trim().length === 0) {
+      setLmStudioModels([])
+      setLmStudioRuntime(null)
+      setLmStudioStatus('idle')
+      setLmStudioMessage(t('lmStudioBaseUrlRequired'))
+      return
+    }
+    void refreshLmStudioModels()
+  }, [isLmStudioProvider, provider.baseUrl, refreshLmStudioModels, t])
+
   const maskedKey = (() => {
     const key = provider.apiKey || ''
     if (key.length <= 8) return '•'.repeat(key.length)
@@ -820,6 +1054,18 @@ export function useProviderCardState({
     handleForceSaveKey,
     handleTestOnly,
     handleDismissTest,
+    lmStudioModels,
+    lmStudioStatus,
+    lmStudioMessage,
+    lmStudioBusyKey,
+    lmStudioRuntime,
+    refreshLmStudioModels,
+    isLmStudioModelEnabled,
+    isLmStudioModelDefault,
+    handleUseLmStudioForAnalysis,
+    handleEnableLocalBridge,
+    handleLoadLmStudioModel,
+    handleUnloadLmStudioModel,
     isModelSavePending,
     assistantEnabled,
     isAssistantOpen,

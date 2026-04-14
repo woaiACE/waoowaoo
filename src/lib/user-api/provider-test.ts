@@ -20,7 +20,7 @@ export interface TestProviderResult {
 type PresetProviderType = 'ark' | 'google' | 'openrouter' | 'minimax' | 'fal' | 'vidu'
   | 'bailian'
   | 'siliconflow'
-type CompatibleProviderType = 'openai-compatible' | 'gemini-compatible'
+type CompatibleProviderType = 'openai-compatible' | 'gemini-compatible' | 'lmstudio'
 
 type TestProviderPayload = {
   apiType: CompatibleProviderType | PresetProviderType
@@ -835,7 +835,7 @@ async function testBailianProvider(apiKey: string): Promise<TestProviderResult> 
 export async function testProviderConnection(payload: TestProviderPayload): Promise<TestProviderResult> {
   const { apiType, baseUrl, apiKey, llmModel } = payload
 
-  if (!apiKey) {
+  if (!apiKey && apiType !== 'lmstudio') {
     return {
       success: false,
       steps: [{ name: 'models', status: 'fail', message: 'Missing apiKey' }],
@@ -843,7 +843,7 @@ export async function testProviderConnection(payload: TestProviderPayload): Prom
   }
 
   // Compatible providers require baseUrl
-  if ((apiType === 'openai-compatible' || apiType === 'gemini-compatible') && !baseUrl) {
+  if ((apiType === 'openai-compatible' || apiType === 'gemini-compatible' || apiType === 'lmstudio') && !baseUrl) {
     return {
       success: false,
       steps: [{ name: 'models', status: 'fail', message: 'Missing baseUrl' }],
@@ -854,6 +854,8 @@ export async function testProviderConnection(payload: TestProviderPayload): Prom
     case 'openai-compatible':
       return testCompatibleProvider(baseUrl!, apiKey, llmModel)
     case 'gemini-compatible':
+      return testCompatibleProvider(baseUrl!, apiKey, llmModel)
+    case 'lmstudio':
       return testCompatibleProvider(baseUrl!, apiKey, llmModel)
     case 'ark':
       return testArkProvider(apiKey)

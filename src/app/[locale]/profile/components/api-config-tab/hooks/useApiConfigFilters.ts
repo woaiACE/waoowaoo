@@ -13,17 +13,20 @@ interface EnabledModelOption extends CustomModel {
   providerName: string
 }
 
-const DYNAMIC_PROVIDER_PREFIXES = ['gemini-compatible', 'openai-compatible']
+const DYNAMIC_PROVIDER_PREFIXES = ['gemini-compatible', 'openai-compatible', 'lmstudio']
 const ALWAYS_SHOW_PROVIDERS: string[] = []
 /** 完全不在 UI 中展示的 provider（既不在主列表，也不在折叠区） */
 const HIDDEN_PROVIDER_KEYS = new Set(['siliconflow'])
 const PROVIDER_MODEL_TYPES: Array<'llm' | 'image' | 'video' | 'audio' | 'lipsync'> = ['llm', 'image', 'video', 'audio', 'lipsync']
 const DEFAULT_AUDIO_EXCLUDED_MODEL_IDS = new Set([
   'qwen-voice-design',
+  'local-indextts-voice-design',
 ])
 const MODEL_PROVIDER_KEYS = [
   'ark',
   'google',
+  'lmstudio',
+  'local',
   'bailian',
   'openrouter',
   'minimax',
@@ -48,6 +51,11 @@ function isAudioDefaultCandidate(model: CustomModel): boolean {
 
 function hasProviderApiKey(provider: Provider | undefined): boolean {
   if (!provider) return false
+  const providerKey = getProviderKey(provider.id)
+  if (providerKey === 'lmstudio' || providerKey === 'local') {
+    const baseUrl = typeof provider.baseUrl === 'string' ? provider.baseUrl.trim() : ''
+    if (baseUrl.length > 0) return true
+  }
   if (provider.hasApiKey === true) return true
   const apiKey = typeof provider.apiKey === 'string' ? provider.apiKey.trim() : ''
   return apiKey.length > 0

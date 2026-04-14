@@ -17,4 +17,6 @@ export {
   runOpenAICompatChatCompletion,
   runOpenAICompatChatCompletionStream,
   runOpenAICompatResponsesCompletion,
+  runOpenAICompatResponsesStream,
+  runOpenAICompatEmbeddings,
 } from './openai-compat'

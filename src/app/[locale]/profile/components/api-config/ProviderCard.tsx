@@ -18,6 +18,7 @@ export function ProviderCard({
   onUpdateBaseUrl,
   onDeleteModel,
   onUpdateModel,
+  onUpdateDefaultModel,
   onDeleteProvider,
   onToggleProviderHidden,
   onAddModel,
@@ -35,10 +36,13 @@ export function ProviderCard({
     onUpdateApiKey,
     onUpdateBaseUrl,
     onUpdateModel,
+    onUpdateDefaultModel,
     onAddModel,
     onFlushConfig,
     t,
   })
+
+  const showAdvancedFields = state.providerKey !== 'lmstudio'
 
   return (
     <ProviderCardShell
@@ -52,14 +56,16 @@ export function ProviderCard({
       state={state}
     >
       <ProviderBaseFields provider={provider} t={t} state={state} />
-      <ProviderAdvancedFields
-        provider={provider}
-        onToggleModel={onToggleModel}
-        onDeleteModel={onDeleteModel}
-        onUpdateModel={onUpdateModel}
-        t={t}
-        state={state}
-      />
+      {showAdvancedFields && (
+        <ProviderAdvancedFields
+          provider={provider}
+          onToggleModel={onToggleModel}
+          onDeleteModel={onDeleteModel}
+          onUpdateModel={onUpdateModel}
+          t={t}
+          state={state}
+        />
+      )}
     </ProviderCardShell>
   )
 }

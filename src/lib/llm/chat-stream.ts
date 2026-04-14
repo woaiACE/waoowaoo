@@ -4,8 +4,8 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { GoogleGenAI } from '@google/genai'
 import {
   resolveModelGatewayRoute,
-  runOpenAICompatChatCompletion,
-  runOpenAICompatResponsesCompletion,
+  runOpenAICompatChatCompletionStream,
+  runOpenAICompatResponsesStream,
 } from '@/lib/model-gateway'
 import {
   getProviderConfig,
@@ -107,9 +107,8 @@ export async function chatCompletionStream(
 
   try {
     if (gatewayRoute === 'openai-compat') {
-      // openai-compatible protocol probing only applies to openai-compatible + llm.
-      // gemini-compatible is explicitly excluded and must not enter this branch.
-      if (providerKey !== 'openai-compatible') {
+      // Compatible LLM probing applies to OpenAI-compatible and LM Studio text providers.
+      if (providerKey !== 'openai-compatible' && providerKey !== 'lmstudio') {
         throw new Error(`OPENAI_COMPAT_PROVIDER_UNSUPPORTED: ${provider}`)
       }
       if (!selection.llmProtocol) {
@@ -118,41 +117,38 @@ export async function chatCompletionStream(
       const compatEngine = selection.llmProtocol === 'responses'
         ? 'openai_compat_responses'
         : 'openai_compat_chat_completions'
-      emitStreamStage(callbacks, streamStep, 'streaming', 'openai-compat')
+      const compatCallbacks = callbacks
+        ? {
+          onStage: ({ stage, provider: stageProvider }: { stage: 'submit' | 'streaming' | 'fallback' | 'completed'; provider?: string | null }) => {
+            callbacks.onStage?.({ stage, provider: stageProvider, ...(streamStep ? { step: streamStep } : {}) })
+          },
+          onChunk: (chunk: { kind: 'reasoning' | 'text'; delta: string; seq: number; lane?: string | null }) => {
+            callbacks.onChunk?.({ ...chunk, ...(streamStep ? { step: streamStep } : {}) })
+          },
+          onComplete: (text: string) => {
+            callbacks.onComplete?.(text, streamStep)
+          },
+          onError: (error: unknown) => {
+            callbacks.onError?.(error, streamStep)
+          },
+        }
+        : undefined
       const completion = selection.llmProtocol === 'responses'
-        ? await runOpenAICompatResponsesCompletion({
+        ? await runOpenAICompatResponsesStream({
           userId,
           providerId: provider,
           modelId: resolvedModelId,
           messages,
           temperature,
-        })
-        : await runOpenAICompatChatCompletion({
+        }, compatCallbacks)
+        : await runOpenAICompatChatCompletionStream({
           userId,
           providerId: provider,
           modelId: resolvedModelId,
           messages,
           temperature,
-        })
+        }, compatCallbacks)
       const completionParts = getCompletionParts(completion)
-      let seq = 1
-      if (completionParts.reasoning) {
-        emitStreamChunk(callbacks, streamStep, {
-          kind: 'reasoning',
-          delta: completionParts.reasoning,
-          seq,
-          lane: 'reasoning',
-        })
-        seq += 1
-      }
-      if (completionParts.text) {
-        emitStreamChunk(callbacks, streamStep, {
-          kind: 'text',
-          delta: completionParts.text,
-          seq,
-          lane: 'main',
-        })
-      }
       logLlmRawOutput({
         userId,
         projectId,
@@ -166,8 +162,6 @@ export async function chatCompletionStream(
         usage: completionUsageSummary(completion),
       })
       recordCompletionUsage(resolvedModelId, completion)
-      emitStreamStage(callbacks, streamStep, 'completed', compatEngine)
-      callbacks?.onComplete?.(completionParts.text, streamStep)
       return completion
     }
 

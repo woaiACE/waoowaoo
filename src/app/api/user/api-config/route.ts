@@ -188,6 +188,7 @@ const PRICING_PROVIDER_ALIASES: Readonly<Record<string, string>> = {
 const OPTIONAL_PRICING_PROVIDER_KEYS = new Set([
   'openai-compatible',
   'gemini-compatible',
+  'lmstudio',
   'bailian',
   'siliconflow',
 ])
@@ -470,7 +471,7 @@ function resolveProviderGatewayRoute(
   rawGatewayRoute: unknown,
 ): GatewayRouteType {
   const providerKey = getProviderKey(providerId)
-  const isOpenAICompatibleProvider = providerKey === 'openai-compatible'
+  const isOpenAICompatibleProvider = providerKey === 'openai-compatible' || providerKey === 'lmstudio'
   const isGeminiCompatibleProvider = providerKey === 'gemini-compatible'
 
   if (rawGatewayRoute !== undefined && !isGatewayRoute(rawGatewayRoute)) {
@@ -967,7 +968,8 @@ function validateModelProviderTypeSupport(models: StoredModel[], providers: Stor
 }
 
 function isOpenAICompatibleLlmModel(model: StoredModel): boolean {
-  return model.type === 'llm' && getProviderKey(model.provider) === 'openai-compatible'
+  const providerKey = getProviderKey(model.provider)
+  return model.type === 'llm' && (providerKey === 'openai-compatible' || providerKey === 'lmstudio')
 }
 
 function isOpenAICompatibleMediaTemplateModel(model: StoredModel): boolean {

@@ -164,6 +164,8 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'fal-ai/index-tts-2/text-to-speech', name: 'IndexTTS 2', type: 'audio', provider: 'fal' },
     { modelId: 'qwen3-tts-vd-2026-01-26', name: 'Qwen3 TTS', type: 'audio', provider: 'bailian' },
     { modelId: 'qwen-voice-design', name: 'Qwen Voice Design', type: 'audio', provider: 'bailian' },
+    { modelId: 'local-indextts-speech', name: 'Local IndexTTS Bridge', type: 'audio', provider: 'local' },
+    { modelId: 'local-indextts-voice-design', name: 'Local Voice Design Bridge', type: 'audio', provider: 'local' },
     // 口型同步模型
     { modelId: 'fal-ai/kling-video/lipsync/audio-to-video', name: 'Kling Lip Sync', type: 'lipsync', provider: 'fal' },
     { modelId: 'vidu-lipsync', name: 'Vidu Lip Sync', type: 'lipsync', provider: 'vidu' },
@@ -200,6 +202,8 @@ export function isPresetComingSoonModelKey(modelKey: string): boolean {
 export const PRESET_PROVIDERS: Omit<Provider, 'apiKey' | 'hasApiKey'>[] = [
     { id: 'ark', name: 'Volcengine Ark' },
     { id: 'google', name: 'Google AI Studio' },
+    { id: 'lmstudio', name: 'LM Studio', baseUrl: 'http://127.0.0.1:5000/v1', gatewayRoute: 'openai-compat' },
+    { id: 'local', name: 'Local Audio Bridge', baseUrl: 'http://127.0.0.1:7861' },
     { id: 'bailian', name: 'Alibaba Bailian' },
     { id: 'openrouter', name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
     { id: 'minimax', name: 'MiniMax Hailuo', baseUrl: 'https://api.minimaxi.com/v1' },
@@ -213,6 +217,8 @@ const ZH_PROVIDER_NAME_MAP: Record<string, string> = {
     vidu: '生数科技 Vidu',
     bailian: '阿里云百炼',
     siliconflow: '硅基流动',
+    lmstudio: 'LM Studio',
+    local: '本地语音桥',
 }
 
 function isZhLocale(locale?: string): boolean {
@@ -369,6 +375,14 @@ export const PROVIDER_TUTORIALS: ProviderTutorial[] = [
         steps: [
             {
                 text: 'openai_compatible_step1'
+            }
+        ]
+    },
+    {
+        providerId: 'lmstudio',
+        steps: [
+            {
+                text: 'lmstudio_step1'
             }
         ]
     },

@@ -45,6 +45,7 @@ interface ApiConfigProviderListProps {
   onReorderProviders: (activeProviderId: string, overProviderId: string) => void
   onDeleteModel: (modelKey: string, providerId: string) => void
   onUpdateModel: (modelKey: string, updates: Partial<CustomModel>, providerId: string) => void
+  onUpdateDefaultModel: (field: string, modelKey: string) => void
   onDeleteProvider: (providerId: string) => void
   onAddModel: (model: Omit<CustomModel, 'enabled'>) => void
   onFlushConfig: () => Promise<void>
@@ -75,6 +76,7 @@ export function ApiConfigProviderList({
   onReorderProviders,
   onDeleteModel,
   onUpdateModel,
+  onUpdateDefaultModel,
   onDeleteProvider,
   onAddModel,
   onFlushConfig,
@@ -160,6 +162,7 @@ export function ApiConfigProviderList({
                       onDeleteModel={(modelKey) => onDeleteModel(modelKey, provider.id)}
                       onUpdateModel={(modelKey, updates) => onUpdateModel(modelKey, updates, provider.id)}
                       onDeleteProvider={onDeleteProvider}
+                      onUpdateDefaultModel={onUpdateDefaultModel}
                       onAddModel={onAddModel}
                       onFlushConfig={onFlushConfig}
                       onToggleProviderHidden={onToggleProviderHidden}
@@ -209,6 +212,7 @@ export function ApiConfigProviderList({
                     onDeleteModel={(modelKey) => onDeleteModel(modelKey, provider.id)}
                     onUpdateModel={(modelKey, updates) => onUpdateModel(modelKey, updates, provider.id)}
                     onDeleteProvider={onDeleteProvider}
+                    onUpdateDefaultModel={onUpdateDefaultModel}
                     onAddModel={onAddModel}
                     onFlushConfig={onFlushConfig}
                     onToggleProviderHidden={onToggleProviderHidden}

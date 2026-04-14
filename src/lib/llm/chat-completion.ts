@@ -114,9 +114,8 @@ export async function chatCompletion(
     const attemptStartedAt = Date.now()
     try {
       if (gatewayRoute === 'openai-compat') {
-        // openai-compatible protocol probing only applies to openai-compatible + llm.
-        // gemini-compatible is explicitly excluded and must not enter this branch.
-        if (providerKey !== 'openai-compatible') {
+        // Compatible LLM probing applies to OpenAI-compatible and LM Studio text providers.
+        if (providerKey !== 'openai-compatible' && providerKey !== 'lmstudio') {
           throw new Error(`OPENAI_COMPAT_PROVIDER_UNSUPPORTED: ${provider}`)
         }
         if (!selection.llmProtocol) {

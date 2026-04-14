@@ -64,6 +64,8 @@ const MODEL_TYPES: readonly ProviderCardModelType[] = ['llm', 'image', 'video', 
 
 export function getAddableModelTypesForProvider(providerId: string): ProviderCardModelType[] {
   const providerKey = getProviderKey(providerId)
+  if (providerKey === 'lmstudio') return ['llm']
+  if (providerKey === 'local') return ['audio']
   if (providerKey === 'openai-compatible') return ['llm', 'image', 'video']
   return ['llm', 'image', 'video', 'audio']
 }
@@ -77,7 +79,7 @@ export function shouldShowOpenAICompatVideoHint(
 
 function shouldShowDefaultTabs(providerId: string): boolean {
   const providerKey = getProviderKey(providerId)
-  return providerKey === 'openai-compatible' || providerKey === 'gemini-compatible'
+  return providerKey === 'openai-compatible' || providerKey === 'gemini-compatible' || providerKey === 'lmstudio'
 }
 
 export function getVisibleModelTypesForProvider(
@@ -160,6 +162,7 @@ export function ProviderAdvancedFields({
     !!currentType
     && addableModelTypes.has(currentType)
     && state.showAddForm !== currentType
+    && providerKey !== 'lmstudio'
   const defaultAddType: ProviderCardModelType = providerKey === 'openrouter' ? 'llm' : 'image'
   const useTabbedLayout = state.hasModels || shouldShowDefaultTabs(provider.id)
   const shouldShowVideoHint = shouldShowOpenAICompatVideoHint(provider.id, currentType)
@@ -274,7 +277,9 @@ export function ProviderAdvancedFields({
                 onToggleModel={onToggleModel}
                 onDeleteModel={onDeleteModel}
                 onUpdateModel={onUpdateModel}
-                hasApiKey={!!provider.hasApiKey}
+                hasApiKey={providerKey === 'lmstudio' || providerKey === 'local'
+                  ? Boolean(provider.baseUrl?.trim())
+                  : !!provider.hasApiKey}
               />
             ))}
           </div>

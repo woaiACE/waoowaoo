@@ -267,9 +267,11 @@ export async function generateVoiceLine(params: {
       throw new Error('请先为该发言人设置参考音频')
     }
     const fullAudioUrl = await resolveReferenceAudioUrl(voiceBinding.referenceAudioUrl)
+    const localProviderConfig = await getProviderConfig(params.userId, audioSelection.provider)
     generated = await synthesizeWithLocalIndexTTS({
       text,
       referenceAudioUrl: fullAudioUrl,
+      endpoint: localProviderConfig.baseUrl,
     })
   } else {
     throw new Error(`AUDIO_PROVIDER_UNSUPPORTED: ${audioSelection.provider}`)

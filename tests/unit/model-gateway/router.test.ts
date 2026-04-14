@@ -8,6 +8,12 @@ describe('model-gateway router', () => {
     expect(resolveModelGatewayRoute('openai-compatible:oa-1')).toBe('openai-compat')
   })
 
+  it('routes lmstudio providers to openai-compat', () => {
+    expect(isCompatibleProvider('lmstudio')).toBe(true)
+    expect(isCompatibleProvider('lmstudio:local')).toBe(true)
+    expect(resolveModelGatewayRoute('lmstudio:local')).toBe('openai-compat')
+  })
+
   it('keeps gemini-compatible providers on official route', () => {
     expect(isCompatibleProvider('gemini-compatible')).toBe(false)
     expect(isCompatibleProvider('gemini-compatible:gm-1')).toBe(false)

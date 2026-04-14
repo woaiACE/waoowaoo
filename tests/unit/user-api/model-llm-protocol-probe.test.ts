@@ -195,4 +195,20 @@ describe('user-api model llm protocol probe', () => {
     expect(result.protocol).toBe('chat-completions')
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
+
+  it('accepts lmstudio providers for protocol probing', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: 'resp_1' }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await probeModelLlmProtocol({
+      userId: 'user-1',
+      providerId: 'lmstudio',
+      modelId: 'qwen/qwen3.5-9b',
+    })
+
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.protocol).toBe('responses')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
 })

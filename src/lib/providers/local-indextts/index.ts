@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto'
+import type { VoiceDesignInput, VoiceDesignResult } from '@/lib/providers/bailian/voice-design'
+
 /**
  * 本地 IndexTTS2 HTTP API 提供者
  *
@@ -8,9 +11,10 @@
  *   INDEXTTS_ENDPOINT  — API 服务器地址，默认 http://localhost:7861
  */
 
-function getEndpoint(): string {
-  const raw = process.env.INDEXTTS_ENDPOINT ?? 'http://localhost:7861'
-  return raw.replace(/\/$/, '')
+function getEndpoint(override?: string): string {
+  const raw = override?.trim() || (process.env.INDEXTTS_ENDPOINT ?? 'http://localhost:7861')
+  const normalized = raw.replace(/\/$/, '')
+  return normalized.endsWith('/v1') ? normalized.slice(0, -3) : normalized
 }
 
 function getWavDurationFromBuffer(buffer: Buffer): number {
@@ -44,22 +48,29 @@ function getWavDurationFromBuffer(buffer: Buffer): number {
  */
 export async function synthesizeWithLocalIndexTTS(params: {
   text: string
-  referenceAudioUrl: string
+  referenceAudioUrl?: string
+  voiceToken?: string
+  endpoint?: string
 }): Promise<{ audioData: Buffer; audioDuration: number }> {
-  const endpoint = getEndpoint()
+  const endpoint = getEndpoint(params.endpoint)
 
-  // 如果是 http URL，直接传给服务器；否则下载后转 base64
   let voice: string
-  if (params.referenceAudioUrl.startsWith('http://') || params.referenceAudioUrl.startsWith('https://')) {
-    voice = params.referenceAudioUrl
-  } else {
-    // data URI 或本地路径 — 直接传 base64
-    const refRes = await fetch(params.referenceAudioUrl)
-    if (!refRes.ok) {
-      throw new Error(`无法下载参考音频: ${refRes.status} ${params.referenceAudioUrl}`)
+  if (typeof params.voiceToken === 'string' && params.voiceToken.trim()) {
+    voice = params.voiceToken.trim()
+  } else if (typeof params.referenceAudioUrl === 'string' && params.referenceAudioUrl.trim()) {
+    const referenceAudioUrl = params.referenceAudioUrl.trim()
+    if (referenceAudioUrl.startsWith('http://') || referenceAudioUrl.startsWith('https://')) {
+      voice = referenceAudioUrl
+    } else {
+      const refRes = await fetch(referenceAudioUrl)
+      if (!refRes.ok) {
+        throw new Error(`无法下载参考音频: ${refRes.status} ${referenceAudioUrl}`)
+      }
+      const refBytes = Buffer.from(await refRes.arrayBuffer())
+      voice = refBytes.toString('base64')
     }
-    const refBytes = Buffer.from(await refRes.arrayBuffer())
-    voice = refBytes.toString('base64')
+  } else {
+    throw new Error('LOCAL_INDEXTTS_VOICE_REQUIRED')
   }
 
   const response = await fetch(`${endpoint}/v1/audio/speech`, {
@@ -81,5 +92,36 @@ export async function synthesizeWithLocalIndexTTS(params: {
   return {
     audioData,
     audioDuration: getWavDurationFromBuffer(audioData),
+  }
+}
+
+export async function createLocalVoiceDesign(
+  input: VoiceDesignInput,
+  endpoint?: string,
+): Promise<VoiceDesignResult> {
+  try {
+    const generated = await synthesizeWithLocalIndexTTS({
+      text: input.previewText,
+      voiceToken: input.voicePrompt || input.preferredName || 'default',
+      endpoint,
+    })
+    const voiceId = `local_${createHash('sha1')
+      .update(`${input.preferredName || 'voice'}:${input.voicePrompt}:${input.previewText}`)
+      .digest('hex')
+      .slice(0, 12)}`
+
+    return {
+      success: true,
+      voiceId,
+      targetModel: 'local-indextts',
+      audioBase64: generated.audioData.toString('base64'),
+      sampleRate: 24000,
+      responseFormat: 'wav',
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'LOCAL_VOICE_DESIGN_FAILED',
+    }
   }
 }

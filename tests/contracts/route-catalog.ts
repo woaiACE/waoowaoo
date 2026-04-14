@@ -163,6 +163,7 @@ const ROUTE_FILES = [
   'src/app/api/user/assistant/chat/route.ts',
   'src/app/api/user/api-config/assistant/validate-media-template/route.ts',
   'src/app/api/user/api-config/assistant/probe-media-template/route.ts',
+  'src/app/api/user/api-config/lmstudio-native/route.ts',
   'src/app/api/user/api-config/probe-model-llm-protocol/route.ts',
   'src/app/api/user/api-config/test-connection/route.ts',
   'src/app/api/user/api-config/test-provider/route.ts',

@@ -1,14 +1,39 @@
 'use client'
 
+import { useMemo, useState } from 'react'
+import { encodeModelKey } from '../types'
 import type { ProviderCardProps, ProviderCardTranslator } from './types'
 import type { UseProviderCardStateResult } from './hooks/useProviderCardState'
 import { AppIcon } from '@/components/ui/icons'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+
+function formatByteSize(bytes?: number): string | null {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes <= 0) return null
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let unitIndex = 0
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+  const digits = value >= 100 ? 0 : value >= 10 ? 1 : 2
+  return `${value.toFixed(digits)} ${units[unitIndex]}`
+}
+
+function formatMemoryInMb(memoryMb?: number, estimated = false): string | null {
+  if (typeof memoryMb !== 'number' || !Number.isFinite(memoryMb) || memoryMb <= 0) return null
+  const gbValue = memoryMb / 1024
+  const formatted = gbValue >= 1 ? `${gbValue.toFixed(gbValue >= 10 ? 0 : 1)} GB` : `${Math.round(memoryMb)} MB`
+  return estimated ? `≈ ${formatted}` : formatted
+}
 
 interface ProviderBaseFieldsProps {
   provider: ProviderCardProps['provider']
   t: ProviderCardTranslator
   state: UseProviderCardStateResult
 }
+
+type LmStudioTab = 'llm' | 'embedding' | 'audio'
 
 export function ProviderBaseFields({ provider, t, state }: ProviderBaseFieldsProps) {
   const baseUrlPlaceholder = (() => {
@@ -17,10 +42,31 @@ export function ProviderBaseFields({ provider, t, state }: ProviderBaseFieldsPro
         return 'https://your-api-domain.com'
       case 'openai-compatible':
         return 'https://api.openai.com/v1'
+      case 'lmstudio':
+        return 'http://127.0.0.1:5000/v1'
+      case 'local':
+        return 'http://127.0.0.1:7861'
       default:
         return 'http://localhost:8000'
     }
   })()
+
+  const [activeLmStudioTab, setActiveLmStudioTab] = useState<LmStudioTab>('llm')
+  const lmStudioLlmModels = useMemo(
+    () => state.lmStudioModels.filter((model) => model.type === 'llm'),
+    [state.lmStudioModels],
+  )
+  const lmStudioEmbeddingModels = useMemo(
+    () => state.lmStudioModels.filter((model) => model.type === 'embedding'),
+    [state.lmStudioModels],
+  )
+  const localTtsModelKey = encodeModelKey('local', 'local-indextts-speech')
+  const localVoiceDesignModelKey = encodeModelKey('local', 'local-indextts-voice-design')
+  const localAudioModels = state.groupedModels.audio ?? []
+  const localTtsModel = localAudioModels.find((model) => model.modelKey === localTtsModelKey)
+  const localVoiceDesignModel = localAudioModels.find((model) => model.modelKey === localVoiceDesignModelKey)
+  const localTtsInUse = localTtsModel ? state.isDefaultModel(localTtsModel) : false
+  const localVoiceDesignInUse = localVoiceDesignModel ? state.isDefaultModel(localVoiceDesignModel) : false
 
   return (
     <>
@@ -277,6 +323,233 @@ export function ProviderBaseFields({ provider, t, state }: ProviderBaseFieldsPro
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {state.providerKey === 'lmstudio' && (
+        <div className="px-3.5 pb-2.5">
+          <div className="glass-surface-soft space-y-3 rounded-xl px-3 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-[12px] font-semibold text-[var(--glass-text-primary)]">
+                  {t('lmStudioNativeTitle')}
+                </div>
+                <div className="text-[11px] text-[var(--glass-text-secondary)]">
+                  {t('lmStudioNativeDesc')}
+                </div>
+              </div>
+              <button
+                onClick={() => void state.refreshLmStudioModels()}
+                disabled={state.lmStudioStatus === 'loading'}
+                className="glass-btn-base glass-btn-secondary h-7 px-2.5 text-[12px] disabled:opacity-50"
+              >
+                <AppIcon name="refresh" className="h-3.5 w-3.5" />
+                <span>{state.lmStudioStatus === 'loading' ? t('testing') : t('lmStudioRefresh')}</span>
+              </button>
+            </div>
+
+            {state.lmStudioMessage && (
+              <div className="rounded-lg bg-[var(--glass-bg-surface)] px-3 py-2 text-[11px] text-[var(--glass-text-secondary)]">
+                {state.lmStudioMessage}
+              </div>
+            )}
+
+            {state.lmStudioRuntime && (
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-lg bg-[var(--glass-bg-surface)] px-3 py-2 text-[11px] text-[var(--glass-text-secondary)]">
+                  <div className="text-[10px] text-[var(--glass-text-tertiary)]">{t('lmStudioLoadedCountLabel')}</div>
+                  <div className="mt-0.5 font-semibold text-[var(--glass-text-primary)]">{state.lmStudioRuntime.loadedModelCount}</div>
+                </div>
+                <div className="rounded-lg bg-[var(--glass-bg-surface)] px-3 py-2 text-[11px] text-[var(--glass-text-secondary)]">
+                  <div className="text-[10px] text-[var(--glass-text-tertiary)]">{t('lmStudioLoadedFootprintLabel')}</div>
+                  <div className="mt-0.5 font-semibold text-[var(--glass-text-primary)]">{formatByteSize(state.lmStudioRuntime.loadedModelSizeBytes) || '—'}</div>
+                </div>
+                <div className="rounded-lg bg-[var(--glass-bg-surface)] px-3 py-2 text-[11px] text-[var(--glass-text-secondary)]">
+                  <div className="text-[10px] text-[var(--glass-text-tertiary)]">{t('lmStudioGpuUsageLabel')}</div>
+                  <div className="mt-0.5 font-semibold text-[var(--glass-text-primary)]">
+                    {formatMemoryInMb(
+                      state.lmStudioRuntime.gpuMemoryUsedMb,
+                      state.lmStudioRuntime.telemetrySource === 'estimate',
+                    ) || t('lmStudioGpuUsageUnavailable')}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <SegmentedControl
+              options={[
+                {
+                  value: 'llm',
+                  label: <><AppIcon name="menu" className="h-3 w-3" /><span>{t('lmStudioTabText')}</span><span className="rounded-full bg-[var(--glass-tone-neutral-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--glass-tone-neutral-fg)]">{lmStudioLlmModels.length}</span></>,
+                },
+                {
+                  value: 'embedding',
+                  label: <><AppIcon name="search" className="h-3 w-3" /><span>{t('lmStudioTabEmbedding')}</span><span className="rounded-full bg-[var(--glass-tone-neutral-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--glass-tone-neutral-fg)]">{lmStudioEmbeddingModels.length}</span></>,
+                },
+                {
+                  value: 'audio',
+                  label: <><AppIcon name="audioWave" className="h-3 w-3" /><span>{t('lmStudioTabAudio')}</span><span className="rounded-full bg-[var(--glass-tone-neutral-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--glass-tone-neutral-fg)]">2</span></>,
+                },
+              ]}
+              value={activeLmStudioTab}
+              onChange={(value) => setActiveLmStudioTab(value as LmStudioTab)}
+            />
+
+            <div className="rounded-xl bg-[var(--glass-bg-surface)] p-2">
+              {activeLmStudioTab === 'llm' && (
+                <div className="space-y-2">
+                  {lmStudioLlmModels.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-[var(--glass-stroke-base)] px-3 py-3 text-[11px] text-[var(--glass-text-tertiary)]">
+                      {state.lmStudioStatus === 'loading' ? t('lmStudioLoading') : t('lmStudioNoItemsInTab')}
+                    </div>
+                  ) : lmStudioLlmModels.map((model) => {
+                    const instanceId = model.loadedInstanceIds[0]
+                    const busy = state.lmStudioBusyKey === model.key || state.lmStudioBusyKey === instanceId
+                    const synced = state.isLmStudioModelEnabled(model.key)
+                    const isDefault = state.isLmStudioModelDefault(model.key)
+                    return (
+                      <div key={model.key} className="rounded-xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-base)] px-3 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-[13px] font-semibold text-[var(--glass-text-primary)]">{model.displayName}</span>
+                              <span className="rounded bg-[var(--glass-bg-muted)] px-1.5 py-0.5 text-[10px] text-[var(--glass-text-secondary)]">LLM</span>
+                              {model.isLoaded && <span className="rounded bg-green-500/10 px-1.5 py-0.5 text-[10px] text-green-600 dark:text-green-400">{t('lmStudioLoaded')}</span>}
+                              {synced && <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-600 dark:text-blue-400">{t('enabled')}</span>}
+                            </div>
+                            <div className="mt-1 text-[10px] text-[var(--glass-text-tertiary)] break-all">{model.key}</div>
+                            <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[var(--glass-text-secondary)]">
+                              {(model.contextLength || model.maxContextLength) && (
+                                <span>
+                                  {model.contextLength
+                                    ? `${t('lmStudioContextLabel')}: ${model.contextLength}`
+                                    : `${t('lmStudioMaxContextLabel')}: ${model.maxContextLength}`}
+                                </span>
+                              )}
+                              {formatByteSize(model.sizeBytes) && <span>{`${t('lmStudioModelSizeLabel')}: ${formatByteSize(model.sizeBytes)}`}</span>}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <button
+                              onClick={() => void (model.isLoaded ? state.handleUseLmStudioForAnalysis(model.key) : state.handleLoadLmStudioModel(model.key))}
+                              disabled={busy || isDefault}
+                              className={`glass-btn-base h-8 px-3 text-[12px] ${isDefault ? 'glass-btn-soft' : 'glass-btn-primary'} disabled:opacity-50`}
+                            >
+                              {busy ? t('testing') : isDefault ? t('lmStudioInUse') : t('lmStudioActivate')}
+                            </button>
+                            {model.isLoaded && instanceId && !busy && (
+                              <button
+                                onClick={() => void state.handleUnloadLmStudioModel(instanceId)}
+                                className="glass-btn-base glass-btn-secondary h-8 px-2.5 text-[12px]"
+                              >
+                                {t('lmStudioUnload')}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {activeLmStudioTab === 'embedding' && (
+                <div className="space-y-2">
+                  {lmStudioEmbeddingModels.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-[var(--glass-stroke-base)] px-3 py-3 text-[11px] text-[var(--glass-text-tertiary)]">
+                      {t('lmStudioNoItemsInTab')}
+                    </div>
+                  ) : lmStudioEmbeddingModels.map((model) => {
+                    const instanceId = model.loadedInstanceIds[0]
+                    const busy = state.lmStudioBusyKey === model.key || state.lmStudioBusyKey === instanceId
+                    return (
+                      <div key={model.key} className="rounded-xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-base)] px-3 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-[13px] font-semibold text-[var(--glass-text-primary)]">{model.displayName}</span>
+                              <span className="rounded bg-[var(--glass-bg-muted)] px-1.5 py-0.5 text-[10px] text-[var(--glass-text-secondary)]">Embedding</span>
+                              {model.isLoaded && <span className="rounded bg-green-500/10 px-1.5 py-0.5 text-[10px] text-green-600 dark:text-green-400">{t('lmStudioEmbeddingReady')}</span>}
+                            </div>
+                            <div className="mt-1 text-[10px] text-[var(--glass-text-tertiary)] break-all">{model.key}</div>
+                            <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[var(--glass-text-secondary)]">
+                              {(model.contextLength || model.maxContextLength) && (
+                                <span>
+                                  {model.contextLength
+                                    ? `${t('lmStudioContextLabel')}: ${model.contextLength}`
+                                    : `${t('lmStudioMaxContextLabel')}: ${model.maxContextLength}`}
+                                </span>
+                              )}
+                              {formatByteSize(model.sizeBytes) && <span>{`${t('lmStudioModelSizeLabel')}: ${formatByteSize(model.sizeBytes)}`}</span>}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <button
+                              onClick={() => void state.handleLoadLmStudioModel(model.key)}
+                              disabled={busy || model.isLoaded}
+                              className={`glass-btn-base h-8 px-3 text-[12px] ${model.isLoaded ? 'glass-btn-soft' : 'glass-btn-primary'} disabled:opacity-50`}
+                            >
+                              {busy ? t('testing') : model.isLoaded ? t('lmStudioInUse') : t('lmStudioActivate')}
+                            </button>
+                            {model.isLoaded && instanceId && !busy && (
+                              <button
+                                onClick={() => void state.handleUnloadLmStudioModel(instanceId)}
+                                className="glass-btn-base glass-btn-secondary h-8 px-2.5 text-[12px]"
+                              >
+                                {t('lmStudioUnload')}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {activeLmStudioTab === 'audio' && (
+                <div className="space-y-2">
+                  <div className="rounded-xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-base)] px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-[13px] font-semibold text-[var(--glass-text-primary)]">{t('lmStudioLocalTtsTitle')}</span>
+                          {localTtsInUse && <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-600 dark:text-blue-400">{t('default')}</span>}
+                        </div>
+                        <div className="mt-1 text-[11px] text-[var(--glass-text-secondary)]">{t('lmStudioLocalTtsDesc')}</div>
+                      </div>
+                      <button
+                        onClick={() => void state.handleEnableLocalBridge('audio')}
+                        disabled={localTtsInUse}
+                        className={`glass-btn-base h-8 px-3 text-[12px] ${localTtsInUse ? 'glass-btn-soft' : 'glass-btn-primary'} disabled:opacity-50`}
+                      >
+                        {localTtsInUse ? t('lmStudioInUse') : t('lmStudioActivate')}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-base)] px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-[13px] font-semibold text-[var(--glass-text-primary)]">{t('lmStudioLocalVoiceDesignTitle')}</span>
+                          {localVoiceDesignInUse && <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-600 dark:text-blue-400">{t('default')}</span>}
+                        </div>
+                        <div className="mt-1 text-[11px] text-[var(--glass-text-secondary)]">{t('lmStudioLocalVoiceDesignDesc')}</div>
+                      </div>
+                      <button
+                        onClick={() => void state.handleEnableLocalBridge('voiceDesign')}
+                        disabled={localVoiceDesignInUse}
+                        className={`glass-btn-base h-8 px-3 text-[12px] ${localVoiceDesignInUse ? 'glass-btn-soft' : 'glass-btn-primary'} disabled:opacity-50`}
+                      >
+                        {localVoiceDesignInUse ? t('lmStudioInUse') : t('lmStudioActivate')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

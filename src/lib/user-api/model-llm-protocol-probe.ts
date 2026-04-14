@@ -220,7 +220,8 @@ function toTrace(
 export async function probeModelLlmProtocol(
   input: ModelLlmProtocolProbeInput,
 ): Promise<ModelLlmProtocolProbeResult> {
-  if (getProviderKey(input.providerId) !== 'openai-compatible') {
+  const providerKey = getProviderKey(input.providerId)
+  if (providerKey !== 'openai-compatible' && providerKey !== 'lmstudio') {
     throw new Error(`MODEL_LLM_PROTOCOL_PROBE_PROVIDER_UNSUPPORTED: ${input.providerId}`)
   }
 
