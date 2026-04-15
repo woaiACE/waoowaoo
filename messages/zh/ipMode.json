@@ -1,0 +1,101 @@
+{
+  "workbench": {
+    "title": "IP 角色工作台",
+    "createCharacter": "创建角色",
+    "empty": "还没有 IP 角色，创建第一个吧",
+    "createFirst": "创建第一个 IP 角色"
+  },
+  "character": {
+    "created": "角色创建成功",
+    "createFailed": "角色创建失败",
+    "deleted": "角色已归档",
+    "deleteFailed": "角色归档失败",
+    "voiceBound": "已绑定音色",
+    "variants": "个变体",
+    "manageVariants": "管理变体"
+  },
+  "status": {
+    "draft": "草稿",
+    "ready": "就绪",
+    "archived": "已归档"
+  },
+  "editor": {
+    "createTitle": "创建 IP 角色",
+    "editTitle": "编辑 IP 角色",
+    "name": "角色名称",
+    "namePlaceholder": "输入角色名称",
+    "nameRequired": "请输入角色名称",
+    "faceReference": "面部参考图",
+    "faceReferencePlaceholder": "面部参考图 URL",
+    "cancel": "取消",
+    "create": "创建",
+    "save": "保存",
+    "saveFailed": "保存失败"
+  },
+  "variant": {
+    "title": "变体管理",
+    "created": "变体创建成功",
+    "createFailed": "变体创建失败",
+    "deleted": "变体已删除",
+    "deleteFailed": "变体删除失败",
+    "empty": "暂无变体",
+    "labelPlaceholder": "变体名称（如：校服、夏装）",
+    "add": "添加",
+    "addVariant": "添加变体"
+  },
+  "voice": {
+    "title": "音色绑定",
+    "selectRequired": "请选择音色",
+    "bound": "音色绑定成功",
+    "bindFailed": "音色绑定失败",
+    "unbound": "音色已解绑",
+    "unbindFailed": "音色解绑失败",
+    "currentBinding": "当前绑定音色",
+    "noBinding": "尚未绑定音色",
+    "selectVoice": "选择音色",
+    "voiceIdPlaceholder": "输入音色 ID",
+    "voiceIdHint": "从资产库选择或输入自定义音色 ID",
+    "bind": "绑定",
+    "unbind": "解绑",
+    "emotionPresets": "情感预设"
+  },
+  "emotion": {
+    "neutral": "平静",
+    "happy": "开心",
+    "sad": "悲伤",
+    "angry": "愤怒",
+    "fearful": "恐惧",
+    "surprised": "惊讶",
+    "disgusted": "厌恶",
+    "tender": "温柔",
+    "excited": "兴奋"
+  },
+  "screenplay": {
+    "empty": "暂无结构化剧本片段"
+  },
+  "casting": {
+    "title": "IP 选角",
+    "addCasting": "添加选角",
+    "created": "选角成功",
+    "createFailed": "选角失败",
+    "removed": "已移除选角",
+    "removeFailed": "移除选角失败",
+    "empty": "暂无选角，从 IP 工作台添加角色",
+    "roleAs": "饰演",
+    "selectCharacter": "选择角色",
+    "selectPlaceholder": "请选择 IP 角色",
+    "roleLabel": "角色标签",
+    "roleLabelPlaceholder": "在剧本中的角色名（可选）",
+    "confirm": "确认选角"
+  },
+  "mode": {
+    "title": "IP 角色模式",
+    "enabled": "IP 模式已启用",
+    "disabled": "IP 模式已关闭",
+    "toggleFailed": "切换失败",
+    "enable": "启用",
+    "disable": "关闭",
+    "enabledHint": "启用后可使用固定 IP 角色进行创作",
+    "disabledHint": "启用 IP 模式以使用高级角色功能"
+  }
+}

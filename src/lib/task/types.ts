@@ -78,6 +78,18 @@ export const TASK_TYPE = {
   ASSET_HUB_AI_MODIFY_LOCATION: 'asset_hub_ai_modify_location',
   ASSET_HUB_AI_MODIFY_PROP: 'asset_hub_ai_modify_prop',
   ASSET_HUB_REFERENCE_TO_CHARACTER: 'asset_hub_reference_to_character',
+
+  // ---- IP 角色模式 ----
+  IP_EXTRACT_FACE: 'ip_extract_face',
+  IP_REF_SHEET_GENERATE: 'ip_ref_sheet_generate',
+  IP_VARIANT_PREVIEW: 'ip_variant_preview',
+  IP_SCREENPLAY_REWRITE: 'ip_screenplay_rewrite',
+  IP_SCREENPLAY_PARSE: 'ip_screenplay_parse',
+  IP_IMAGE_PANEL: 'ip_image_panel',
+  IP_IMAGE_CHARACTER: 'ip_image_character',
+  IP_VOICE_LINE: 'ip_voice_line',
+  IP_ASSET_INIT_RUN: 'ip_asset_init_run',
+  IP_SCREENPLAY_REWRITE_RUN: 'ip_screenplay_rewrite_run',
 } as const
 
 export type TaskType = (typeof TASK_TYPE)[keyof typeof TASK_TYPE]

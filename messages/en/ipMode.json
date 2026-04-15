@@ -1,0 +1,101 @@
+{
+  "workbench": {
+    "title": "IP Character Workbench",
+    "createCharacter": "Create Character",
+    "empty": "No IP characters yet, create your first one",
+    "createFirst": "Create First IP Character"
+  },
+  "character": {
+    "created": "Character created",
+    "createFailed": "Failed to create character",
+    "deleted": "Character archived",
+    "deleteFailed": "Failed to archive character",
+    "voiceBound": "Voice bound",
+    "variants": "variants",
+    "manageVariants": "Manage Variants"
+  },
+  "status": {
+    "draft": "Draft",
+    "ready": "Ready",
+    "archived": "Archived"
+  },
+  "editor": {
+    "createTitle": "Create IP Character",
+    "editTitle": "Edit IP Character",
+    "name": "Character Name",
+    "namePlaceholder": "Enter character name",
+    "nameRequired": "Character name is required",
+    "faceReference": "Face Reference",
+    "faceReferencePlaceholder": "Face reference image URL",
+    "cancel": "Cancel",
+    "create": "Create",
+    "save": "Save",
+    "saveFailed": "Failed to save"
+  },
+  "variant": {
+    "title": "Variant Manager",
+    "created": "Variant created",
+    "createFailed": "Failed to create variant",
+    "deleted": "Variant deleted",
+    "deleteFailed": "Failed to delete variant",
+    "empty": "No variants yet",
+    "labelPlaceholder": "Variant name (e.g., school uniform, summer outfit)",
+    "add": "Add",
+    "addVariant": "Add Variant"
+  },
+  "voice": {
+    "title": "Voice Binding",
+    "selectRequired": "Please select a voice",
+    "bound": "Voice bound successfully",
+    "bindFailed": "Failed to bind voice",
+    "unbound": "Voice unbound",
+    "unbindFailed": "Failed to unbind voice",
+    "currentBinding": "Current voice binding",
+    "noBinding": "No voice bound yet",
+    "selectVoice": "Select Voice",
+    "voiceIdPlaceholder": "Enter voice ID",
+    "voiceIdHint": "Select from asset library or enter custom voice ID",
+    "bind": "Bind",
+    "unbind": "Unbind",
+    "emotionPresets": "Emotion Presets"
+  },
+  "emotion": {
+    "neutral": "Neutral",
+    "happy": "Happy",
+    "sad": "Sad",
+    "angry": "Angry",
+    "fearful": "Fearful",
+    "surprised": "Surprised",
+    "disgusted": "Disgusted",
+    "tender": "Tender",
+    "excited": "Excited"
+  },
+  "screenplay": {
+    "empty": "No structured screenplay segments"
+  },
+  "casting": {
+    "title": "IP Casting",
+    "addCasting": "Add Casting",
+    "created": "Casting added",
+    "createFailed": "Failed to add casting",
+    "removed": "Casting removed",
+    "removeFailed": "Failed to remove casting",
+    "empty": "No castings yet, add characters from IP Workbench",
+    "roleAs": "as",
+    "selectCharacter": "Select Character",
+    "selectPlaceholder": "Select an IP character",
+    "roleLabel": "Role Label",
+    "roleLabelPlaceholder": "Character name in screenplay (optional)",
+    "confirm": "Confirm Casting"
+  },
+  "mode": {
+    "title": "IP Character Mode",
+    "enabled": "IP mode enabled",
+    "disabled": "IP mode disabled",
+    "toggleFailed": "Toggle failed",
+    "enable": "Enable",
+    "disable": "Disable",
+    "enabledHint": "Create with fixed IP characters",
+    "disabledHint": "Enable IP mode for advanced character features"
+  }
+}

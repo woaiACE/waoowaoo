@@ -154,4 +154,21 @@ export const PROMPT_CATALOG: Record<PromptId, PromptCatalogEntry> = {
     pathStem: 'novel-promotion/voice_analysis',
     variableKeys: ['input', 'characters_lib_name', 'characters_introduction', 'storyboard_json'],
   },
+  // IP 角色模式
+  [PROMPT_IDS.IP_FACE_DESCRIBE]: {
+    pathStem: 'ip-mode/face_describe',
+    variableKeys: ['character_name', 'face_image_url'],
+  },
+  [PROMPT_IDS.IP_SCREENPLAY_REWRITE]: {
+    pathStem: 'ip-mode/screenplay_rewrite',
+    variableKeys: ['original_screenplay', 'persona_context', 'tone_instruction'],
+  },
+  [PROMPT_IDS.IP_SEGMENT_PARSE]: {
+    pathStem: 'ip-mode/segment_parse',
+    variableKeys: ['rewritten_screenplay'],
+  },
+  [PROMPT_IDS.IP_REF_SHEET_GENERATE]: {
+    pathStem: 'ip-mode/ref_sheet_generate',
+    variableKeys: ['character_name', 'face_descriptor', 'sheet_type', 'style_instruction'],
+  },
 }

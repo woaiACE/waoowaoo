@@ -279,6 +279,8 @@ model NovelPromotionProject {
   episodes           NovelPromotionEpisode[]
   locations          NovelPromotionLocation[]
   characterRelations CharacterRelation[]
+  ipCastings         IpCasting[]
+  ipModeEnabled      Boolean                   @default(false) // 是否启用 IP 角色模式
   project            Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("novel_promotion_projects")
@@ -452,6 +454,9 @@ model User {
   taskEvents         TaskEvent[]
   graphRuns          GraphRun[]
   graphEvents        GraphEvent[]
+
+  // IP 角色模式
+  ipCharacters IpCharacter[]
 
   @@map("user")
 }
@@ -836,6 +841,7 @@ model GlobalAssetFolder {
   characters GlobalCharacter[]
   locations  GlobalLocation[]
   voices     GlobalVoice[]
+  ipCharacters IpCharacter[]
 
   @@index([userId])
   @@map("global_asset_folders")
@@ -1009,6 +1015,12 @@ model MediaObject {
   globalLocationImagePreviousImages     GlobalLocationImage[]       @relation("GlobalLocationImagePreviousImageMedia")
   globalVoiceCustomVoices               GlobalVoice[]               @relation("GlobalVoiceCustomVoiceMedia")
 
+  // IP 角色模式
+  ipCharacterFaceRefs                   IpCharacter[]               @relation("IpCharacterFaceMedia")
+  ipCharacterVoices                     IpCharacter[]               @relation("IpCharacterVoiceMedia")
+  ipCharacterVariantPreviews            IpCharacterVariant[]        @relation("IpCharacterVariantPreviewMedia")
+  ipReferenceSheetImages                IpReferenceSheet[]          @relation("IpReferenceSheetImageMedia")
+
   @@index([createdAt])
   @@map("media_objects")
 }
@@ -1026,4 +1038,177 @@ model LegacyMediaRefBackup {
   @@index([runId])
   @@index([tableName, fieldName])
   @@map("legacy_media_refs_backup")
+}
+
+// ==================== IP 角色模式 ====================
+
+/// IP 角色资产：跨项目持久化的数字角色
+model IpCharacter {
+  id                String   @id @default(uuid())
+  userId            String
+  folderId          String?
+
+  // ---- 基础身份 ----
+  name              String
+  aliases           String?  @db.Text               // JSON: 别名数组
+  gender            String?
+  ageRange          String?
+
+  // ---- 核心视觉特征 (不可变层) ----
+  faceDescriptor    String?  @db.Text               // 面部特征结构化描述 JSON
+  faceReferenceUrl  String?  @db.Text               // 面部参考图 URL
+  faceMediaId       String?
+  faceMedia         MediaObject? @relation("IpCharacterFaceMedia", fields: [faceMediaId], references: [id], onDelete: SetNull)
+  bodyArchetype     String?  @db.Text               // 基础骨架描述
+
+  // ---- 软设定 (性格/人设/口吻) ----
+  profileData       String?  @db.Text               // JSON: 扩展版 CharacterProfileData
+  personality       String?  @db.Text               // 性格描述
+  speakingStyle     String?  @db.Text               // 说话口吻/语言风格
+  backstory         String?  @db.Text               // 背景故事
+
+  // ---- 声音绑定 ----
+  voiceId           String?
+  voiceType         String?                         // 'custom' | 'qwen-designed' | 'uploaded'
+  customVoiceUrl    String?  @db.Text
+  customVoiceMediaId String?
+  customVoiceMedia  MediaObject? @relation("IpCharacterVoiceMedia", fields: [customVoiceMediaId], references: [id], onDelete: SetNull)
+  globalVoiceId     String?                         // 绑定 GlobalVoice
+  voiceEmotionConfig String? @db.Text               // JSON: 默认情感参数
+
+  // ---- 来源追踪 ----
+  sourceGlobalCharacterId String?
+  sourceType        String   @default("manual")     // "manual" | "upgraded" | "ai-generated"
+
+  // ---- 状态 ----
+  status            String   @default("draft")      // "draft" | "active" | "archived"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // ---- 关联 ----
+  variants          IpCharacterVariant[]
+  referenceSheets   IpReferenceSheet[]
+  castings          IpCasting[]
+  screenplaySegments IpScreenplaySegment[]
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder            GlobalAssetFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([folderId])
+  @@index([faceMediaId])
+  @@index([customVoiceMediaId])
+  @@map("ip_characters")
+}
+
+/// IP 角色形态预设
+model IpCharacterVariant {
+  id                String   @id @default(uuid())
+  ipCharacterId     String
+
+  variantName       String                          // "现代版" / "古装版"
+  costumeDescription String? @db.Text
+  hairstyleDescription String? @db.Text
+  accessoryDescription String? @db.Text
+  environmentHint   String?  @db.Text
+
+  // ---- 预览图 ----
+  previewUrl        String?  @db.Text
+  previewMediaId    String?
+  previewMedia      MediaObject? @relation("IpCharacterVariantPreviewMedia", fields: [previewMediaId], references: [id], onDelete: SetNull)
+  previewUrls       String?  @db.Text               // JSON: 候选预览图
+  selectedPreviewIndex Int?
+
+  isDefault         Boolean  @default(false)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  ipCharacter       IpCharacter @relation(fields: [ipCharacterId], references: [id], onDelete: Cascade)
+  castings          IpCasting[]
+
+  @@index([ipCharacterId])
+  @@index([previewMediaId])
+  @@map("ip_character_variants")
+}
+
+/// IP 参考图集：三视图、表情集、标准动作等
+model IpReferenceSheet {
+  id                String   @id @default(uuid())
+  ipCharacterId     String
+
+  sheetType         String                          // "turnaround" | "expression" | "pose" | "detail"
+  description       String?  @db.Text
+  imageUrl          String?  @db.Text               // 选中的图片
+  imageMediaId      String?
+  imageMedia        MediaObject? @relation("IpReferenceSheetImageMedia", fields: [imageMediaId], references: [id], onDelete: SetNull)
+  imageUrls         String?  @db.Text               // JSON: 候选图片
+
+  status            String   @default("pending")    // "pending" | "generating" | "completed" | "failed"
+  taskId            String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  ipCharacter       IpCharacter @relation(fields: [ipCharacterId], references: [id], onDelete: Cascade)
+
+  @@index([ipCharacterId])
+  @@index([sheetType])
+  @@index([imageMediaId])
+  @@map("ip_reference_sheets")
+}
+
+/// IP 选角：将 IP 角色投射到具体项目中
+model IpCasting {
+  id                String   @id @default(uuid())
+  projectId         String
+  ipCharacterId     String
+  ipVariantId       String?
+
+  projectCharacterId String?                        // 映射到项目内 NovelPromotionCharacter
+  castRole          String?  @db.Text               // 在本项目中扮演的角色
+  personalityOverride String? @db.Text
+  speakingStyleOverride String? @db.Text
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  ipCharacter       IpCharacter @relation(fields: [ipCharacterId], references: [id])
+  ipVariant         IpCharacterVariant? @relation(fields: [ipVariantId], references: [id], onDelete: SetNull)
+  project           NovelPromotionProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  screenplaySegments IpScreenplaySegment[]
+
+  @@unique([projectId, ipCharacterId])
+  @@index([projectId])
+  @@index([ipCharacterId])
+  @@index([ipVariantId])
+  @@map("ip_castings")
+}
+
+/// IP 剧本结构化段落
+model IpScreenplaySegment {
+  id                String   @id @default(uuid())
+  projectId         String
+  episodeId         String?
+  clipId            String
+  segmentIndex      Int
+
+  segmentType       String                          // "scene_desc" | "dialogue" | "action" | "narration" | "transition"
+  content           String   @db.Text
+
+  ipCharacterId     String?
+  ipCastingId       String?
+  emotionTag        String?                         // "happy" | "angry" | "sad" | "fearful" | "surprised" | "neutral"
+  emotionIntensity  Float?
+  stageDirection    String?  @db.Text
+
+  createdAt         DateTime @default(now())
+
+  ipCharacter       IpCharacter? @relation(fields: [ipCharacterId], references: [id], onDelete: SetNull)
+  ipCasting         IpCasting? @relation(fields: [ipCastingId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, clipId])
+  @@index([ipCharacterId])
+  @@index([ipCastingId])
+  @@map("ip_screenplay_segments")
 }

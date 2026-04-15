@@ -14,6 +14,12 @@ import {
   handlePanelImageTask,
   handlePanelVariantTask,
 } from './handlers/image-task-handlers'
+import {
+  handleIpRefSheetGenerate,
+  handleIpVariantPreview,
+  handleIpImagePanel,
+  handleIpImageCharacter,
+} from '@/lib/ip-mode/handlers/ip-task-handlers'
 
 type AnyObj = Record<string, unknown>
 
@@ -42,6 +48,15 @@ async function processImageTask(job: Job<TaskJobData>) {
       return await handlePanelImageTask(job)
     case TASK_TYPE.PANEL_VARIANT:
       return await handlePanelVariantTask(job)
+    // IP 角色模式
+    case TASK_TYPE.IP_REF_SHEET_GENERATE:
+      return await handleIpRefSheetGenerate(job)
+    case TASK_TYPE.IP_VARIANT_PREVIEW:
+      return await handleIpVariantPreview(job)
+    case TASK_TYPE.IP_IMAGE_PANEL:
+      return await handleIpImagePanel(job)
+    case TASK_TYPE.IP_IMAGE_CHARACTER:
+      return await handleIpImageCharacter(job)
     default:
       throw new Error(`Unsupported image task type: ${job.data.type}`)
   }

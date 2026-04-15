@@ -5,6 +5,7 @@ import { QUEUE_NAME } from '@/lib/task/queues'
 import { TASK_TYPE, type TaskJobData } from '@/lib/task/types'
 import { reportTaskProgress, withTaskLifecycle } from './shared'
 import { handleVoiceDesignTask } from './handlers/voice-design'
+import { handleIpVoiceLine } from '@/lib/ip-mode/handlers/ip-task-handlers'
 
 type AnyObj = Record<string, unknown>
 
@@ -46,6 +47,9 @@ async function processVoiceTask(job: Job<TaskJobData>) {
     case TASK_TYPE.VOICE_DESIGN:
     case TASK_TYPE.ASSET_HUB_VOICE_DESIGN:
       return await handleVoiceDesignTask(job)
+    // IP 角色模式
+    case TASK_TYPE.IP_VOICE_LINE:
+      return await handleIpVoiceLine(job)
     default:
       throw new Error(`Unsupported voice task type: ${job.data.type}`)
   }

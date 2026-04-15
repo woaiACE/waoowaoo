@@ -141,6 +141,20 @@ const ROUTE_FILES = [
   'src/app/api/novel-promotion/[projectId]/voice-design/route.ts',
   'src/app/api/novel-promotion/[projectId]/voice-generate/route.ts',
   'src/app/api/novel-promotion/[projectId]/voice-lines/route.ts',
+  // IP 角色模式 — ip-hub
+  'src/app/api/ip-hub/characters/route.ts',
+  'src/app/api/ip-hub/characters/[id]/route.ts',
+  'src/app/api/ip-hub/characters/[id]/ref-sheets/route.ts',
+  'src/app/api/ip-hub/characters/[id]/variants/route.ts',
+  'src/app/api/ip-hub/characters/[id]/variants/[vid]/route.ts',
+  'src/app/api/ip-hub/characters/[id]/voice/route.ts',
+  'src/app/api/ip-hub/characters/upgrade-from-global/route.ts',
+  // IP 角色模式 — project-level
+  'src/app/api/novel-promotion/[projectId]/ip/cast/route.ts',
+  'src/app/api/novel-promotion/[projectId]/ip/cast/[castingId]/route.ts',
+  'src/app/api/novel-promotion/[projectId]/ip/enable/route.ts',
+  'src/app/api/novel-promotion/[projectId]/ip/disable/route.ts',
+  'src/app/api/novel-promotion/[projectId]/ip/screenplay-segments/[clipId]/route.ts',
   'src/app/api/projects/[projectId]/assets/route.ts',
   'src/app/api/projects/[projectId]/character-relations/route.ts',
   'src/app/api/projects/[projectId]/costs/route.ts',
@@ -178,6 +192,7 @@ const ROUTE_FILES = [
 function resolveCategory(routeFile: string): RouteCategory {
   if (routeFile.startsWith('src/app/api/assets/')) return 'assets'
   if (routeFile.startsWith('src/app/api/asset-hub/')) return 'asset-hub'
+  if (routeFile.startsWith('src/app/api/ip-hub/')) return 'asset-hub'
   if (routeFile.startsWith('src/app/api/novel-promotion/')) return 'novel-promotion'
   if (routeFile.startsWith('src/app/api/projects/')) return 'projects'
   if (
@@ -229,7 +244,7 @@ function resolveContractGroup(routeFile: string): RouteContractGroup {
     return 'direct-submit-routes'
   }
   if (routeFile.startsWith('src/app/api/assets/')) return 'crud-assets-routes'
-  if (routeFile.startsWith('src/app/api/asset-hub/')) return 'crud-asset-hub-routes'
+  if (routeFile.startsWith('src/app/api/asset-hub/') || routeFile.startsWith('src/app/api/ip-hub/')) return 'crud-asset-hub-routes'
   if (routeFile.startsWith('src/app/api/novel-promotion/')) return 'crud-novel-promotion-routes'
   if (
     routeFile.startsWith('src/app/api/tasks/')

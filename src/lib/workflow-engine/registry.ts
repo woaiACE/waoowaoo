@@ -1,4 +1,5 @@
 import { TASK_TYPE } from '@/lib/task/types'
+import { IP_WORKFLOW_DEFINITIONS } from '@/lib/ip-mode/workflows/definitions'
 
 export type WorkflowFailureMode = 'fail_run'
 
@@ -192,6 +193,8 @@ const SCRIPT_TO_STORYBOARD_DEFINITION: WorkflowDefinition = {
 const WORKFLOW_DEFINITIONS: Record<string, WorkflowDefinition> = {
   [STORY_TO_SCRIPT_DEFINITION.workflowType]: STORY_TO_SCRIPT_DEFINITION,
   [SCRIPT_TO_STORYBOARD_DEFINITION.workflowType]: SCRIPT_TO_STORYBOARD_DEFINITION,
+  // IP 角色模式工作流
+  ...IP_WORKFLOW_DEFINITIONS,
 }
 
 export function getWorkflowDefinition(workflowType: string): WorkflowDefinition | null {

@@ -697,6 +697,17 @@ async function processTextTask(job: Job<TaskJobData>) {
       return await handleRegenerateStoryboardTextTask(job)
     case TASK_TYPE.INSERT_PANEL:
       return await handleInsertPanelTask(job)
+    // IP 角色模式
+    case TASK_TYPE.IP_EXTRACT_FACE:
+      return await (await import('@/lib/ip-mode/handlers/ip-task-handlers')).handleIpExtractFace(job)
+    case TASK_TYPE.IP_SCREENPLAY_REWRITE:
+      return await (await import('@/lib/ip-mode/handlers/ip-task-handlers')).handleIpScreenplayRewrite(job)
+    case TASK_TYPE.IP_SCREENPLAY_PARSE:
+      return await (await import('@/lib/ip-mode/handlers/ip-task-handlers')).handleIpScreenplayParse(job)
+    case TASK_TYPE.IP_ASSET_INIT_RUN:
+      return await (await import('@/lib/ip-mode/handlers/ip-run-handlers')).handleIpAssetInitRun(job) as Record<string, unknown>
+    case TASK_TYPE.IP_SCREENPLAY_REWRITE_RUN:
+      return await (await import('@/lib/ip-mode/handlers/ip-run-handlers')).handleIpScreenplayRewriteRun(job) as Record<string, unknown>
     default:
       throw new Error(`Unsupported text task type: ${job.data.type}`)
   }

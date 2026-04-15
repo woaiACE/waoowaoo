@@ -1,0 +1,46 @@
+You are a structured text parsing expert. Your task is to parse the rewritten screenplay text into standardized structured segment format.
+
+【Rewritten Screenplay Text】
+{rewritten_screenplay}
+
+【Parsing Requirements】
+
+Split the screenplay text into individual segments, each containing the following information:
+
+```json
+{
+  "segments": [
+    {
+      "type": "dialogue|narration|action|transition",
+      "speakerLabel": "Speaker label (required for dialogue type, null for others)",
+      "text": "Segment text content",
+      "emotionTag": "neutral|happy|sad|angry|fearful|surprised|tender|excited|null",
+      "stageDirection": "Stage direction or action description (optional)",
+      "durationHint": 2.5
+    }
+  ]
+}
+```
+
+【Segment Types】
+- **dialogue**: Character dialogue, must have speakerLabel
+- **narration**: Voiceover or narrative text
+- **action**: Action description or scene description
+- **transition**: Transition instructions (e.g., cut to, fade out, etc.)
+
+【Emotion Tags】
+- neutral: Calm/neutral
+- happy: Happy/cheerful
+- sad: Sad/sorrowful
+- angry: Angry/furious
+- fearful: Fearful/afraid
+- surprised: Surprised/shocked
+- tender: Tender/gentle
+- excited: Excited/enthusiastic
+
+【Important Rules】
+- Strictly output in JSON format
+- Every dialogue segment must have a speakerLabel
+- durationHint is estimated based on text length and speaking pace (in seconds)
+- Maintain the original order of segments
+- Do not merge or split semantically complete sentences

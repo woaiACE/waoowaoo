@@ -1,0 +1,42 @@
+You are a professional character visual analyst. Your task is to carefully analyze the provided character face reference image and extract structured facial feature descriptions.
+
+【Character Name】
+{character_name}
+
+【Face Reference Image】
+{face_image_url}
+
+【Analysis Requirements】
+
+Please analyze the character's facial features from the following dimensions and output in JSON format:
+
+```json
+{
+  "face_shape": "Face shape (e.g., oval, square, heart, round, etc.)",
+  "skin_tone": "Skin tone description",
+  "eyes": {
+    "shape": "Eye shape",
+    "color": "Iris color",
+    "special": "Special features (e.g., double eyelids, monolids, etc.)"
+  },
+  "nose": "Nose type description",
+  "mouth": "Lip features",
+  "eyebrows": "Eyebrow shape description",
+  "hair": {
+    "style": "Hairstyle",
+    "color": "Hair color",
+    "length": "Hair length"
+  },
+  "facial_hair": "Facial hair (if any)",
+  "distinguishing_marks": ["List of notable features such as moles, scars, freckles, etc."],
+  "age_range": "Approximate age range",
+  "gender_presentation": "Gender presentation",
+  "overall_impression": "One-sentence summary of overall facial impression"
+}
+```
+
+【Important Rules】
+- Only describe features visible in the image, do not speculate about unseen parts
+- Use precise visual descriptive vocabulary
+- Remain objective and neutral, avoid subjective aesthetic judgments
+- If a feature is not visible or uncertain, use null

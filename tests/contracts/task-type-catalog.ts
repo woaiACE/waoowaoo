@@ -49,6 +49,17 @@ const TASK_TYPE_OWNER_MAP = {
   [TASK_TYPE.ASSET_HUB_AI_MODIFY_LOCATION]: 'tests/unit/worker/asset-hub-ai-modify.test.ts',
   [TASK_TYPE.ASSET_HUB_AI_MODIFY_PROP]: 'tests/unit/helpers/prop-modify-task-registration.test.ts',
   [TASK_TYPE.ASSET_HUB_REFERENCE_TO_CHARACTER]: 'tests/unit/worker/reference-to-character.test.ts',
+  // IP 角色模式
+  [TASK_TYPE.IP_EXTRACT_FACE]: 'tests/unit/worker/ip-task-handlers.test.ts',
+  [TASK_TYPE.IP_REF_SHEET_GENERATE]: 'tests/unit/worker/ip-task-handlers.test.ts',
+  [TASK_TYPE.IP_VARIANT_PREVIEW]: 'tests/unit/worker/ip-task-handlers.test.ts',
+  [TASK_TYPE.IP_SCREENPLAY_REWRITE]: 'tests/unit/worker/ip-task-handlers.test.ts',
+  [TASK_TYPE.IP_SCREENPLAY_PARSE]: 'tests/unit/worker/ip-task-handlers.test.ts',
+  [TASK_TYPE.IP_IMAGE_PANEL]: 'tests/unit/worker/ip-task-handlers.test.ts',
+  [TASK_TYPE.IP_IMAGE_CHARACTER]: 'tests/unit/worker/ip-task-handlers.test.ts',
+  [TASK_TYPE.IP_VOICE_LINE]: 'tests/unit/worker/ip-task-handlers.test.ts',
+  [TASK_TYPE.IP_ASSET_INIT_RUN]: 'tests/unit/worker/ip-run-handlers.test.ts',
+  [TASK_TYPE.IP_SCREENPLAY_REWRITE_RUN]: 'tests/unit/worker/ip-run-handlers.test.ts',
 } as const satisfies Record<TaskType, string>
 
 export const TASK_TYPE_CATALOG: ReadonlyArray<TaskTypeCoverageEntry> = (Object.values(TASK_TYPE) as TaskType[])

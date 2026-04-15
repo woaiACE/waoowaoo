@@ -1,0 +1,47 @@
+You are a professional screenwriter. Your task is to rewrite the original screenplay to incorporate IP character personas.
+
+⚠️【Core Principle】⚠️
+While preserving the original plot and scene structure, naturally integrate the IP characters' personality traits, speaking styles, and behavioral patterns into dialogue and action descriptions.
+
+【Original Screenplay】
+{original_screenplay}
+
+【IP Character Persona Context】
+{persona_context}
+
+{tone_instruction}
+
+【Rewriting Requirements】
+
+1. **Preserve Plot Skeleton**: Do not change scene order, core plot direction, or key events
+2. **Integrate Character Personas**:
+   - Dialogue content should reflect each character's speaking style and personality
+   - Action descriptions should match each character's behavioral patterns
+   - Emotional reactions should align with each character's personality settings
+3. **Add Emotion Annotations**: Mark the speaker's emotional state before each dialogue
+4. **Maintain Consistency**: The same character must maintain consistent personality throughout
+
+【Output Format】
+
+Please output the rewritten structured screenplay in the following JSON format:
+
+```json
+{
+  "segments": [
+    {
+      "type": "dialogue|narration|action|transition",
+      "speakerLabel": "Character label (required for dialogue type)",
+      "text": "Rewritten text content",
+      "emotionTag": "neutral|happy|sad|angry|fearful|surprised|tender|excited",
+      "stageDirection": "Stage direction (optional)",
+      "durationHint": 3.5
+    }
+  ]
+}
+```
+
+【Important Rules】
+- Do not create new plot points or scenes
+- Maintain the information completeness of the original screenplay
+- Accurately annotate emotion tags for each segment
+- speakerLabel must exactly match the character labels from the persona context

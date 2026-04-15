@@ -29,6 +29,11 @@ export const PROMPT_IDS = {
   NP_SINGLE_PANEL_IMAGE: 'np_single_panel_image',
   NP_STORYBOARD_EDIT: 'np_storyboard_edit',
   NP_VOICE_ANALYSIS: 'np_voice_analysis',
+  // IP 角色模式
+  IP_FACE_DESCRIBE: 'ip_face_describe',
+  IP_SCREENPLAY_REWRITE: 'ip_screenplay_rewrite',
+  IP_SEGMENT_PARSE: 'ip_segment_parse',
+  IP_REF_SHEET_GENERATE: 'ip_ref_sheet_generate',
 } as const
 
 export type PromptId = (typeof PROMPT_IDS)[keyof typeof PROMPT_IDS]

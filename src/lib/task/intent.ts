@@ -62,6 +62,17 @@ const TASK_INTENT_BY_TYPE: Record<TaskType, TaskIntent> = {
   [TASK_TYPE.ASSET_HUB_AI_MODIFY_LOCATION]: 'modify',
   [TASK_TYPE.ASSET_HUB_AI_MODIFY_PROP]: 'modify',
   [TASK_TYPE.ASSET_HUB_REFERENCE_TO_CHARACTER]: 'process',
+  // IP 角色模式
+  [TASK_TYPE.IP_EXTRACT_FACE]: 'process',
+  [TASK_TYPE.IP_REF_SHEET_GENERATE]: 'generate',
+  [TASK_TYPE.IP_VARIANT_PREVIEW]: 'generate',
+  [TASK_TYPE.IP_SCREENPLAY_REWRITE]: 'process',
+  [TASK_TYPE.IP_SCREENPLAY_PARSE]: 'process',
+  [TASK_TYPE.IP_IMAGE_PANEL]: 'generate',
+  [TASK_TYPE.IP_IMAGE_CHARACTER]: 'generate',
+  [TASK_TYPE.IP_VOICE_LINE]: 'generate',
+  [TASK_TYPE.IP_ASSET_INIT_RUN]: 'build',
+  [TASK_TYPE.IP_SCREENPLAY_REWRITE_RUN]: 'build',
 }
 
 export function resolveTaskIntent(taskType: string | null | undefined): TaskIntent {
