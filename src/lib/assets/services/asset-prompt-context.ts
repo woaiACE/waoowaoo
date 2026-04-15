@@ -159,7 +159,9 @@ export function buildPromptAssetContext(input: PromptAssetContextInput): PromptA
     fullDescriptionText,
     locationDescriptionText: environmentName ? locationDescriptionText : '无',
     propsDescriptionText: getFilteredPropsDescription(input.props, propNames),
-    charactersIntroductionText: buildCharactersIntroduction(input.characters),
+    charactersIntroductionText: buildCharactersIntroduction(
+      subjectNames.length > 0 && matchedCharacters.length > 0 ? matchedCharacters : input.characters,
+    ),
   }
 }
 

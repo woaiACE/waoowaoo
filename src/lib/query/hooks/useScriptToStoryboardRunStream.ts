@@ -12,6 +12,7 @@ export type ScriptToStoryboardRunParams = {
   reasoning?: boolean
   reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high'
   retryStepKey?: string
+  screenplayTone?: string
 }
 
 export type ScriptToStoryboardRunResult = RunResult
@@ -81,6 +82,7 @@ export function useScriptToStoryboardRunStream({ projectId, episodeId }: UseScri
       reasoning: params.reasoning,
       reasoningEffort: params.reasoningEffort,
       retryStepKey: params.retryStepKey || undefined,
+      screenplayTone: params.screenplayTone || undefined,
       async: true,
       displayMode: 'detail',
     }),

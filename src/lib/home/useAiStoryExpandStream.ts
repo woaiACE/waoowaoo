@@ -27,6 +27,7 @@ export interface AiStoryExpandParams {
   sourceText?: string
   lengthTarget?: string
   readerProfile?: string
+  projectId?: string
 }
 
 export interface UseAiStoryExpandStreamReturn {
@@ -114,6 +115,7 @@ export function useAiStoryExpandStream(): UseAiStoryExpandStreamReturn {
           sourceText: params.sourceText || undefined,
           lengthTarget: params.lengthTarget || undefined,
           readerProfile: params.readerProfile || undefined,
+          projectId: params.projectId || undefined,
         }),
         signal: ac.signal,
       })

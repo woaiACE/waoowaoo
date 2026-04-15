@@ -54,7 +54,10 @@ const promptMock = vi.hoisted(() => ({
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/workers/utils', () => utilsMock)
 vi.mock('@/lib/media/outbound-image', () => outboundMock)
-vi.mock('@/lib/logging/core', () => ({ logInfo: vi.fn() }))
+vi.mock('@/lib/logging/core', () => {
+  const noopLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), event: vi.fn(), child: () => noopLogger }
+  return { logInfo: vi.fn(), createScopedLogger: vi.fn(() => noopLogger) }
+})
 vi.mock('@/lib/workers/handlers/image-task-handler-shared', async () => {
   const actual = await vi.importActual<typeof import('@/lib/workers/handlers/image-task-handler-shared')>(
     '@/lib/workers/handlers/image-task-handler-shared',

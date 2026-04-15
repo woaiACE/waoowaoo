@@ -17,6 +17,7 @@ import {
 } from './screenplay-convert-helpers'
 import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
 import { resolveAnalysisModel } from './resolve-analysis-model'
+import { getScreenplayToneInstruction, getRewriteModeInstruction } from '@/lib/screenplay-tone-presets'
 
 const MAX_SCREENPLAY_ATTEMPTS = 2
 
@@ -74,6 +75,8 @@ export async function handleScreenplayConvertTask(job: Job<TaskJobData>) {
   }
 
   const screenplayPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SCREENPLAY_CONVERSION, job.data.locale)
+  const screenplayToneInstruction = getScreenplayToneInstruction(novelData.screenplayTone)
+  const rewriteModeInstruction = getRewriteModeInstruction(novelData.storyRewriteMode)
   const charactersLibName = novelData.characters.map((item) => item.name).join('、') || '无'
   const locationsLibName = novelData.locations.map((item) => item.name).join('、') || '无'
   const charactersIntroduction = buildCharactersIntroduction(novelData.characters)
@@ -126,6 +129,8 @@ export async function handleScreenplayConvertTask(job: Job<TaskJobData>) {
         .replace('{characters_lib_name}', charactersLibName)
         .replace('{characters_introduction}', charactersIntroduction)
         .replace('{clip_id}', clip.id)
+        .replace('{tone_instruction}', screenplayToneInstruction)
+        .replace('{rewrite_mode_instruction}', rewriteModeInstruction)
 
       // 记录 prompt 输入
       onProjectNameAvailable(projectId, project.name)

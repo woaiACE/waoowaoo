@@ -8,6 +8,8 @@ import {
   uploadImageSourceToCos,
   withLabelBar,
 } from '../utils'
+import { resolveCharacterByEmbedding, type EmbedConfig, type CharacterIndexEntry } from '@/lib/embedding/character-index'
+import type { VectorEntry } from '@/lib/embedding/cosine'
 
 export type AnyObj = Record<string, unknown>
 
@@ -23,7 +25,10 @@ interface CharacterAppearanceLike {
 }
 
 interface CharacterLike {
+  id: string
   name: string
+  aliases?: string | null
+  introduction?: string | null
   appearances?: CharacterAppearanceLike[]
 }
 
@@ -225,6 +230,60 @@ export function findCharacterByName<T extends { name: string }>(characters: T[],
   }
 
   return undefined
+}
+
+/**
+ * findCharacterByName 的 async 升级版，字符串未命中时走 embedding 语义兜底。
+ * T 需包含 id 字段以便从向量索引结果回溯到原对象。
+ * config 为 null 或索引为空时等价于原版同步函数。
+ */
+export async function findCharacterByNameWithEmbedding<T extends { name: string; id: string }>(
+  characters: T[],
+  referenceName: string,
+  index: VectorEntry<CharacterIndexEntry>[],
+  config: EmbedConfig | null,
+): Promise<T | undefined> {
+  const syncResult = findCharacterByName(characters, referenceName)
+  if (syncResult) return syncResult as T
+
+  if (!config || index.length === 0) return undefined
+  const resolved = await resolveCharacterByEmbedding(referenceName, index, config, 0.78)
+  if (!resolved) return undefined
+  return characters.find((c) => c.id === resolved.id)
+}
+
+/**
+ * 将 panel.characters JSON 中的角色称谓预归一化到数据库主名。
+ * 字符串精确/别名已能命中的保持不变，未命中时走 embedding 语义查找（阈值 0.78）。
+ * config 为 null 或索引为空时直接返回原始 JSON（零副作用）。
+ */
+export async function normalizePanelCharacterRefs(
+  panelCharactersJson: string | null | undefined,
+  characters: CharacterLike[],
+  index: VectorEntry<CharacterIndexEntry>[],
+  config: EmbedConfig | null,
+): Promise<string | null> {
+  if (!config || index.length === 0) return panelCharactersJson ?? null
+  const refs = parsePanelCharacterReferences(panelCharactersJson)
+  if (refs.length === 0) return panelCharactersJson ?? null
+
+  let changed = false
+  const normalized: PanelCharacterReference[] = []
+  for (const ref of refs) {
+    const alreadyHit = findCharacterByName(characters, ref.name)
+    if (alreadyHit) {
+      normalized.push(ref)
+      continue
+    }
+    const resolved = await resolveCharacterByEmbedding(ref.name, index, config, 0.78)
+    if (resolved) {
+      changed = true
+      normalized.push({ ...ref, name: resolved.name })
+    } else {
+      normalized.push(ref)
+    }
+  }
+  return changed ? JSON.stringify(normalized) : (panelCharactersJson ?? null)
 }
 
 export async function collectPanelReferenceImages(projectData: NovelProjectData, panel: PanelLike) {

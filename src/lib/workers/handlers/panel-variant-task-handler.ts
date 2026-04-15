@@ -18,12 +18,15 @@ import {
 import {
   AnyObj,
   findCharacterByName,
+  normalizePanelCharacterRefs,
   parseImageUrls,
   parsePanelCharacterReferences,
   pickFirstString,
   resolveNovelData,
 } from './image-task-handler-shared'
 import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { resolveEmbedConfig } from '@/lib/embedding/resolve-embed-config'
+import { buildCharacterIndex, type CharacterIndexEntry } from '@/lib/embedding/character-index'
 
 // ── 构建变体提示词 ──────────────────────────────────────
 interface VariantPromptParams {
@@ -223,12 +226,35 @@ export async function handlePanelVariantTask(job: Job<TaskJobData>) {
   const storyboardModel = modelConfig.storyboardModel
   if (!storyboardModel) throw new Error('Storyboard model not configured')
 
+  const embedConfig = await resolveEmbedConfig(job.data.userId)
+  const characterEmbeddingIndex = embedConfig
+    ? await buildCharacterIndex(
+        (projectData.characters || []).map((c): CharacterIndexEntry => ({
+          id: c.id,
+          name: c.name,
+          aliases: (() => {
+            try { return JSON.parse(String(c.aliases || '[]')) as string[] }
+            catch { return [] }
+          })(),
+          introduction: String(c.introduction ?? ''),
+        })),
+        embedConfig,
+      )
+    : []
+  const normalizedCharactersJson = await normalizePanelCharacterRefs(
+    newPanel.characters,
+    projectData.characters || [],
+    characterEmbeddingIndex,
+    embedConfig,
+  )
+  const normalizedNewPanel = { ...newPanel, characters: normalizedCharactersJson }
+
   // 收集参考图（与 panel-image-task-handler 共用同一链路）
   const sourcePanelImageUrl = toSignedUrlIfCos(sourcePanel.imageUrl, 3600)
   const refs = buildVariantReferenceImages({
     includeCharacterAssets,
     includeLocationAsset,
-    newPanel,
+    newPanel: normalizedNewPanel,
     sourcePanelImageUrl,
     projectData,
   })
@@ -236,9 +262,9 @@ export async function handlePanelVariantTask(job: Job<TaskJobData>) {
 
   // 使用 agent_shot_variant_generate.txt 提示词模板
   const artStyle = getArtStylePrompt(modelConfig.artStyle, job.data.locale)
-  const charactersInfo = buildCharactersInfo(newPanel, projectData)
+  const charactersInfo = buildCharactersInfo(normalizedNewPanel, projectData)
   const characterAssetsDesc = includeCharacterAssets
-    ? buildCharacterAssetsDescription(newPanel, projectData)
+    ? buildCharacterAssetsDescription(normalizedNewPanel, projectData)
     : (job.data.locale === 'en' ? 'Character reference images disabled' : '未使用角色参考图')
   const locationName = newPanel.location || sourcePanel.location || ''
 

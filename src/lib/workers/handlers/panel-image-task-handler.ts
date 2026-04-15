@@ -17,6 +17,7 @@ import {
   clampCount,
   collectPanelReferenceImages,
   findCharacterByName,
+  normalizePanelCharacterRefs,
   parsePanelCharacterReferences,
   pickFirstString,
   resolveNovelData,
@@ -25,6 +26,8 @@ import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
 import {
   parseLocationAvailableSlots,
 } from '@/lib/location-available-slots'
+import { resolveEmbedConfig } from '@/lib/embedding/resolve-embed-config'
+import { buildCharacterIndex, type CharacterIndexEntry } from '@/lib/embedding/character-index'
 
 function parseJsonUnknown(raw: string | null | undefined): unknown | null {
   if (!raw) return null
@@ -175,7 +178,28 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
   if (!modelKey) throw new Error('Storyboard model not configured')
 
   const candidateCount = clampCount(payload.candidateCount ?? payload.count, 1, 4, 1)
-  const refs = await collectPanelReferenceImages(projectData, panel)
+  const embedConfig = await resolveEmbedConfig(job.data.userId)
+  const characterEmbeddingIndex = embedConfig
+    ? await buildCharacterIndex(
+        (projectData.characters || []).map((c): CharacterIndexEntry => ({
+          id: c.id,
+          name: c.name,
+          aliases: (() => {
+            try { return JSON.parse(String(c.aliases || '[]')) as string[] }
+            catch { return [] }
+          })(),
+          introduction: String(c.introduction ?? ''),
+        })),
+        embedConfig,
+      )
+    : []
+  const normalizedCharactersJson = await normalizePanelCharacterRefs(
+    panel.characters,
+    projectData.characters || [],
+    characterEmbeddingIndex,
+    embedConfig,
+  )
+  const refs = await collectPanelReferenceImages(projectData, { ...panel, characters: normalizedCharactersJson })
   const normalizedRefs = await normalizeReferenceImagesForGeneration(refs)
 
   const logger = createScopedLogger({
@@ -200,7 +224,7 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
       imagePrompt: panel.imagePrompt,
       videoPrompt: panel.videoPrompt,
       location: panel.location,
-      characters: panel.characters,
+      characters: normalizedCharactersJson,
       srtSegment: panel.srtSegment,
       photographyRules: panel.photographyRules,
       actingNotes: panel.actingNotes,

@@ -7,6 +7,8 @@ import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
 import { createWorkerLLMStreamCallbacks, createWorkerLLMStreamContext } from './llm-stream'
 import { getAiExpandToneInstruction, getAiExpandRewriteInstruction, getAiExpandLengthInstruction, getReaderInstruction } from '@/lib/screenplay-tone-presets'
+import { buildCharactersIntroduction } from '@/lib/constants'
+import { prisma } from '@/lib/prisma'
 
 function readText(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -37,6 +39,36 @@ export async function handleAiStoryExpandTask(job: Job<TaskJobData>) {
     ? `## 原始故事文本（请在此基础上进行改写）\n\n${sourceText}`
     : ''
 
+  // 项目上下文注入：若有 projectId，查询项目角色和世界观
+  const projectId = readText(payload.projectId).trim()
+  let projectContextBlock = ''
+  if (projectId && projectId !== 'home-ai-write') {
+    try {
+      const novelData = await prisma.novelPromotionProject.findUnique({
+        where: { projectId },
+        include: {
+          characters: { select: { name: true, introduction: true } },
+        },
+      })
+      if (novelData) {
+        const parts: string[] = []
+        const globalAsset = readText(novelData.globalAssetText).trim()
+        if (globalAsset) {
+          parts.push(`## 项目世界观与背景设定\n\n${globalAsset.slice(0, 800)}`)
+        }
+        const charIntros = buildCharactersIntroduction(novelData.characters)
+        if (charIntros && charIntros !== '暂无角色介绍') {
+          parts.push(`## 已有角色档案（改写时保持角色名称和性格一致）\n\n${charIntros}`)
+        }
+        if (parts.length > 0) {
+          projectContextBlock = parts.join('\n\n')
+        }
+      }
+    } catch {
+      // 静默降级：查询失败不影响改写任务
+    }
+  }
+
   const prompt = buildPrompt({
     promptId: PROMPT_IDS.NP_AI_STORY_EXPAND,
     locale: job.data.locale,
@@ -47,6 +79,7 @@ export async function handleAiStoryExpandTask(job: Job<TaskJobData>) {
       length_instruction: lengthInstruction,
       reader_instruction: readerInstruction,
       source_text_block: sourceTextBlock,
+      project_context_block: projectContextBlock,
     },
   })
 

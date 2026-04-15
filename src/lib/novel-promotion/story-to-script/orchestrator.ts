@@ -63,6 +63,8 @@ export type StoryToScriptOrchestratorInput = {
   baseLocations: string[]
   baseProps?: string[]
   baseCharacterIntroductions: Array<{ name: string; introduction?: string | null }>
+  screenplayToneInstruction?: string
+  rewriteModeInstruction?: string
   promptTemplates: StoryToScriptPromptTemplates
   runStep: (
     meta: StoryToScriptStepMeta,
@@ -251,6 +253,8 @@ export async function runStoryToScriptOrchestrator(
     baseLocations,
     baseProps = [],
     baseCharacterIntroductions,
+    screenplayToneInstruction,
+    rewriteModeInstruction,
     promptTemplates,
     runStep,
     onStepError,
@@ -265,7 +269,12 @@ export async function runStoryToScriptOrchestrator(
   const baseLocationsText = baseLocations.length > 0 ? baseLocations.join('、') : '无'
   const basePropsText = baseProps.length > 0 ? baseProps.join('、') : '无'
   const baseCharacterInfo = baseCharacterIntroductions.length > 0
-    ? baseCharacterIntroductions.map((item, index) => `${index + 1}. ${item.name}`).join('\n')
+    ? baseCharacterIntroductions.map((item, index) => {
+        const introLine = item.introduction
+          ? `\n   介绍：${item.introduction}（视觉档案已完善，无需重新输出）`
+          : `\n   介绍：（暂无，视觉档案待完善，需在 new_characters 中输出完整档案）`
+        return `${index + 1}. ${item.name}${introLine}`
+      }).join('\n\n')
     : '暂无已有角色'
 
   const characterPrompt = applyTemplate(promptTemplates.characterPromptTemplate, {
@@ -532,6 +541,8 @@ export async function runStoryToScriptOrchestrator(
           props_lib_name: propsLibName || '无',
           characters_introduction: charactersIntroduction || '暂无角色介绍',
           clip_id: clip.id,
+          tone_instruction: screenplayToneInstruction ?? '',
+          rewrite_mode_instruction: rewriteModeInstruction ?? '',
         })
 
         const { parsed: screenplay } = await runStepWithRetry(

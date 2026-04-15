@@ -10,6 +10,8 @@ import {
   type CharacterBrief,
   type CharacterRelationItem,
 } from './analyze-global-parse'
+import { resolveCharacterByEmbedding, type EmbedConfig, type CharacterIndexEntry } from '@/lib/embedding/character-index'
+import type { VectorEntry } from '@/lib/embedding/cosine'
 import { seedProjectLocationBackedImageSlots } from '@/lib/assets/services/location-backed-assets'
 import { normalizeLocationAvailableSlots } from '@/lib/location-available-slots'
 import { resolvePropVisualDescription } from '@/lib/assets/prop-description'
@@ -51,6 +53,10 @@ export async function persistAnalyzeGlobalChunk(params: {
   existingLocationInfo: string[]
   existingPropNames: string[]
   stats: AnalyzeGlobalStats
+  /** embedding 配置；null 表示未配置，降级到纯字符串匹配 */
+  embedConfig?: EmbedConfig | null
+  /** 已构建的角色向量索引（任务入口处一次性构建后传入） */
+  characterEmbeddingIndex?: VectorEntry<CharacterIndexEntry>[]
 }) {
   for (const char of params.charactersData.new_characters || []) {
     const name = readText(char.name).trim()
@@ -63,7 +69,60 @@ export async function persistAnalyzeGlobalChunk(params: {
     )
     if (nameExists || aliasExists) {
       params.stats.skippedCharacters += 1
+      // 顺便把本次新 alias 合并到已有角色，让后续 chunk 字符串匹配命中率更高
+      if (params.embedConfig && aliases.length > 0) {
+        // 按名称或别名交集定位已有角色（aliasExists 命中时 name 未必相等）
+        const existingChar = params.existingCharacters.find((c) => {
+          if (c.name.toLowerCase() === name.toLowerCase()) return true
+          if (aliases.some((a) => c.name.toLowerCase() === a.toLowerCase())) return true
+          if (c.aliases.some((ea) => ea.toLowerCase() === name.toLowerCase())) return true
+          return c.aliases.some((ea) => aliases.some((a) => ea.toLowerCase() === a.toLowerCase()))
+        })
+        if (existingChar) {
+          const newAliases = aliases.filter(
+            (a) => !existingChar.aliases.some((ea) => ea.toLowerCase() === a.toLowerCase()),
+          )
+          if (newAliases.length > 0) {
+            await prisma.novelPromotionCharacter.update({
+              where: { id: existingChar.id },
+              data: { aliases: JSON.stringify([...existingChar.aliases, ...newAliases]) },
+            })
+            existingChar.aliases.push(...newAliases)
+            params.existingCharacterNames.push(...newAliases)
+          }
+        }
+      }
       continue
+    }
+
+    // 第二道防线：字符串未命中时走 embedding 语义向量兜底
+    const embedConfig = params.embedConfig ?? null
+    const embeddingIndex = params.characterEmbeddingIndex ?? []
+    if (embedConfig && embeddingIndex.length > 0) {
+      const introduction = readText(char.introduction).trim()
+      const candidateText = introduction
+        ? `${name}，${aliases.join('/')}。${introduction.slice(0, 200)}`
+        : `${name}，${aliases.join('/')}`
+
+      const resolved = await resolveCharacterByEmbedding(candidateText, embeddingIndex, embedConfig, 0.82)
+      if (resolved) {
+        // 语义命中 → 不创建新记录，把当前名字/alias 并入已有角色
+        params.stats.skippedCharacters += 1
+        const mergeAliases = [name, ...aliases].filter(
+          (a) =>
+            !resolved.aliases.some((ea) => ea.toLowerCase() === a.toLowerCase()) &&
+            a.toLowerCase() !== resolved.name.toLowerCase(),
+        )
+        if (mergeAliases.length > 0) {
+          await prisma.novelPromotionCharacter.update({
+            where: { id: resolved.id },
+            data: { aliases: JSON.stringify([...resolved.aliases, ...mergeAliases]) },
+          })
+          resolved.aliases.push(...mergeAliases)
+          params.existingCharacterNames.push(...mergeAliases)
+        }
+        continue
+      }
     }
 
     try {

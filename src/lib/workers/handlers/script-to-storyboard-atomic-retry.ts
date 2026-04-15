@@ -1,11 +1,13 @@
 import { safeParseJsonArray } from '@/lib/json-repair'
-import { buildCharactersIntroduction } from '@/lib/constants'
 import { normalizeAnyError } from '@/lib/errors/normalize'
 import type {
   ScriptToStoryboardPromptTemplates,
   ScriptToStoryboardStepMeta,
   ScriptToStoryboardStepOutput,
 } from '@/lib/novel-promotion/script-to-storyboard/orchestrator'
+import { resolveClipCharacterNames } from '@/lib/novel-promotion/script-to-storyboard/orchestrator'
+import type { EmbedConfig, CharacterIndexEntry } from '@/lib/embedding/character-index'
+import type { VectorEntry } from '@/lib/embedding/cosine'
 import { listArtifacts } from '@/lib/run-runtime/service'
 import {
   type ActingDirection,
@@ -13,6 +15,7 @@ import {
   type ClipCharacterRef,
   formatClipId,
   getFilteredAppearanceList,
+  getFilteredCharactersIntroduction,
   getFilteredFullDescription,
   getFilteredLocationsDescription,
   type LocationAsset,
@@ -345,9 +348,20 @@ export async function runScriptToStoryboardAtomicRetry(params: {
   }
   promptTemplates: ScriptToStoryboardPromptTemplates
   screenplayToneInstruction?: string
+  /** embedding 配置，与 orchestrator 区进一致传入 */
+  embedConfig?: EmbedConfig | null
+  /** 角色向量索引 */
+  characterEmbeddingIndex?: VectorEntry<CharacterIndexEntry>[]
   runStep: StepRunner
 }): Promise<ScriptToStoryboardAtomicRetryResult> {
-  const clipCharacters = parseClipCharacters(params.clip.characters)
+  const rawClipCharacters = parseClipCharacters(params.clip.characters)
+  // 预归一化角色名（与 orchestrator 主流程保持一致）
+  const clipCharacters = await resolveClipCharacterNames(
+    rawClipCharacters,
+    params.novelPromotionData.characters || [],
+    params.characterEmbeddingIndex ?? [],
+    params.embedConfig ?? null,
+  )
   const clipLocation = params.clip.location || null
   const clipProps = parseClipProps(params.clip.props ?? null)
   const filteredFullDescription = getFilteredFullDescription(params.novelPromotionData.characters || [], clipCharacters)
@@ -409,7 +423,7 @@ export async function runScriptToStoryboardAtomicRetry(params: {
     const filteredAppearanceList = getFilteredAppearanceList(params.novelPromotionData.characters || [], clipCharacters)
     const charactersLibName = (params.novelPromotionData.characters || []).map((item) => item.name).join(', ') || '无'
     const locationsLibName = (params.novelPromotionData.locations || []).map((item) => item.name).join(', ') || '无'
-    const charactersIntroduction = buildCharactersIntroduction(params.novelPromotionData.characters || [])
+    const charactersIntroduction = getFilteredCharactersIntroduction(params.novelPromotionData.characters || [], clipCharacters)
     const clipJson = JSON.stringify(
       {
         id: params.clip.id,

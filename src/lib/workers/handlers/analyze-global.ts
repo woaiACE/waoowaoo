@@ -19,6 +19,8 @@ import {
 import { buildAnalyzeGlobalPrompts, loadAnalyzeGlobalPromptTemplates } from './analyze-global-prompt'
 import { createAnalyzeGlobalStats, persistAnalyzeGlobalChunk, upsertCharacterRelations } from './analyze-global-persist'
 import { resolveAnalysisModel } from './resolve-analysis-model'
+import { resolveEmbedConfig } from '@/lib/embedding/resolve-embed-config'
+import { buildCharacterIndex } from '@/lib/embedding/character-index'
 
 function readAssetKind(value: Record<string, unknown>): string {
   return typeof value.assetKind === 'string' ? value.assetKind : 'location'
@@ -95,6 +97,13 @@ export async function handleAnalyzeGlobalTask(job: Job<TaskJobData>) {
     .filter((item) => readAssetKind(item as unknown as Record<string, unknown>) === 'prop')
     .map((item) => item.name)
   const stats = createAnalyzeGlobalStats(chunks.length)
+
+  // 尝试初始化 embedding 配置 + 角色向量索引（列表一次性构建，跨 chunk 复用）
+  // resolveEmbedConfig 内部已包含全部错误处理，失败则返回 null
+  const embedConfig = await resolveEmbedConfig(job.data.userId)
+  const characterEmbeddingIndex = embedConfig
+    ? await buildCharacterIndex(existingCharacters, embedConfig)
+    : []
 
   await reportTaskProgress(job, 10, {
     stage: 'analyze_global_prepare',
@@ -203,6 +212,8 @@ export async function handleAnalyzeGlobalTask(job: Job<TaskJobData>) {
         existingLocationInfo,
         existingPropNames,
         stats,
+        embedConfig,
+        characterEmbeddingIndex,
       })
 
       // 将本轮新增角色名追加进可见名单，确保跨块关系不被遗漏

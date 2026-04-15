@@ -4,6 +4,11 @@ import type { StoryToScriptClipCandidate } from '@/lib/novel-promotion/story-to-
 import { seedProjectLocationBackedImageSlots } from '@/lib/assets/services/location-backed-assets'
 import { normalizeLocationAvailableSlots } from '@/lib/location-available-slots'
 import { resolvePropVisualDescription } from '@/lib/assets/prop-description'
+import { resolveCharacterByEmbedding, type EmbedConfig, type CharacterIndexEntry } from '@/lib/embedding/character-index'
+import type { VectorEntry } from '@/lib/embedding/cosine'
+
+/** embedding 预计算结果表（事务外预建，供事务内使用，避免 HTTP 在 tx 里占锁） */
+export type CharacterPreResolvedMap = Map<string, CharacterIndexEntry>
 
 export type AnyObj = Record<string, unknown>
 
@@ -45,11 +50,23 @@ type ClipPersistDb = {
   novelPromotionClip: typeof prisma.novelPromotionClip
 }
 
+/** 已有角色信息：id 用于 upsert，hasProfile 为 true 表示已有完整视觉档案（有介绍），false 表示仅名字存根 */
+export type ExistingCharacterEntry = { id: string; hasProfile: boolean }
+
 export async function persistAnalyzedCharacters(params: {
   projectInternalId: string
-  existingNames: Set<string>
+  existingNames: Map<string, ExistingCharacterEntry>
   analyzedCharacters: Record<string, unknown>[]
   db?: CharacterCreateDb
+  /** embedding 配置；null 表示未配置，降级到纯字符串匹配 */
+  embedConfig?: EmbedConfig | null
+  /** 已构建的角色向量索引 */
+  characterEmbeddingIndex?: VectorEntry<CharacterIndexEntry>[]
+  /**
+   * 事务外预计算的 embedding 映射表（key = candidateName.toLowerCase()）。
+   * 优先于实时 HTTP 调用，适用于 prisma.$transaction 场景。
+   */
+  preResolvedMap?: CharacterPreResolvedMap
 }) {
   const created: Array<{ id: string; name: string }> = []
   const db = params.db ?? prisma
@@ -58,7 +75,7 @@ export async function persistAnalyzedCharacters(params: {
     const name = asString(item.name).trim()
     if (!name) continue
     const key = name.toLowerCase()
-    if (params.existingNames.has(key)) continue
+    const existing = params.existingNames.get(key)
 
     const profileData = {
       role_level: item.role_level,
@@ -73,6 +90,58 @@ export async function persistAnalyzedCharacters(params: {
       visual_keywords: toStringArray(item.visual_keywords),
       gender: item.gender,
       age_range: item.age_range,
+    }
+
+    if (existing) {
+      // 已有完整档案 → 跳过（避免覆盖用户已确认的档案）
+      if (existing.hasProfile) continue
+      // 仅名字存根 → upsert 视觉档案
+      await db.novelPromotionCharacter.update({
+        where: { id: existing.id },
+        data: {
+          aliases: JSON.stringify(toStringArray(item.aliases)),
+          introduction: asString(item.introduction) || null,
+          profileData: JSON.stringify(profileData),
+        },
+      })
+      // 标记为已完善，防止同批次重复 upsert
+      existing.hasProfile = true
+      continue
+    }
+
+    // 字符串未命中 → embedding 语义兜底
+    // 优先查事务外预计算表（tx 安全），无预计算表时 fallback 到实时 HTTP（仅非 tx 路径）
+    const embedConfig = params.embedConfig ?? null
+    const embeddingIndex = params.characterEmbeddingIndex ?? []
+    let resolved: CharacterIndexEntry | null = params.preResolvedMap?.get(key) ?? null
+    if (!resolved && embedConfig && embeddingIndex.length > 0) {
+      const introduction = asString(item.introduction)
+      const candidateText = introduction ? `${name}。${introduction.slice(0, 200)}` : name
+      resolved = await resolveCharacterByEmbedding(candidateText, embeddingIndex, embedConfig)
+    }
+    if (resolved) {
+      // 语义命中 → 把新名字注册为 alias，如有 profile 则升级
+      const resolvedEntry = params.existingNames.get(resolved.name.toLowerCase())
+      if (resolvedEntry) {
+        if (!resolvedEntry.hasProfile) {
+          // 合并 aliases 并去重，避免写入重复别名
+          const mergedAliases = [...resolved.aliases, name].filter(
+            (a, i, arr) => arr.findIndex((x) => x.toLowerCase() === a.toLowerCase()) === i,
+          )
+          await db.novelPromotionCharacter.update({
+            where: { id: resolvedEntry.id },
+            data: {
+              aliases: JSON.stringify(mergedAliases),
+              introduction: asString(item.introduction) || null,
+              profileData: JSON.stringify(profileData),
+            },
+          })
+          resolvedEntry.hasProfile = true
+        }
+        // 让后续同批次直接命中
+        params.existingNames.set(key, resolvedEntry)
+        continue
+      }
     }
 
     const createdRow = await db.novelPromotionCharacter.create({
@@ -90,7 +159,7 @@ export async function persistAnalyzedCharacters(params: {
       },
     })
 
-    params.existingNames.add(key)
+    params.existingNames.set(key, { id: createdRow.id, hasProfile: true })
     created.push(createdRow)
   }
 

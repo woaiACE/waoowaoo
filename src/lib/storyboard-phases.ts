@@ -8,7 +8,6 @@
 
 import { executeAiTextStep } from '@/lib/ai-runtime'
 import { logAIAnalysis } from '@/lib/logging/semantic'
-import { buildCharactersIntroduction } from '@/lib/constants'
 import type { Locale } from '@/i18n/routing'
 import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
 import {
@@ -172,6 +171,18 @@ export function getFilteredFullDescription(characters: CharacterAsset[], clipCha
     })).fullDescriptionText
 }
 
+// 根据 clip.characters 筛选角色介绍
+export function getFilteredCharactersIntroduction(characters: CharacterAsset[], clipCharacters: ClipCharacterRef[]): string {
+    return compileAssetPromptFragments(buildPromptAssetContext({
+        characters,
+        locations: [],
+        props: [],
+        clipCharacters,
+        clipLocation: null,
+        clipProps: [],
+    })).charactersIntroductionText
+}
+
 // 根据 clip.location 筛选场景描述
 export function getFilteredLocationsDescription(
     locations: LocationAsset[],
@@ -276,7 +287,7 @@ export async function executePhase1(
         clipLocation: null,
         clipProps,
     })).propsDescriptionText
-    const charactersIntroduction = buildCharactersIntroduction(novelPromotionData.characters)
+    const charactersIntroduction = getFilteredCharactersIntroduction(novelPromotionData.characters, clipCharacters)
 
     // 构建clip JSON
     const clipJson = JSON.stringify({

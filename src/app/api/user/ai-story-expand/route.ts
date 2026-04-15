@@ -22,6 +22,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const sourceText = typeof body.sourceText === 'string' ? body.sourceText.trim() : ''
   const lengthTarget = typeof body.lengthTarget === 'string' ? body.lengthTarget.trim() : ''
   const readerProfile = typeof body.readerProfile === 'string' ? body.readerProfile.trim() : ''
+  const projectIdParam = typeof body.projectId === 'string' ? body.projectId.trim() : ''
 
   const userConfig = await getUserModelConfig(session.user.id)
   if (!userConfig.analysisModel) {
@@ -49,6 +50,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       sourceText: sourceText || undefined,
       lengthTarget: lengthTarget || undefined,
       readerProfile: readerProfile || undefined,
+      projectId: projectIdParam || undefined,
     },
     dedupeKey: `home_ai_story_expand:${dedupeDigest}`,
     priority: 1,

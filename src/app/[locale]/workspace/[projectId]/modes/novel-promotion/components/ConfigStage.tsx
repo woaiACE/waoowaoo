@@ -71,6 +71,7 @@ export default function ConfigStage() {
       onStoryRewriteModeChange={runtime.onStoryRewriteModeChange}
       onNext={runtime.onRunStoryToScript}
       onSmartSplit={handleSmartSplit}
+      projectId={projectId}
     />
   )
 }

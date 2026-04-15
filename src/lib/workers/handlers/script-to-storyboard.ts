@@ -37,6 +37,8 @@ import {
   parseStoryboardRetryTarget,
   runScriptToStoryboardAtomicRetry,
 } from './script-to-storyboard-atomic-retry'
+import { resolveEmbedConfig } from '@/lib/embedding/resolve-embed-config'
+import { buildCharacterIndex, type CharacterIndexEntry } from '@/lib/embedding/character-index'
 
 type AnyObj = Record<string, unknown>
 const MAX_VOICE_ANALYZE_ATTEMPTS = 2
@@ -255,6 +257,23 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
     }
   }
 
+  // 初始化 embedding 配置，失败时静默返回 null
+  const embedConfig = await resolveEmbedConfig(job.data.userId)
+  const characterEmbeddingIndex = embedConfig
+    ? await buildCharacterIndex(
+        (novelData.characters || []).map((c): CharacterIndexEntry => ({
+          id: c.id,
+          name: String(c.name || ''),
+          aliases: (() => {
+            try { return JSON.parse(String(c.aliases || '[]')) as string[] }
+            catch { return [] }
+          })(),
+          introduction: String((c as Record<string, unknown>).introduction ?? ''),
+        })),
+        embedConfig,
+      )
+    : []
+
   const leaseResult = await withWorkflowRunLease({
     runId,
     userId: job.data.userId,
@@ -306,6 +325,8 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
                     phase3DetailTemplate,
                   },
                   screenplayToneInstruction,
+                  embedConfig,
+                  characterEmbeddingIndex,
                   runStep,
                 })
                 return {
@@ -348,6 +369,8 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
                     phase3DetailTemplate,
                   },
                   screenplayToneInstruction,
+                  embedConfig,
+                  characterEmbeddingIndex,
                   runStep,
                 })
               } catch (error) {

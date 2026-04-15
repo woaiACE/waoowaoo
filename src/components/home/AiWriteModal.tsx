@@ -35,6 +35,8 @@ interface AiWriteModalProps {
   sourceText?: string
   /** 继承自上层的剧本风格基调（作为 ScreenplayTonePicker 的初始值） */
   initialScreenplayTone?: string
+  /** 项目 ID，存在时注入项目角色和世界观上下文 */
+  projectId?: string
   t: (key: string) => string
 }
 
@@ -50,6 +52,7 @@ export default function AiWriteModal({
   onAccept,
   sourceText,
   initialScreenplayTone = 'auto',
+  projectId,
   t,
 }: AiWriteModalProps) {
   const [promptText, setPromptText] = useState('')
@@ -90,8 +93,9 @@ export default function AiWriteModal({
       sourceText: sourceText || undefined,
       lengthTarget: lengthTarget !== 'medium' ? lengthTarget : undefined,
       readerProfile: readerProfile !== 'general' ? readerProfile : undefined,
+      projectId: projectId || undefined,
     })
-  }, [promptText, status, run, screenplayTone, storyRewriteMode, sourceText, lengthTarget, readerProfile])
+  }, [promptText, status, run, screenplayTone, storyRewriteMode, sourceText, lengthTarget, readerProfile, projectId])
 
   const handleRegenerate = useCallback(() => {
     if (!promptText.trim()) return
@@ -102,8 +106,9 @@ export default function AiWriteModal({
       sourceText: sourceText || undefined,
       lengthTarget: lengthTarget !== 'medium' ? lengthTarget : undefined,
       readerProfile: readerProfile !== 'general' ? readerProfile : undefined,
+      projectId: projectId || undefined,
     })
-  }, [promptText, run, screenplayTone, storyRewriteMode, sourceText, lengthTarget, readerProfile])
+  }, [promptText, run, screenplayTone, storyRewriteMode, sourceText, lengthTarget, readerProfile, projectId])
 
   const handleAccept = useCallback(() => {
     const rawText = expandedResult || outputText

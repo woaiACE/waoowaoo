@@ -244,6 +244,7 @@ export function useWorkspaceExecution({
         model: analysisModel || undefined,
         temperature: 0.7,
         reasoning: true,
+        screenplayTone: screenplayTone || undefined,
       })
       if (runResult.status !== 'completed') {
         throw new Error(runResult.errorMessage || t('execution.scriptToStoryboardFailed'))
@@ -260,7 +261,7 @@ export function useWorkspaceExecution({
       setIsConfirmingAssets(false)
       setTransitionProgress({ message: '', step: '' })
     }
-  }, [analysisModel, episodeId, finalizeScriptToStoryboardSuccess, scriptToStoryboardStream, t])
+  }, [analysisModel, screenplayTone, episodeId, finalizeScriptToStoryboardSuccess, scriptToStoryboardStream, t])
 
   const runSingleClipStoryboardFlow = useCallback(async (clipId: string) => {
     if (!episodeId) return

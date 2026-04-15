@@ -57,6 +57,8 @@ interface NovelInputStageProps {
   onScreenplayToneChange?: (value: string) => void
   storyRewriteMode?: string
   onStoryRewriteModeChange?: (value: string) => void
+  /** 项目 ID，用于项目内改写时注入上下文 */
+  projectId?: string
 }
 
 export default function NovelInputStage({
@@ -81,6 +83,7 @@ export default function NovelInputStage({
   onScreenplayToneChange,
   storyRewriteMode = 'none',
   onStoryRewriteModeChange,
+  projectId,
 }: NovelInputStageProps) {
   const t = useTranslations('novelPromotion')
   const homeT = useTranslations('home')
@@ -307,6 +310,7 @@ export default function NovelInputStage({
           onAccept={(text) => { setLocalText(text); onNovelTextChange(text) }}
           sourceText={localText.trim() || undefined}
           initialScreenplayTone={screenplayTone}
+          projectId={projectId}
         t={(key: string) => homeT(`aiWrite.${key}`)}
       />
 

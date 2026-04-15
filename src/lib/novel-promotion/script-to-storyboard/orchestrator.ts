@@ -1,5 +1,4 @@
 import { safeParseJsonArray } from '@/lib/json-repair'
-import { buildCharactersIntroduction } from '@/lib/constants'
 import { normalizeAnyError } from '@/lib/errors/normalize'
 import { createScopedLogger } from '@/lib/logging/core'
 import { mapWithConcurrency } from '@/lib/async/map-with-concurrency'
@@ -13,13 +12,18 @@ import {
   type StoryboardPanel,
   formatClipId,
   getFilteredAppearanceList,
+  getFilteredCharactersIntroduction,
   getFilteredFullDescription,
   getFilteredLocationsDescription,
 } from '@/lib/storyboard-phases'
 import {
   buildPromptAssetContext,
+  characterNameMatches,
   compileAssetPromptFragments,
+  type PromptCharacterAsset,
 } from '@/lib/assets/services/asset-prompt-context'
+import { resolveCharacterByEmbedding, type EmbedConfig, type CharacterIndexEntry } from '@/lib/embedding/character-index'
+import type { VectorEntry } from '@/lib/embedding/cosine'
 import {
   DEFAULT_ANALYSIS_WORKFLOW_CONCURRENCY,
   normalizeWorkflowConcurrencyValue,
@@ -79,6 +83,10 @@ export type ScriptToStoryboardOrchestratorInput = {
   }
   promptTemplates: ScriptToStoryboardPromptTemplates
   screenplayToneInstruction?: string
+  /** embedding 配置；null 表示未配置，跳过角色名预归一化 */
+  embedConfig?: EmbedConfig | null
+  /** 角色向量索引，由 handleScriptToStoryboardTask 在 worker 入口构建后传入 */
+  characterEmbeddingIndex?: VectorEntry<CharacterIndexEntry>[]
   runStep: (
     meta: ScriptToStoryboardStepMeta,
     prompt: string,
@@ -284,6 +292,46 @@ async function runStepWithRetry<T>(
   throw lastError!
 }
 
+/**
+ * 将 clip.characters 中 LLM 产出的角色名预归一化到数据库主名。
+ *
+ * 只在字符串精确/别名匹配失败时才走 embedding 语义查找（阈值 0.78）。
+ * config 为 null 或索引为空时直接返回原始引用，无副作用。
+ */
+export async function resolveClipCharacterNames(
+  clipCharacters: ClipCharacterRef[],
+  characters: PromptCharacterAsset[],
+  index: VectorEntry<CharacterIndexEntry>[],
+  config: EmbedConfig | null,
+): Promise<ClipCharacterRef[]> {
+  if (!config || index.length === 0) return clipCharacters
+
+  const result: ClipCharacterRef[] = []
+  for (const ref of clipCharacters) {
+    const rawName = typeof ref === 'string' ? ref : (typeof ref?.name === 'string' ? ref.name : '')
+    if (!rawName.trim()) {
+      result.push(ref)
+      continue
+    }
+
+    // 字符串精确/别名已能命中 → 保持原引用不变
+    const alreadyMatches = characters.some((c) => characterNameMatches(c.name, rawName))
+    if (alreadyMatches) {
+      result.push(ref)
+      continue
+    }
+
+    // 语义查找：找到则替换为数据库主名，找不到则保持原样
+    const resolved = await resolveCharacterByEmbedding(rawName, index, config, 0.78)
+    if (resolved) {
+      result.push(typeof ref === 'string' ? resolved.name : { ...ref, name: resolved.name })
+    } else {
+      result.push(ref)
+    }
+  }
+  return result
+}
+
 export async function runScriptToStoryboardOrchestrator(
   input: ScriptToStoryboardOrchestratorInput,
 ): Promise<ScriptToStoryboardOrchestratorResult> {
@@ -299,7 +347,6 @@ export async function runScriptToStoryboardOrchestrator(
   const totalStepCount = clips.length * 4 + 2
   const charactersLibName = (novelPromotionData.characters || []).map((c) => c.name).join(', ') || '无'
   const locationsLibName = (novelPromotionData.locations || []).map((l) => l.name).join(', ') || '无'
-  const charactersIntroduction = buildCharactersIntroduction(novelPromotionData.characters || [])
 
   const phase1PanelsByClipId = new Map<string, StoryboardPanel[]>()
   const phase2CinematographyByClipId = new Map<string, PhotographyRule[]>()
@@ -318,8 +365,16 @@ export async function runScriptToStoryboardOrchestrator(
       const clipCharacters = parseClipCharacters(clip.characters)
       const clipLocation = clip.location || null
       const clipProps = parseClipProps(clip.props ?? null)
-      const filteredAppearanceList = getFilteredAppearanceList(novelPromotionData.characters || [], clipCharacters)
-      const filteredFullDescription = getFilteredFullDescription(novelPromotionData.characters || [], clipCharacters)
+      // 预归一化：将 LLM 产出的称谓映射到数据库主名（embedding 语义兜底）
+      const normalizedClipChars = await resolveClipCharacterNames(
+        clipCharacters,
+        novelPromotionData.characters || [],
+        input.characterEmbeddingIndex ?? [],
+        input.embedConfig ?? null,
+      )
+      const filteredAppearanceList = getFilteredAppearanceList(novelPromotionData.characters || [], normalizedClipChars)
+      const filteredFullDescription = getFilteredFullDescription(novelPromotionData.characters || [], normalizedClipChars)
+      const filteredCharactersIntroduction = getFilteredCharactersIntroduction(novelPromotionData.characters || [], normalizedClipChars)
       const filteredLocationsDescription = getFilteredLocationsDescription(
         novelPromotionData.locations || [],
         clipLocation,
@@ -348,7 +403,7 @@ export async function runScriptToStoryboardOrchestrator(
       let phase1Prompt = promptTemplates.phase1PlanTemplate
         .replace('{characters_lib_name}', charactersLibName)
         .replace('{locations_lib_name}', locationsLibName)
-        .replace('{characters_introduction}', charactersIntroduction)
+        .replace('{characters_introduction}', filteredCharactersIntroduction)
         .replace('{characters_appearance_list}', filteredAppearanceList)
         .replace('{characters_full_description}', filteredFullDescription)
         .replace('{props_description}', filteredPropsDescription)

@@ -24,6 +24,7 @@ import {
   parseEffort,
   parseTemperature,
   persistAnalyzedCharacters,
+  type ExistingCharacterEntry,
   persistAnalyzedLocations,
   persistAnalyzedProps,
   persistClips,
@@ -32,8 +33,13 @@ import {
 import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 import { createArtifact, listArtifacts } from '@/lib/run-runtime/service'
+import { resolveEmbedConfig } from '@/lib/embedding/resolve-embed-config'
+import { buildCharacterIndex, resolveCharacterByEmbedding } from '@/lib/embedding/character-index'
+import type { CharacterIndexEntry } from '@/lib/embedding/character-index'
+import type { CharacterPreResolvedMap } from './story-to-script-helpers'
 import { assertWorkflowRunActive, withWorkflowRunLease } from '@/lib/run-runtime/workflow-lease'
 import { parseScreenplayPayload } from './screenplay-convert-helpers'
+import { getScreenplayToneInstruction, getRewriteModeInstruction } from '@/lib/screenplay-tone-presets'
 
 function readAssetKind(value: Record<string, unknown>): string {
   return typeof value.assetKind === 'string' ? value.assetKind : 'location'
@@ -136,6 +142,12 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
   const propPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SELECT_PROP, job.data.locale)
   const clipPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_CLIP, job.data.locale)
   const screenplayPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SCREENPLAY_CONVERSION, job.data.locale)
+  const screenplayToneInstruction = getScreenplayToneInstruction(
+    (typeof payload.screenplayTone === 'string' ? payload.screenplayTone : null) || novelData.screenplayTone,
+  )
+  const rewriteModeInstruction = getRewriteModeInstruction(
+    (typeof payload.storyRewriteMode === 'string' ? payload.storyRewriteMode : null) || novelData.storyRewriteMode,
+  )
   const maxLength = 30000
   const content = mergedContent.length > maxLength ? mergedContent.slice(0, maxLength) : mergedContent
   const payloadMeta = typeof payload.meta === 'object' && payload.meta !== null
@@ -291,6 +303,8 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
           .replace('{props_lib_name}', asString(splitPayload.propsLibName) || '无')
           .replace('{characters_introduction}', asString(splitPayload.charactersIntroduction) || '暂无角色介绍')
           .replace('{clip_id}', retryClipId)
+          .replace('{tone_instruction}', screenplayToneInstruction)
+          .replace('{rewrite_mode_instruction}', rewriteModeInstruction)
 
         const stepMeta: StoryToScriptStepMeta = {
           stepId: retryStepKey,
@@ -428,6 +442,8 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
                 clipPromptTemplate,
                 screenplayPromptTemplate,
               },
+              screenplayToneInstruction,
+              rewriteModeInstruction,
               runStep,
             }),
           )
@@ -517,9 +533,29 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
         throw new Error(`NOT_FOUND: Episode ${episodeId} was deleted while the task was running`)
       }
 
-      const existingCharacterNames = new Set<string>(
-        (novelData.characters || []).map((item) => String(item.name || '').toLowerCase()),
+      const existingCharacterNames = new Map<string, ExistingCharacterEntry>(
+        (novelData.characters || []).map((item) => [
+          String(item.name || '').toLowerCase(),
+          { id: item.id, hasProfile: !!(item.introduction) },
+        ]),
       )
+
+      // 构建 embedding 配置 + 角色向量索引（在事务外执行，避免占用事务时间）
+      const embedConfig = await resolveEmbedConfig(job.data.userId)
+      const characterEmbeddingIndex = embedConfig
+        ? await buildCharacterIndex(
+            (novelData.characters || []).map((c): CharacterIndexEntry => ({
+              id: c.id,
+              name: String(c.name || ''),
+              aliases: (() => {
+                try { return JSON.parse(String(c.aliases || '[]')) as string[] }
+                catch { return [] }
+              })(),
+              introduction: String((c as Record<string, unknown>).introduction ?? ''),
+            })),
+            embedConfig,
+          )
+        : []
       const existingLocationNames = new Set<string>(
         (novelData.locations || [])
           .filter((item) => readAssetKind(item as unknown as Record<string, unknown>) !== 'prop')
@@ -531,12 +567,28 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
           .map((item) => String(item.name || '').toLowerCase()),
       )
 
+      // 事务外预计算 embedding（HTTP 请求不能在 prisma.$transaction 内执行，会延长持锁时间）
+      const preResolvedMap: CharacterPreResolvedMap = new Map()
+      if (embedConfig && characterEmbeddingIndex.length > 0) {
+        for (const item of result.analyzedCharacters) {
+          const itemName = String((item as Record<string, unknown>).name ?? '').trim()
+          if (!itemName) continue
+          const itemKey = itemName.toLowerCase()
+          if (existingCharacterNames.has(itemKey)) continue // 字符串匹配已覆盖
+          const introduction = String((item as Record<string, unknown>).introduction ?? '')
+          const candidateText = introduction ? `${itemName}。${introduction.slice(0, 200)}` : itemName
+          const resolved = await resolveCharacterByEmbedding(candidateText, characterEmbeddingIndex, embedConfig)
+          if (resolved) preResolvedMap.set(itemKey, resolved)
+        }
+      }
+
       const persistedResult = await prisma.$transaction(async (tx) => {
         const createdCharacters = await persistAnalyzedCharacters({
           projectInternalId: novelData.id,
           existingNames: existingCharacterNames,
           analyzedCharacters: result.analyzedCharacters,
           db: tx,
+          preResolvedMap, // 使用预计算表，事务内无 HTTP 调用
         })
 
         const createdLocations = await persistAnalyzedLocations({
