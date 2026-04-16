@@ -52,6 +52,22 @@ describe('llm observe task contract', () => {
     ])
   })
 
+  it('maps director mode to a dedicated single-stage flow label', () => {
+    const meta = getTaskFlowMeta(TASK_TYPE.DIRECTOR_MODE_RUN)
+    const pipeline = getTaskPipeline(TASK_TYPE.DIRECTOR_MODE_RUN)
+
+    expect(meta.flowId).toBe('single:director_mode_run')
+    expect(meta.flowStageIndex).toBe(1)
+    expect(meta.flowStageTotal).toBe(1)
+    expect(meta.flowStageTitle).toBe('progress.taskType.directorModeRun')
+    expect(pipeline.stages).toEqual([
+      expect.objectContaining({
+        taskType: TASK_TYPE.DIRECTOR_MODE_RUN,
+        title: 'progress.taskType.directorModeRun',
+      }),
+    ])
+  })
+
   it('falls back to single-stage metadata for unknown task type', () => {
     const meta = getTaskFlowMeta('unknown_task_type')
     const pipeline = getTaskPipeline('unknown_task_type')

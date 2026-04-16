@@ -34,6 +34,7 @@
   "shots": [
     {
       "shot_number": 1,
+      "global_position": "教室纵深构图，老师在画面中央偏后位置，两位女孩分别位于画面左前和右前方，镜头从教室后排平视拍向讲台。",
       "image_prompt_lt": "wide shot, eye-level angle, a bright classroom with rows of desks, students sitting, a female teacher standing at the podium, soft fluorescent overhead lighting, anime style, high quality illustration",
       "image_prompt_rt": "wide shot, eye-level angle, a bright classroom with rows of desks, students sitting, a female teacher standing at the podium raising her right hand, soft fluorescent overhead lighting, anime style, high quality illustration",
       "image_prompt_lb": "wide shot, eye-level angle, a bright classroom, two girls raising their hands among seated students, a female teacher at the podium pointing, soft fluorescent overhead lighting, anime style, high quality illustration",
@@ -45,12 +46,13 @@
 【严格要求】
 
 1. 🚨 提示词必须是纯英文
-2. 🚨 角色外貌必须严格遵循角色描述，禁止编造
-3. 🚨 场景环境必须遵循场景描述
-4. 每条提示词 50-120 个英文单词
-5. 禁止出现 "screen", "frame", "shot" 等元描述词
-6. 禁止出现 "anime character" — 用具体外貌描述
-7. 只返回 JSON 对象
+2. 🚨 每个镜头必须补充 `global_position`，说明角色站位与镜头机位
+3. 🚨 角色外貌必须严格遵循角色描述，禁止编造
+4. 🚨 场景环境必须遵循场景描述
+5. 每条提示词 50-120 个英文单词
+6. 禁止出现 "screen", "frame", "shot" 等元描述词
+7. 禁止出现 "anime character" — 用具体外貌描述
+8. 只返回 JSON 对象
 
 【输入数据】
 

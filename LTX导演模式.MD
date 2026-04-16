@@ -1200,4 +1200,387 @@ async function handleDirectorModeTask(job) {
 | **P3** | Prompt 3 (events_to_storyboard) | 输入事件 → 输出分镜 JSON |
 | **P4** | Prompt 4a/4b/4c + Promise.all 并行 | 输入分镜 → 输出完整脚本 |
 | **P5** | UI 按钮 + Hook + i18n | 前端入口 |
-| **P6** | 结果展示 UI | 可视化 |
+| **P6** | 结果展示 UI + 流式控制台复用 | 可视化 |
+
+---
+
+## 十二、P6 UI 详细落地计划（结果展示 + 流式输出）
+
+### 12.1 设计目标
+
+P6 的目标不是再造一套全新界面，而是**最大限度复用旧项目 Story→Script / Script→Storyboard 的推理展示与流式输出能力**，在此基础上新增「导演模式结果工作台」。
+
+核心目标：
+
+1. **运行中可见**：用户点击「导演模式」后，立即看到全屏流式推理卡片，知道当前运行到哪一步
+2. **结果可审阅**：生成完成后进入导演模式结果页，可按场次查看 scene / shot / prompt / 音效
+3. **结构可复用**：尽量复用现有 `LLMStageStreamCard`、`WorkspaceRunStreamConsoles`、`StoryboardStage` 体系
+4. **后续可扩展**：为 P6 之后的图片生成、视频生成、语音生成保留字段和按钮位
+
+> 结论：P6 推荐采用「**运行时复用旧流式控制台 + 完成后复用 storyboard stage 外壳**」的方案，开发量最小，用户体验最连续。
+
+---
+
+### 12.2 当前代码现状（可直接复用）
+
+根据现有工程，P5 的一部分前端基础已经具备：
+
+- `NovelInputStage.tsx` 已有「导演模式」按钮入口
+- `useWorkspaceExecution.ts` 已有 `runDirectorModeFlow()` 与 `useDirectorModeRunStream()`
+- `WorkspaceRunStreamConsoles.tsx` 已支持 `directorModeStream`
+- `NovelPromotionWorkspace.tsx` 已支持最小化徽标与全屏流式卡片弹层
+- `LLMStageStreamCard.tsx` 已具备阶段列表、思考过程、最终结果、光标流式动画、单步重试能力
+
+这意味着：
+
+**P6 不需要重新做“流式输出框架”，只需要补齐“导演模式生成完成后的结果展示 UI”。**
+
+---
+
+### 12.3 推荐的信息架构
+
+#### 方案总览
+
+导演模式完成后，不新开独立路由，优先沿用现有 `storyboard` 工作区阶段，在其中增加一个「导演模式视图」。
+
+```text
+ConfigStage
+   └─ 点击“导演模式”
+        └─ 进入全屏流式推理控制台（复用旧组件）
+             └─ 完成后自动跳转到 StoryboardStage
+                  └─ 展示 Director Result Workspace
+```
+
+#### 推荐页面结构
+
+```text
+┌────────────────────────────────────────────┐
+│ 顶部摘要区                                 │
+│ 片名 / 场次数 / 镜头数 / 总时长 / 生成状态  │
+├──────────────┬─────────────────────────────┤
+│ 左侧场次导航 │ 中间镜头列表                │
+│ Scene 1      │ Shot 1 卡片                 │
+│ Scene 2      │ Shot 2 卡片                 │
+│ Scene 3      │ Shot 3 卡片                 │
+│ ...          │ ...                         │
+├──────────────┴─────────────────────────────┤
+│ 底部操作区：导出 / 继续生成图片 / 继续生成视频 │
+└────────────────────────────────────────────┘
+```
+
+---
+
+### 12.4 UI 分层设计
+
+#### A. 运行态 UI：复用旧项目“故事推理环节展示”
+
+直接复用已有全屏流式卡片能力：
+
+- 左侧：步骤阶段列表
+- 右侧上半：当前步骤思考过程
+- 右侧下半：当前步骤最终输出
+- 顶部：标题、副标题、总体进度
+- 右上角：停止、最小化、重试步骤
+
+导演模式只需要补充新的 stage 文案映射：
+
+| Director Step | UI 标题建议 | 说明 |
+|------|------|------|
+| analyze_characters | 分析角色资产 | 角色识别与统一命名 |
+| analyze_locations | 分析场景资产 | 场景识别与映射 |
+| split_scenes | 切分场次 | 原文拆为 Scene |
+| scene_to_events | 拆解场次事件 | 每场转物理动作事件 |
+| events_to_storyboard | 生成导演分镜 | 事件转 shot 列表 |
+| shot_detail | 细化镜头脚本 | 图 / 视频 / 音效并行生成 |
+| persist_director_artifacts | 保存导演结果 | 写入数据库 |
+
+#### B. 完成态 UI：导演模式结果工作台
+
+建议放在 `StoryboardStage` 中，通过判断当前 episode 是否存在 DirectorScript / DirectorStoryboard 数据来切换视图：
+
+- **无导演模式结果** → 继续显示旧分镜卡片视图
+- **有导演模式结果** → 默认进入“导演模式工作台”
+- **同时有旧分镜结果** → 顶部用 Tab 切换：
+  - 标准分镜
+  - 导演模式
+
+---
+
+### 12.5 导演模式结果页的 4 个核心区块
+
+#### 1）顶部总览卡片
+
+展示聚合信息，帮助用户快速确认生成结果：
+
+- 项目名 / 剧集名
+- 场次数
+- 镜头数
+- 预计总时长
+- 生成时间
+- 角色数量 / 场景数量
+- 当前状态：已生成 / 生成中 / 失败可重试
+
+操作按钮建议：
+
+- 重新运行导演模式
+- 导出 JSON
+- 跳转图片生成
+- 跳转视频生成
+
+#### 2）左侧 Scene 导航栏
+
+每个场次展示：
+
+- Scene 编号
+- 时间
+- 地点
+- 角色数
+- shot 数量
+- 当前状态图标
+
+交互：
+
+- 点击场次，右侧只显示该场次镜头
+- 支持折叠/展开
+- 失败场次显示“重试该场次”按钮（后续可接单步重试）
+
+#### 3）中间 Shot 卡片区（P6 主体）
+
+每个镜头卡片建议包含：
+
+**基础信息**
+- Shot 编号
+- 时长
+- 场景名
+- 出场角色
+- 镜头类型 / 运动方式
+
+**导演信息**
+- shot_info
+- absolute_position
+- character_action
+- dialogue_info
+
+**4 格图提示词区**
+- 左上 LT
+- 右上 RT
+- 左下 LB
+- 右下 RB
+
+**视频与音频区**
+- shot_caption
+- video_prompt
+- voice_speaker
+- sound_effect
+
+**媒体预留区**
+- imageUrl 缩略图占位
+- videoUrl 占位
+- voiceUrl 占位
+
+#### 4）右侧或弹窗 Detail Inspector
+
+当用户点击镜头卡片时，打开详情面板：
+
+- 完整 global_position
+- 全量 video_prompt
+- 全量 sound_effect
+- 4 格提示词全文
+- 源事件 source_events
+- 一键复制 prompt
+- 手动编辑并保存
+
+> 推荐首版使用 Modal 方案，开发更快；后续再演进为右侧固定 Inspector。
+
+---
+
+### 12.6 组件复用建议
+
+#### 优先复用的现有组件
+
+| 组件 | 复用方式 |
+|------|---------|
+| `LLMStageStreamCard` | 直接作为导演模式运行中的全屏流式推理卡片 |
+| `WorkspaceRunStreamConsoles` | 直接承载 directorModeStream 弹层与最小化逻辑 |
+| `StoryboardStageShell` | 作为导演模式结果页外壳 |
+| `StoryboardToolbar` | 裁剪后复用顶部工具栏交互样式 |
+| `ImagePreviewModal` | 后续预览镜头图可直接复用 |
+| `AIDataModal` 的交互模式 | 可借鉴“详情查看 / 编辑 / 保存”的模态体验 |
+
+#### 建议新增组件
+
+```text
+components/director-mode/
+  DirectorModeStageView.tsx          // 总入口
+  DirectorModeOverview.tsx           // 顶部摘要
+  DirectorSceneSidebar.tsx           // 左侧场次导航
+  DirectorShotGrid.tsx               // 中间镜头列表
+  DirectorShotCard.tsx               // 单镜头卡片
+  DirectorShotDetailModal.tsx        // 镜头详情弹窗
+  director-mode.types.ts             // 前端展示类型
+```
+
+这样可以保证：
+
+- 新功能局部收敛，不污染旧 storyboard 卡片逻辑
+- 样式和交互仍然继承现有 workspace 体系
+- 后续若要拆成独立 stage，也能平滑迁移
+
+---
+
+### 12.7 数据装配层设计
+
+P6 不建议直接在组件里解析 `scriptJson` / `storyboardJson` 字符串，而是先做一层 ViewModel 映射。
+
+建议新增一个前端适配函数：
+
+```typescript
+buildDirectorViewModel(directorScript, directorStoryboard, directorShots)
+```
+
+输出统一结构：
+
+```typescript
+{
+  summary: {
+    sceneCount,
+    shotCount,
+    totalDurationSeconds,
+  },
+  scenes: [
+    {
+      sceneId,
+      sceneNumber,
+      time,
+      location,
+      characters,
+      shots: [...]
+    }
+  ]
+}
+```
+
+这样前端渲染层只负责展示，不依赖数据库字段细节。
+
+---
+
+### 12.8 流式输出的细节建议
+
+为了让导演模式比普通模式更“有过程感”，建议在 stream 中补充两层可视反馈：
+
+#### 1）阶段级反馈
+
+在 `LLMStageStreamCard` 的左侧阶段列表中显示：
+
+- 当前运行步骤
+- 完成进度百分比
+- 是否可重试
+- 第几次 attempt
+
+#### 2）场次级反馈
+
+在 `activeMessage` 中输出更细的文案，例如：
+
+- 正在处理第 1/4 场：小学走廊
+- 正在生成第 1 场图片提示词
+- 正在并行生成第 2 场视频提示词与音效
+- 正在写入第 4 场导演结果
+
+这样用户能感受到“按场次推进”，与本方案的并行 DAG 设计相匹配。
+
+---
+
+### 12.9 交互流程建议
+
+#### 首版推荐流程
+
+1. 用户在 ConfigStage 输入原文
+2. 点击“导演模式”
+3. 弹出全屏运行控制台，展示阶段流式输出
+4. 运行完成后自动跳转到 storyboard 阶段
+5. 默认打开“导演模式”Tab
+6. 用户先在 Scene 维度通看结果，再展开具体 Shot
+7. 用户可复制 prompt、审阅对白、检查音效设计
+8. 后续点击“生成图片 / 生成视频 / 生成语音”进入下游阶段
+
+---
+
+### 12.10 分阶段实施顺序（推荐）
+
+#### P6-1：最小结果页
+
+目标：先能“看见结果”。
+
+- 接入 DirectorScript / DirectorStoryboard / DirectorShot 数据到页面 props
+- 在 storyboard 阶段增加 DirectorModeStageView
+- 先做顶部摘要 + 左侧场次列表 + 中间 shot 基础卡片
+
+#### P6-2：镜头详情弹窗
+
+目标：先能“看全信息”。
+
+- 增加 DirectorShotDetailModal
+- 展示 4 格图提示词、video_prompt、sound_effect、shot_caption
+- 支持复制文本
+
+#### P6-3：运行态 polish
+
+目标：让导演模式流式展示体验完整。
+
+- 完善 stage 文案
+- 优化 activeMessage
+- 增加失败态 / 重试态 / 最小化提示
+
+#### P6-4：与下游生成联动
+
+目标：从“看结果”进入“生产素材”。
+
+- 在 shot 卡片加“生成首帧图”“生成视频”“生成语音”按钮
+- 对接现有图片/视频/语音工作流
+
+#### P6-5：编辑能力
+
+目标：支持人工导演修订。
+
+- 支持修改 shot_caption / video_prompt / sound_effect
+- 支持单镜头重新生成
+- 支持单场次重跑
+
+---
+
+### 12.11 验收标准
+
+P6 完成后，至少满足以下标准：
+
+#### 运行态
+
+- 点击导演模式后 1 秒内出现流式控制台
+- 阶段列表能正确显示 DAG 步骤状态
+- 输出区能看到推理过程与最终结果
+- 支持最小化 / 恢复 / 单步重试
+
+#### 结果态
+
+- 生成完成后自动进入结果页
+- 能按场次查看所有镜头
+- 每个镜头能查看 4 格图提示词、视频提示词、音效信息
+- 页面结构稳定，场次数量增多时仍可滚动浏览
+
+#### 体验态
+
+- 与现有 Story→Script / Script→Storyboard UI 风格保持一致
+- 用户不需要重新学习一套全新的交互模式
+- 后续接图片/视频/语音生成时无需推倒重来
+
+---
+
+### 12.12 最终建议
+
+**P6 最优解不是新做一套导演模式页面，而是：**
+
+1. **运行中**：直接复用旧项目已经成熟的 `LLMStageStreamCard + WorkspaceRunStreamConsoles`
+2. **完成后**：挂到现有 `StoryboardStage` 外壳内，新增“导演模式结果工作台”
+3. **首版目标**：先解决“可看、可审、可继续生产”三件事，不在首版加入复杂拖拽与重排
+
+这样可以把 P6 拆成一个**低风险、高复用、可快速上线**的前端交付。
+

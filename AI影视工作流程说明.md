@@ -194,7 +194,7 @@ function nameMatchesWithAlias(existingName: string, newName: string): boolean
 │   ├── 目标：同一文本以 temperature 0 + temperature 0.7（当前主力）跑两路角色提取，
 │   │         差异名单超过阈值时前端标黄提示人工确认
 │   │
-│   ├── [GitNexus: blast radius = LOW，仅影响 handleAnalyzeGlobalTask 本身，无直接调用方]
+│   ├── [影响范围 = LOW，仅影响 handleAnalyzeGlobalTask 本身，无直接调用方]
 │   │
 │   └── 技术落地计划（5 步）
 │       ├── 1. 新建 src/lib/workers/handlers/analyze-global-consistency.ts
@@ -216,7 +216,7 @@ function nameMatchesWithAlias(existingName: string, newName: string): boolean
     ├── 目标：分析完成后扫描角色描述/场景描述，提前告警平台违禁内容，
     │         避免后续图像/视频生成被拦截浪费 API 费用
     │
-    ├── [GitNexus: blast radius = LOW，仅影响 handleAnalyzeGlobalTask 本身，无直接调用方]
+    ├── [影响范围 = LOW，仅影响 handleAnalyzeGlobalTask 本身，无直接调用方]
     │
     └── 技术落地计划（5 步）
         ├── 1. 新建 src/lib/workers/handlers/analyze-global-sensitivity.ts

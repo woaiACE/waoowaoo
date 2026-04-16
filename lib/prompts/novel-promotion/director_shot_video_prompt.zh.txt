@@ -28,6 +28,7 @@
   "shots": [
     {
       "shot_number": 1,
+      "shot_caption": "旁白-平静:教室里一片安静。",
       "video_prompt": "Camera holds still on a wide classroom view. Students remain seated with minimal movement. The teacher stands behind the podium, occasionally shifting weight."
     },
     {
@@ -40,10 +41,11 @@
 【严格要求】
 
 1. 🚨 运动描述必须来源于分镜数据，禁止编造
-2. 🚨 角色需使用年龄/性别描述而非角色名（视频模型不认识名字）
-3. 固定镜头也需要描述微小运动（呼吸、眨眼等）
-4. 禁止出现角色专有名称，只用外貌描述
-5. 只返回 JSON 对象
+2. 🚨 每个镜头必须补充 `shot_caption`，格式为“角色名-情绪:台词”或“无”
+3. 🚨 角色需使用年龄/性别描述而非角色名（视频模型不认识名字）
+4. 固定镜头也需要描述微小运动（呼吸、眨眼等）
+5. 禁止出现角色专有名称，只用外貌描述
+6. 只返回 JSON 对象
 
 【输入数据】
 

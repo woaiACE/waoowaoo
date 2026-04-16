@@ -38,6 +38,125 @@ function buildWorkflowWorkerId(job: Job<TaskJobData>, label: string) {
   return `${label}:${job.queueName}:${job.data.taskId}`
 }
 
+function toJsonText(value: unknown) {
+  return JSON.stringify(value)
+}
+
+async function persistDirectorResultsToDb(params: {
+  episodeId: string
+  result: DirectorOrchestratorResult
+}) {
+  const { episodeId, result } = params
+
+  const storyboardScenes = result.sceneList.map((scene) => ({
+    ...scene,
+    events: result.sceneEventsMap.get(scene.scene_id)?.events || [],
+    dialogues: result.sceneEventsMap.get(scene.scene_id)?.dialogues || [],
+    storyboard: result.sceneStoryboardMap.get(scene.scene_id)?.shots || [],
+    shotDetails: result.sceneShotDetailsMap.get(scene.scene_id)?.shots || [],
+  }))
+
+  let nextShotIndex = 1
+  const flatShots = storyboardScenes.flatMap((scene) => {
+    const storyboardShots = Array.isArray(scene.storyboard) ? scene.storyboard : []
+    const shotDetails = Array.isArray(scene.shotDetails) ? scene.shotDetails : []
+    const shotDetailMap = new Map(
+      shotDetails.map((item) => [typeof item?.shot_number === 'number' ? item.shot_number : 0, item]),
+    )
+
+    return storyboardShots.map((shot, index) => {
+      const detail = shotDetailMap.get(typeof shot?.shot_number === 'number' ? shot.shot_number : index + 1)
+      const sequenceIndex = nextShotIndex++
+      return {
+        shotIndex: sequenceIndex,
+        shotCaption: typeof detail?.shot_caption === 'string' ? detail.shot_caption : (typeof shot?.voice_line === 'string' ? shot.voice_line : null),
+        globalPosition: typeof detail?.global_position === 'string' ? detail.global_position : null,
+        imagePromptLT: typeof detail?.image_prompt_lt === 'string' ? detail.image_prompt_lt : null,
+        imagePromptRT: typeof detail?.image_prompt_rt === 'string' ? detail.image_prompt_rt : null,
+        imagePromptLB: typeof detail?.image_prompt_lb === 'string' ? detail.image_prompt_lb : null,
+        imagePromptRB: typeof detail?.image_prompt_rb === 'string' ? detail.image_prompt_rb : null,
+        videoPrompt: typeof detail?.video_prompt === 'string' ? detail.video_prompt : null,
+        shotType: typeof shot?.shot_type === 'string' ? shot.shot_type : null,
+        voiceSpeaker: typeof detail?.voice_speaker === 'string'
+          ? detail.voice_speaker
+          : (typeof shot?.voice_speaker === 'string' ? shot.voice_speaker : null),
+        soundEffect: typeof detail?.sound_effect === 'string' ? detail.sound_effect : null,
+      }
+    })
+  })
+
+  await prisma.$transaction(async (tx) => {
+    const script = await tx.directorScript.upsert({
+      where: { episodeId },
+      create: {
+        episodeId,
+        sceneCount: result.summary.sceneCount,
+        scriptJson: toJsonText({
+          scenes: result.sceneList,
+          summary: result.summary,
+        }),
+        characterInfo: toJsonText({
+          characters: result.analyzedCharacters,
+          introduction: result.charactersIntroduction,
+          library: result.charactersLibName,
+        }),
+        locationInfo: toJsonText({
+          locations: result.analyzedLocations,
+          library: result.locationsLibName,
+        }),
+      },
+      update: {
+        sceneCount: result.summary.sceneCount,
+        scriptJson: toJsonText({
+          scenes: result.sceneList,
+          summary: result.summary,
+        }),
+        characterInfo: toJsonText({
+          characters: result.analyzedCharacters,
+          introduction: result.charactersIntroduction,
+          library: result.charactersLibName,
+        }),
+        locationInfo: toJsonText({
+          locations: result.analyzedLocations,
+          library: result.locationsLibName,
+        }),
+      },
+    })
+
+    const storyboard = await tx.directorStoryboard.upsert({
+      where: { scriptId: script.id },
+      create: {
+        scriptId: script.id,
+        shotCount: result.summary.totalShots,
+        storyboardJson: toJsonText({
+          scenes: storyboardScenes,
+          summary: result.summary,
+        }),
+      },
+      update: {
+        shotCount: result.summary.totalShots,
+        storyboardJson: toJsonText({
+          scenes: storyboardScenes,
+          summary: result.summary,
+        }),
+      },
+    })
+
+    await tx.directorShot.deleteMany({
+      where: { storyboardId: storyboard.id },
+    })
+
+    if (flatShots.length > 0) {
+      await tx.directorShot.createMany({
+        data: flatShots.map((shot) => ({
+          storyboardId: storyboard.id,
+          ...shot,
+        })),
+      })
+    }
+  })
+}
+
 export async function handleDirectorModeTask(job: Job<TaskJobData>) {
   const payload = (job.data.payload || {}) as AnyObj
   const projectId = job.data.projectId
@@ -296,7 +415,7 @@ export async function handleDirectorModeTask(job: Job<TaskJobData>) {
             runId,
             stepKey: `scene_${scene.scene_id}_events`,
             artifactType: 'director.scene.events',
-            refId: episodeId,
+            refId: scene.scene_id,
             payload: events,
           })
         }
@@ -310,7 +429,7 @@ export async function handleDirectorModeTask(job: Job<TaskJobData>) {
             runId,
             stepKey: `scene_${scene.scene_id}_storyboard`,
             artifactType: 'director.scene.storyboard',
-            refId: episodeId,
+            refId: scene.scene_id,
             payload: storyboard,
           })
         }
@@ -324,10 +443,26 @@ export async function handleDirectorModeTask(job: Job<TaskJobData>) {
             runId,
             stepKey: `scene_${scene.scene_id}_shot_detail`,
             artifactType: 'director.scene.shot_detail',
-            refId: episodeId,
+            refId: scene.scene_id,
             payload: shotDetails,
           })
         }
+      }
+
+      try {
+        await persistDirectorResultsToDb({
+          episodeId,
+          result,
+        })
+      } catch (error) {
+        logAIAnalysis(job.data.userId, 'worker', projectId, projectName, {
+          action: 'DIRECTOR_MODE_DB_PERSIST_WARNING',
+          output: {
+            episodeId,
+            message: error instanceof Error ? error.message : 'unknown persist error',
+          },
+          model,
+        })
       }
 
       await reportTaskProgress(job, 90, {

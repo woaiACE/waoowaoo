@@ -2,6 +2,7 @@
 
 import { useEpisodeData } from '@/lib/query/hooks'
 import type { NovelPromotionClip, NovelPromotionStoryboard } from '@/types/project'
+import type { DirectorModeApiData } from '../components/director-mode/director-mode.types'
 import { useWorkspaceProvider } from '../WorkspaceProvider'
 
 interface EpisodeStagePayload {
@@ -9,6 +10,7 @@ interface EpisodeStagePayload {
   novelText?: string | null
   clips?: NovelPromotionClip[]
   storyboards?: NovelPromotionStoryboard[]
+  directorModeData?: DirectorModeApiData | null
 }
 
 export function useWorkspaceEpisodeStageData() {
@@ -21,5 +23,6 @@ export function useWorkspaceEpisodeStageData() {
     novelText: payload?.novelText || '',
     clips: payload?.clips || [],
     storyboards: payload?.storyboards || [],
+    directorModeData: payload?.directorModeData || null,
   }
 }

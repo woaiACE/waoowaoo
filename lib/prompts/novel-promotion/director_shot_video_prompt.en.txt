@@ -28,6 +28,7 @@ Return only a JSON object. No markdown code-block markers, comments, or explanat
   "shots": [
     {
       "shot_number": 1,
+      "shot_caption": "Narration-calm:The classroom stays quiet.",
       "video_prompt": "Camera holds still on a wide classroom view. Students remain seated with minimal movement. The teacher stands behind the podium, occasionally shifting weight."
     },
     {
@@ -40,10 +41,11 @@ Return only a JSON object. No markdown code-block markers, comments, or explanat
 [STRICT REQUIREMENTS]
 
 1. 🚨 Motion descriptions must originate from storyboard data — no fabrication
-2. 🚨 Use age/gender descriptions for characters, NOT character names (video models don't recognize names)
-3. Static shots still need subtle motion descriptions (breathing, blinking, etc.)
-4. Do NOT use character proper names — use appearance descriptions only
-5. Return only a JSON object
+2. 🚨 Every shot must include `shot_caption`, using “Character-Emotion:Line” or “None”
+3. 🚨 Use age/gender descriptions for characters, NOT character names (video models don't recognize names)
+4. Static shots still need subtle motion descriptions (breathing, blinking, etc.)
+5. Do NOT use character proper names — use appearance descriptions only
+6. Return only a JSON object
 
 [INPUT DATA]
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, type ReactNode } from 'react'
 import { NovelPromotionStoryboard, NovelPromotionClip } from '@/types/project'
 import { CharacterPickerModal, LocationPickerModal } from '../PanelEditForm'
 import ImageEditModal from './ImageEditModal'
@@ -22,6 +22,7 @@ interface StoryboardStageProps {
   onBack: () => void
   onNext: () => void
   isTransitioning?: boolean
+  headerSlot?: ReactNode
 }
 
 export default function StoryboardStage({
@@ -33,6 +34,7 @@ export default function StoryboardStage({
   onBack,
   onNext,
   isTransitioning = false,
+  headerSlot,
 }: StoryboardStageProps) {
   const controller = useStoryboardStageController({
     projectId,
@@ -173,6 +175,8 @@ export default function StoryboardStage({
         transitioningState={transitioningState}
         onNext={onNext}
       >
+        {headerSlot}
+
         <StoryboardToolbar
           totalSegments={sortedStoryboards.length}
           totalPanels={totalPanels}

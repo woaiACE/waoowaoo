@@ -107,6 +107,9 @@
     "media:backfill-refs": "tsx scripts/media-backfill-refs.ts",
     "backup:archive-legacy-media": "tsx scripts/media-archive-legacy-refs.ts",
     "backup:unreferenced-media-index": "tsx scripts/media-build-unreferenced-index.ts",
+    "gitnexus:setup": "gitnexus setup",
+    "gitnexus:analyze": "gitnexus analyze",
+    "gitnexus:mcp": "gitnexus mcp",
     "lint": "eslint",
     "clean": "rimraf .next"
   },
@@ -141,7 +144,7 @@
     "express": "^5.2.1",
     "file-saver": "^2.0.5",
     "geist": "^1.7.0",
-    "gitnexus": "^1.6.2-rc.10",
+    "gitnexus": "1.6.2-rc.17",
     "ioredis": "^5.9.2",
     "jsonrepair": "^3.13.2",
     "jszip": "^3.10.1",

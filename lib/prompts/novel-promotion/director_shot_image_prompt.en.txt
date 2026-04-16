@@ -34,6 +34,7 @@ Return only a JSON object. No markdown code-block markers, comments, or explanat
   "shots": [
     {
       "shot_number": 1,
+      "global_position": "Deep classroom composition, teacher centered near the back, two girls seated in the left and right foreground, camera looking forward from the rear aisle.",
       "image_prompt_lt": "wide shot, eye-level angle, a bright classroom with rows of desks, students sitting, a female teacher standing at the podium, soft fluorescent overhead lighting, anime style, high quality illustration",
       "image_prompt_rt": "wide shot, eye-level angle, a bright classroom with rows of desks, students sitting, a female teacher standing at the podium raising her right hand, soft fluorescent overhead lighting, anime style, high quality illustration",
       "image_prompt_lb": "wide shot, eye-level angle, a bright classroom, two girls raising their hands among seated students, a female teacher at the podium pointing, soft fluorescent overhead lighting, anime style, high quality illustration",
@@ -45,12 +46,13 @@ Return only a JSON object. No markdown code-block markers, comments, or explanat
 [STRICT REQUIREMENTS]
 
 1. 🚨 Prompts must be in pure English
-2. 🚨 Character appearance must strictly follow character descriptions — no fabrication
-3. 🚨 Scene environment must follow location descriptions
-4. Each prompt should be 50-120 English words
-5. Do not use meta words like "screen", "frame", "shot"
-6. Do not use "anime character" — use specific appearance descriptions
-7. Return only a JSON object
+2. 🚨 Every shot must include `global_position` describing spatial layout and camera placement
+3. 🚨 Character appearance must strictly follow character descriptions — no fabrication
+4. 🚨 Scene environment must follow location descriptions
+5. Each prompt should be 50-120 English words
+6. Do not use meta words like "screen", "frame", "shot"
+7. Do not use "anime character" — use specific appearance descriptions
+8. Return only a JSON object
 
 [INPUT DATA]
 

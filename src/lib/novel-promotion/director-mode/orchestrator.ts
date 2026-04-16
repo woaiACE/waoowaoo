@@ -75,6 +75,7 @@ export type DirectorSceneStoryboard = {
 
 export type DirectorShotImagePrompts = {
   shot_number: number
+  global_position: string
   image_prompt_lt: string
   image_prompt_rt: string
   image_prompt_lb: string
@@ -83,6 +84,7 @@ export type DirectorShotImagePrompts = {
 
 export type DirectorShotVideoPrompt = {
   shot_number: number
+  shot_caption: string
   video_prompt: string
 }
 
@@ -94,6 +96,8 @@ export type DirectorShotSoundDesign = {
 
 export type DirectorShotDetail = {
   shot_number: number
+  global_position: string
+  shot_caption: string
   image_prompt_lt: string
   image_prompt_rt: string
   image_prompt_lb: string
@@ -190,6 +194,20 @@ function toStringArray(value: unknown): string[] {
     .filter(Boolean)
 }
 
+function toNumberArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => {
+      if (typeof item === 'number' && Number.isFinite(item)) return item
+      if (typeof item === 'string' && item.trim()) {
+        const parsed = Number(item)
+        return Number.isFinite(parsed) ? parsed : null
+      }
+      return null
+    })
+    .filter((item): item is number => typeof item === 'number')
+}
+
 function extractAnalyzedCharacters(obj: Record<string, unknown>): Record<string, unknown>[] {
   const primary = toObjectArray(obj.characters)
   if (primary.length > 0) return primary
@@ -277,25 +295,97 @@ async function runStepWithRetry<T>(
 
 // ── Scene parsing ──
 
-function parseSceneStoryboard(responseText: string): DirectorSceneStoryboard {
-  const obj = safeParseJsonObject(responseText)
-  const sceneId = asString(obj.scene_id)
-  const rawShots = toObjectArray(obj.shots)
-  if (rawShots.length === 0) {
-    throw new Error('events_to_storyboard returned empty shots array')
+function pickStoryboardShotCandidates(obj: Record<string, unknown>): Record<string, unknown>[] {
+  const directCandidates = [
+    obj.shots,
+    obj.storyboard,
+    obj.shot_list,
+    obj.shotList,
+    obj.boards,
+    obj.frames,
+  ]
+
+  for (const candidate of directCandidates) {
+    const normalized = toObjectArray(candidate)
+    if (normalized.length > 0) return normalized
   }
-  const shots: DirectorStoryboardShot[] = rawShots.map((item, index) => ({
-    shot_number: typeof item.shot_number === 'number' ? item.shot_number : index + 1,
-    shot_type: asString(item.shot_type),
-    camera_angle: asString(item.camera_angle),
-    camera_movement: asString(item.camera_movement),
-    subject: asString(item.subject),
-    description: asString(item.description),
-    from_events: Array.isArray(item.from_events) ? item.from_events.filter((n): n is number => typeof n === 'number') : [],
-    voice_line: item.voice_line != null ? asString(item.voice_line) : null,
-    voice_speaker: item.voice_speaker != null ? asString(item.voice_speaker) : null,
-    duration_hint: asString(item.duration_hint) || '2s',
-  }))
+
+  return []
+}
+
+function buildFallbackStoryboardShot(params: {
+  sceneId: string
+  characters?: string[]
+  events?: DirectorSceneEvent[]
+  dialogues?: DirectorSceneDialogue[]
+}): DirectorStoryboardShot {
+  const firstEvent = Array.isArray(params.events) ? params.events[0] : undefined
+  const firstDialogue = Array.isArray(params.dialogues)
+    ? params.dialogues.find((item) => asString(item.line))
+    : undefined
+
+  const subject = Array.isArray(params.characters) && params.characters.length > 0
+    ? params.characters.join('、')
+    : (firstDialogue?.speaker || '场景主体')
+
+  const description = asString(firstEvent?.description)
+    || (firstDialogue?.line ? `${subject}正在说话。` : `${subject}出现在当前场景中。`)
+
+  const fallbackShot: DirectorStoryboardShot = {
+    shot_number: 1,
+    shot_type: '中景',
+    camera_angle: '平视',
+    camera_movement: '固定',
+    subject,
+    description,
+    from_events: typeof firstEvent?.event_number === 'number' ? [firstEvent.event_number] : [],
+    voice_line: firstDialogue?.line || null,
+    voice_speaker: firstDialogue?.speaker || null,
+    duration_hint: '3s',
+  }
+
+  orchestratorLogger.info({
+    action: 'orchestrator.storyboard.fallback',
+    message: 'events_to_storyboard returned no shots, synthesized fallback shot',
+    details: { sceneId: params.sceneId, fallbackSubject: subject },
+  })
+
+  return fallbackShot
+}
+
+function parseSceneStoryboard(
+  responseText: string,
+  fallback?: {
+    sceneId?: string
+    characters?: string[]
+    events?: DirectorSceneEvent[]
+    dialogues?: DirectorSceneDialogue[]
+  },
+): DirectorSceneStoryboard {
+  const obj = safeParseJsonObject(responseText)
+  const sceneId = asString(obj.scene_id) || fallback?.sceneId || ''
+  const rawShots = pickStoryboardShotCandidates(obj)
+
+  const shots: DirectorStoryboardShot[] = rawShots.length > 0
+    ? rawShots.map((item, index) => ({
+      shot_number: typeof item.shot_number === 'number' ? item.shot_number : index + 1,
+      shot_type: asString(item.shot_type) || '中景',
+      camera_angle: asString(item.camera_angle) || '平视',
+      camera_movement: asString(item.camera_movement) || '固定',
+      subject: asString(item.subject) || (fallback?.characters?.join('、') || '场景主体'),
+      description: asString(item.description) || asString(fallback?.events?.[index]?.description),
+      from_events: toNumberArray(item.from_events),
+      voice_line: item.voice_line != null ? asString(item.voice_line) : null,
+      voice_speaker: item.voice_speaker != null ? asString(item.voice_speaker) : null,
+      duration_hint: asString(item.duration_hint) || '2s',
+    }))
+    : [buildFallbackStoryboardShot({
+      sceneId,
+      characters: fallback?.characters,
+      events: fallback?.events,
+      dialogues: fallback?.dialogues,
+    })]
+
   return { scene_id: sceneId, shots }
 }
 
@@ -304,6 +394,7 @@ function parseShotImagePrompts(responseText: string): DirectorShotImagePrompts[]
   const rawShots = toObjectArray(obj.shots)
   return rawShots.map((item, index) => ({
     shot_number: typeof item.shot_number === 'number' ? item.shot_number : index + 1,
+    global_position: asString(item.global_position),
     image_prompt_lt: asString(item.image_prompt_lt),
     image_prompt_rt: asString(item.image_prompt_rt),
     image_prompt_lb: asString(item.image_prompt_lb),
@@ -316,6 +407,7 @@ function parseShotVideoPrompts(responseText: string): DirectorShotVideoPrompt[] 
   const rawShots = toObjectArray(obj.shots)
   return rawShots.map((item, index) => ({
     shot_number: typeof item.shot_number === 'number' ? item.shot_number : index + 1,
+    shot_caption: asString(item.shot_caption),
     video_prompt: asString(item.video_prompt),
   }))
 }
@@ -646,7 +738,12 @@ export async function runDirectorModeOrchestrator(
         storyboardPrompt,
         'events_to_storyboard',
         4000,
-        parseSceneStoryboard,
+        (text) => parseSceneStoryboard(text, {
+          sceneId: scene.scene_id,
+          characters: scene.characters,
+          events: events.events,
+          dialogues: events.dialogues,
+        }),
       )
 
       if (!parsed.scene_id) {
@@ -766,6 +863,8 @@ export async function runDirectorModeOrchestrator(
         const snd = soundMap.get(shot.shot_number)
         return {
           shot_number: shot.shot_number,
+          global_position: img?.global_position || '',
+          shot_caption: vid?.shot_caption || shot.voice_line || '',
           image_prompt_lt: img?.image_prompt_lt || '',
           image_prompt_rt: img?.image_prompt_rt || '',
           image_prompt_lb: img?.image_prompt_lb || '',
