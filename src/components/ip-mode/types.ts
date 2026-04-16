@@ -42,10 +42,10 @@ export interface IpRefSheetSummary {
 
 export interface IpCastingSummary {
   id: string
-  ipCharacterId: string
+  globalCharacterId: string
   characterName: string
   roleLabel: string | null
-  activeVariantId: string | null
+  appearanceIndex: number | null
   faceReferenceUrl: string | null
 }
 
@@ -78,7 +78,7 @@ export interface CreateIpVariantInput {
 }
 
 export interface CreateIpCastingInput {
-  ipCharacterId: string
-  roleLabel?: string
-  activeVariantId?: string
+  globalCharacterId: string
+  castRole?: string
+  appearanceIndex?: number
 }

@@ -5,6 +5,7 @@ import { logInfo as _ulogInfo } from '@/lib/logging/core'
 import { apiFetch } from '@/lib/api-fetch'
 import {
   useAnalyzeProjectAssets,
+  useDirectorModeRunStream,
   useScriptToStoryboardRunStream,
   useStoryToScriptRunStream,
 } from '@/lib/query/hooks'
@@ -78,6 +79,7 @@ export function useWorkspaceExecution({
   const storageScope = `${projectId}:${episodeId || 'global'}`
   const storyToScriptMinimizedStorageKey = `novel-promotion:story-to-script:minimized:${storageScope}`
   const scriptToStoryboardMinimizedStorageKey = `novel-promotion:script-to-storyboard:minimized:${storageScope}`
+  const directorModeMinimizedStorageKey = `novel-promotion:director-mode:minimized:${storageScope}`
 
   const [isSubmittingTTS] = useState(false)
   const [isAssetAnalysisRunning, setIsAssetAnalysisRunning] = useState(false)
@@ -90,14 +92,20 @@ export function useWorkspaceExecution({
   const [scriptToStoryboardConsoleMinimized, setScriptToStoryboardConsoleMinimized] = useState(
     () => readSessionBoolean(scriptToStoryboardMinimizedStorageKey),
   )
+  const [directorModeConsoleMinimized, setDirectorModeConsoleMinimized] = useState(
+    () => readSessionBoolean(directorModeMinimizedStorageKey),
+  )
     const [regenClipIds, setRegenClipIds] = useState<Set<string>>(new Set())
 
   const storyToScriptStream = useStoryToScriptRunStream({ projectId, episodeId })
   const scriptToStoryboardStream = useScriptToStoryboardRunStream({ projectId, episodeId })
+  const directorModeStream = useDirectorModeRunStream({ projectId, episodeId })
   const handledStoryToScriptRunIdsRef = useRef<Set<string>>(new Set())
   const handledScriptToStoryboardRunIdsRef = useRef<Set<string>>(new Set())
+  const handledDirectorModeRunIdsRef = useRef<Set<string>>(new Set())
   const storyToScriptWasActiveRef = useRef(false)
   const scriptToStoryboardWasActiveRef = useRef(false)
+  const directorModeWasActiveRef = useRef(false)
 
   const finalizeStoryToScriptSuccess = useCallback(async (runId: string) => {
     const normalizedRunId = runId.trim()
@@ -140,6 +148,26 @@ export function useWorkspaceExecution({
     scriptToStoryboardStream.reset()
   }, [onRefresh, onStageChange, scriptToStoryboardStream])
 
+  const finalizeDirectorModeSuccess = useCallback(async (runId: string) => {
+    const normalizedRunId = runId.trim()
+    if (!normalizedRunId) return
+    if (handledDirectorModeRunIdsRef.current.has(normalizedRunId)) return
+    handledDirectorModeRunIdsRef.current.add(normalizedRunId)
+
+    try {
+      await onRefresh()
+    } catch (refreshError) {
+      _ulogInfo('[WorkspaceExecution] refresh after director-mode completed failed', {
+        runId: normalizedRunId,
+        message: getErrorMessage(refreshError),
+      })
+    }
+
+    setDirectorModeConsoleMinimized(true)
+    onStageChange('storyboard')
+    directorModeStream.reset()
+  }, [directorModeStream, onRefresh, onStageChange])
+
   useEffect(() => {
     setStoryToScriptConsoleMinimized(readSessionBoolean(storyToScriptMinimizedStorageKey))
   }, [storyToScriptMinimizedStorageKey])
@@ -155,6 +183,14 @@ export function useWorkspaceExecution({
   useEffect(() => {
     writeSessionBoolean(scriptToStoryboardMinimizedStorageKey, scriptToStoryboardConsoleMinimized)
   }, [scriptToStoryboardConsoleMinimized, scriptToStoryboardMinimizedStorageKey])
+
+  useEffect(() => {
+    setDirectorModeConsoleMinimized(readSessionBoolean(directorModeMinimizedStorageKey))
+  }, [directorModeMinimizedStorageKey])
+
+  useEffect(() => {
+    writeSessionBoolean(directorModeMinimizedStorageKey, directorModeConsoleMinimized)
+  }, [directorModeConsoleMinimized, directorModeMinimizedStorageKey])
 
   const handleGenerateTTS = useCallback(async () => {
     _ulogInfo('[NovelPromotionWorkspace] TTS is disabled, skip generate request')
@@ -263,6 +299,51 @@ export function useWorkspaceExecution({
     }
   }, [analysisModel, screenplayTone, episodeId, finalizeScriptToStoryboardSuccess, scriptToStoryboardStream, t])
 
+  const runDirectorModeFlow = useCallback(async () => {
+    if (!episodeId) {
+      alert(t('execution.selectEpisode'))
+      return
+    }
+
+    const storyContent = (novelText || '').trim()
+    if (!storyContent) {
+      alert(`${t('execution.prepareFailed')}: ${t('execution.fillContentFirst')}`)
+      return
+    }
+
+    try {
+      setIsTransitioning(true)
+      setDirectorModeConsoleMinimized(false)
+
+      setTransitionProgress({ message: t('execution.directorModeRunning'), step: 'streaming' })
+      const runResult = await directorModeStream.run({
+        episodeId,
+        content: storyContent,
+        model: analysisModel || undefined,
+        temperature: 0.7,
+        reasoning: true,
+        reasoningEffort: 'medium',
+      })
+      if (runResult.status !== 'completed') {
+        throw new Error(runResult.errorMessage || t('execution.directorModeFailed'))
+      }
+      await finalizeDirectorModeSuccess(runResult.runId || '')
+    } catch (err: unknown) {
+      if (isAbortError(err) || (err instanceof Error && err.message === 'aborted')) {
+        _ulogInfo(t('execution.requestAborted'))
+        return
+      }
+      const rawMessage = getErrorMessage(err)
+      const friendlyMessage = isRunStreamTimeoutMessage(rawMessage)
+        ? t('execution.taskStreamTimeout')
+        : rawMessage
+      alert(`${t('execution.directorModeFailed')}: ${friendlyMessage}`)
+    } finally {
+      setIsTransitioning(false)
+      setTransitionProgress({ message: '', step: '' })
+    }
+  }, [analysisModel, directorModeStream, episodeId, finalizeDirectorModeSuccess, novelText, t])
+
   const runSingleClipStoryboardFlow = useCallback(async (clipId: string) => {
     if (!episodeId) return
      setRegenClipIds(prev => new Set(prev).add(clipId))
@@ -356,16 +437,53 @@ export function useWorkspaceExecution({
     scriptToStoryboardStream.status,
   ])
 
+  useEffect(() => {
+    const active = (
+      directorModeStream.isRunning ||
+      directorModeStream.isRecoveredRunning ||
+      directorModeStream.status === 'running'
+    )
+    if (active) {
+      directorModeWasActiveRef.current = true
+      return
+    }
+    if (directorModeStream.status === 'completed' && directorModeWasActiveRef.current) {
+      directorModeWasActiveRef.current = false
+      if (directorModeStream.runId) {
+        void finalizeDirectorModeSuccess(directorModeStream.runId)
+      }
+      return
+    }
+    if (directorModeStream.status === 'completed' && currentStage === 'config' && directorModeStream.runId) {
+      void finalizeDirectorModeSuccess(directorModeStream.runId)
+      return
+    }
+    if (directorModeStream.status === 'failed' || directorModeStream.status === 'idle') {
+      directorModeWasActiveRef.current = false
+    }
+  }, [
+    currentStage,
+    finalizeDirectorModeSuccess,
+    directorModeStream.isRecoveredRunning,
+    directorModeStream.isRunning,
+    directorModeStream.runId,
+    directorModeStream.status,
+  ])
+
   const showCreatingToast = useMemo(() => (
     storyToScriptStream.isRunning ||
     storyToScriptStream.isRecoveredRunning ||
     scriptToStoryboardStream.isRunning ||
     scriptToStoryboardStream.isRecoveredRunning ||
+    directorModeStream.isRunning ||
+    directorModeStream.isRecoveredRunning ||
     isTransitioning ||
     isConfirmingAssets
   ), [
     isConfirmingAssets,
     isTransitioning,
+    directorModeStream.isRecoveredRunning,
+    directorModeStream.isRunning,
     scriptToStoryboardStream.isRecoveredRunning,
     scriptToStoryboardStream.isRunning,
     storyToScriptStream.isRecoveredRunning,
@@ -383,12 +501,16 @@ export function useWorkspaceExecution({
     setStoryToScriptConsoleMinimized,
     scriptToStoryboardConsoleMinimized,
     setScriptToStoryboardConsoleMinimized,
+    directorModeConsoleMinimized,
+    setDirectorModeConsoleMinimized,
     storyToScriptStream,
     scriptToStoryboardStream,
+    directorModeStream,
     handleGenerateTTS,
     handleAnalyzeAssets,
     runStoryToScriptFlow,
     runScriptToStoryboardFlow,
+    runDirectorModeFlow,
     runSingleClipStoryboardFlow,
     showCreatingToast,
   }

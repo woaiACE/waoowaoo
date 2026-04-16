@@ -50,6 +50,7 @@ export function useWorkspaceProjectSnapshot({
       targetPlatform: projectData?.targetPlatform,
       screenplayTone: projectData?.screenplayTone,
       storyRewriteMode: projectData?.storyRewriteMode,
+      ipModeEnabled: projectData?.ipModeEnabled ?? false,
     }
   }, [episode?.novelText, episode?.storyboards, project.novelPromotionData, urlStage])
 }

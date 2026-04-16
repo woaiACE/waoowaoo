@@ -49,8 +49,8 @@ export interface CreateIpVariantInput {
 // ==================== 选角 ====================
 
 export interface CreateIpCastingInput {
-  ipCharacterId: string
-  ipVariantId?: string
+  globalCharacterId: string
+  appearanceIndex?: number
   castRole?: string
   personalityOverride?: string
   speakingStyleOverride?: string
@@ -65,7 +65,7 @@ export type EmotionTag = 'neutral' | 'happy' | 'sad' | 'angry' | 'fearful' | 'su
 export interface IpScreenplaySegmentData {
   segmentType: IpSegmentType
   content: string
-  ipCharacterId?: string
+  globalCharacterId?: string
   emotionTag?: EmotionTag
   emotionIntensity?: number
   stageDirection?: string

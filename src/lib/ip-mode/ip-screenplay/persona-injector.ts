@@ -23,8 +23,7 @@ export async function buildPersonaContext(projectId: string): Promise<PersonaCon
   const castings = await prisma.ipCasting.findMany({
     where: { projectId },
     include: {
-      ipCharacter: true,
-      ipVariant: true,
+      globalCharacter: true,
     },
     orderBy: { createdAt: 'asc' },
   })
@@ -41,7 +40,7 @@ export async function buildPersonaContext(projectId: string): Promise<PersonaCon
   const sections: string[] = []
 
   for (const casting of castings) {
-    const char = casting.ipCharacter
+    const char = casting.globalCharacter
     characterMap[char.id] = char.name
 
     const personality = casting.personalityOverride ?? char.personality ?? ''

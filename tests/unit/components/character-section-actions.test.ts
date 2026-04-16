@@ -12,6 +12,7 @@ const characterCardMock = vi.hoisted(() => vi.fn((_props: unknown) => null))
 
 vi.mock('@/lib/query/hooks/useProjectAssets', () => ({
   useProjectAssets: (projectId: string | null) => useProjectAssetsMock(projectId),
+  useCharacterBibleLock: () => ({ bibleLock: vi.fn(), bibleUnlock: vi.fn() }),
 }))
 
 vi.mock('@/app/[locale]/workspace/[projectId]/modes/novel-promotion/components/assets/CharacterCard', () => ({

@@ -13,6 +13,7 @@ interface UseWorkspaceStageRuntimeParams {
   isConfirmingAssets: boolean
   isStartingStoryToScript: boolean
   isStartingScriptToStoryboard: boolean
+  isStartingDirectorMode: boolean
   videoRatio: string | undefined
   artStyle: string | undefined
   colorGradePreset: string | undefined
@@ -33,6 +34,7 @@ interface UseWorkspaceStageRuntimeParams {
   handleUpdateConfig: (key: string, value: unknown) => Promise<void>
   runWithRebuildConfirm: (action: 'storyToScript' | 'scriptToStoryboard', operation: () => Promise<void>) => Promise<void>
   runStoryToScriptFlow: () => Promise<void>
+  runDirectorModeFlow: () => Promise<void>
   runScriptToStoryboardFlow: () => Promise<void>
   runSingleClipStoryboardFlow: (clipId: string) => Promise<void>
   handleUpdateClip: (clipId: string, updates: Record<string, unknown>) => Promise<void>
@@ -68,6 +70,7 @@ export function useWorkspaceStageRuntime({
   isConfirmingAssets,
   isStartingStoryToScript,
   isStartingScriptToStoryboard,
+  isStartingDirectorMode,
   videoRatio,
   artStyle,
   colorGradePreset,
@@ -81,6 +84,7 @@ export function useWorkspaceStageRuntime({
   handleUpdateConfig,
   runWithRebuildConfirm,
   runStoryToScriptFlow,
+  runDirectorModeFlow,
   runScriptToStoryboardFlow,
   runSingleClipStoryboardFlow,
   handleUpdateClip,
@@ -103,6 +107,7 @@ export function useWorkspaceStageRuntime({
     isConfirmingAssets,
     isStartingStoryToScript,
     isStartingScriptToStoryboard,
+    isStartingDirectorMode,
     videoRatio,
     artStyle,
     colorGradePreset,
@@ -120,6 +125,7 @@ export function useWorkspaceStageRuntime({
     onScreenplayToneChange: (value) => handleUpdateConfig('screenplayTone', value),
     onStoryRewriteModeChange: (value) => handleUpdateConfig('storyRewriteMode', value),
     onRunStoryToScript: () => runWithRebuildConfirm('storyToScript', runStoryToScriptFlow),
+    onRunDirectorMode: runDirectorModeFlow,
     onClipUpdate: (clipId, data) => {
       if (!data || typeof data !== 'object' || Array.isArray(data)) {
         throw new Error('onClipUpdate requires a plain object payload')
@@ -149,12 +155,14 @@ export function useWorkspaceStageRuntime({
     isConfirmingAssets,
     isStartingScriptToStoryboard,
     isStartingStoryToScript,
+    isStartingDirectorMode,
     isSubmittingTTS,
     isTransitioning,
     openAssetLibrary,
     runScriptToStoryboardFlow,
     runSingleClipStoryboardFlow,
     runStoryToScriptFlow,
+    runDirectorModeFlow,
     runWithRebuildConfirm,
     resolvedUserVideoModels,
     capabilityOverrides,

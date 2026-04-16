@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react'
 import { AppIcon } from '@/components/ui/icons'
 import { useToast } from '@/contexts/ToastContext'
+import { useTranslations } from 'next-intl'
 
 interface WorkspaceTopActionsProps {
   onOpenAssetLibrary: () => void
@@ -11,6 +12,8 @@ interface WorkspaceTopActionsProps {
   assetLibraryLabel: string
   settingsLabel: string
   refreshTitle: string
+  ipModeEnabled: boolean
+  onIpModeToggle: (enabled: boolean) => Promise<void>
 }
 
 export default function WorkspaceTopActions({
@@ -20,7 +23,10 @@ export default function WorkspaceTopActions({
   assetLibraryLabel,
   settingsLabel,
   refreshTitle,
+  ipModeEnabled,
+  onIpModeToggle,
 }: WorkspaceTopActionsProps) {
+  const tIp = useTranslations('ipMode')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const { showToast } = useToast()
 
@@ -44,6 +50,20 @@ export default function WorkspaceTopActions({
 
   return (
     <div className="fixed top-24 right-6 z-40 flex gap-3">
+      <button
+        onClick={() => { void onIpModeToggle(!ipModeEnabled) }}
+        className={`glass-btn-base flex items-center gap-2 px-4 py-3 rounded-3xl transition-all ${
+          ipModeEnabled
+            ? 'bg-[var(--glass-accent-from)] text-white shadow-[0_0_12px_var(--glass-accent-from)]/40'
+            : 'glass-btn-secondary text-[var(--glass-text-primary)]'
+        }`}
+        title={tIp('mode.title')}
+      >
+        <AppIcon name="user" className="h-5 w-5" />
+        <span className="font-semibold text-sm hidden md:inline tracking-[0.01em]">
+          {tIp('mode.title')}
+        </span>
+      </button>
       <button
         onClick={onOpenAssetLibrary}
         className="glass-btn-base glass-btn-secondary flex items-center gap-2 px-4 py-3 rounded-3xl text-[var(--glass-text-primary)]"

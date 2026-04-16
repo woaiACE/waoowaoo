@@ -1,5 +1,6 @@
 import { TASK_TYPE } from '@/lib/task/types'
 import { IP_WORKFLOW_DEFINITIONS } from '@/lib/ip-mode/workflows/definitions'
+import { DIRECTOR_MODE_DEFINITION } from './director-mode-definition'
 
 export type WorkflowFailureMode = 'fail_run'
 
@@ -195,6 +196,8 @@ const WORKFLOW_DEFINITIONS: Record<string, WorkflowDefinition> = {
   [SCRIPT_TO_STORYBOARD_DEFINITION.workflowType]: SCRIPT_TO_STORYBOARD_DEFINITION,
   // IP 角色模式工作流
   ...IP_WORKFLOW_DEFINITIONS,
+  // 导演模式工作流
+  [DIRECTOR_MODE_DEFINITION.workflowType]: DIRECTOR_MODE_DEFINITION,
 }
 
 export function getWorkflowDefinition(workflowType: string): WorkflowDefinition | null {

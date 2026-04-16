@@ -44,6 +44,7 @@ interface Character {
     name: string
     folderId: string | null
     customVoiceUrl: string | null
+    ipStatus?: string | null
     appearances: Appearance[]
 }
 
@@ -241,6 +242,9 @@ export function CharacterCard({ character, onImageClick, onImageEdit, onVoiceDes
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-[var(--glass-text-primary)]">{character.name}</span>
+                        {character.ipStatus && (
+                            <span className="glass-chip glass-chip-accent px-2 py-0.5 text-xs">IP</span>
+                        )}
                         <span className="glass-chip glass-chip-neutral px-2 py-0.5 text-xs">{appearance.changeReason}</span>
                         {isPrimaryAppearance ? (
                             <span className="glass-chip glass-chip-success px-2 py-0.5 text-xs">{tAssets('character.primary')}</span>
@@ -451,7 +455,12 @@ export function CharacterCard({ character, onImageClick, onImageEdit, onVoiceDes
             {/* 信息区域 */}
             <div className="p-3">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-[var(--glass-text-primary)] text-sm truncate">{character.name}</h3>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <h3 className="font-medium text-[var(--glass-text-primary)] text-sm truncate">{character.name}</h3>
+                        {character.ipStatus && (
+                            <span className="flex-shrink-0 glass-chip glass-chip-accent px-1.5 py-0.5 text-[10px]">IP</span>
+                        )}
+                    </div>
                     <div className="flex items-center gap-1">
                         {/* 编辑按钮 */}
                         <button

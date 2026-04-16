@@ -206,6 +206,9 @@ export {
 export {
     useScriptToStoryboardRunStream,
 } from './useScriptToStoryboardRunStream'
+export {
+    useDirectorModeRunStream,
+} from './useDirectorModeRunStream'
 
 export {
     useAssetTaskPresentation,

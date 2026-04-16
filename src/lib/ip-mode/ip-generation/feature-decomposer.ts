@@ -6,13 +6,19 @@
  */
 
 import type { DecomposedPrompt } from '../types'
-import type { IpCharacter, IpCharacterVariant } from '@prisma/client'
+import type { IpCharacterVariant } from '@prisma/client'
+
+/** 支持 IpCharacter 和 GlobalCharacter（两者都有这些字段） */
+type CharacterFaceData = {
+  faceDescriptor: string | null
+  bodyArchetype: string | null
+}
 
 /**
  * 从 IP 角色 + 变体 + 场景 prompt 中解耦特征
  */
 export function decomposeFeatures(params: {
-  ipCharacter: IpCharacter
+  ipCharacter: CharacterFaceData
   variant: IpCharacterVariant | null
   panelPrompt: string | null
   sceneContext: string | null

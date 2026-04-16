@@ -171,4 +171,29 @@ export const PROMPT_CATALOG: Record<PromptId, PromptCatalogEntry> = {
     pathStem: 'ip-mode/ref_sheet_generate',
     variableKeys: ['character_name', 'face_descriptor', 'sheet_type', 'style_instruction'],
   },
+  // 导演模式
+  [PROMPT_IDS.NP_DIRECTOR_SPLIT_SCENES]: {
+    pathStem: 'novel-promotion/director_split_scenes',
+    variableKeys: ['input', 'characters_lib_name', 'locations_lib_name', 'characters_introduction'],
+  },
+  [PROMPT_IDS.NP_DIRECTOR_SCENE_TO_EVENTS]: {
+    pathStem: 'novel-promotion/director_scene_to_events',
+    variableKeys: ['scene_content', 'scene_time', 'scene_location', 'scene_characters', 'scene_id', 'characters_lib_name', 'locations_lib_name', 'characters_introduction'],
+  },
+  [PROMPT_IDS.NP_DIRECTOR_EVENTS_TO_STORYBOARD]: {
+    pathStem: 'novel-promotion/director_events_to_storyboard',
+    variableKeys: ['scene_events_json', 'scene_time', 'scene_location', 'characters_lib_name', 'locations_lib_name', 'characters_full_description', 'locations_description', 'characters_introduction'],
+  },
+  [PROMPT_IDS.NP_DIRECTOR_SHOT_IMAGE_PROMPT]: {
+    pathStem: 'novel-promotion/director_shot_image_prompt',
+    variableKeys: ['scene_storyboard_json', 'characters_full_description', 'locations_description'],
+  },
+  [PROMPT_IDS.NP_DIRECTOR_SHOT_VIDEO_PROMPT]: {
+    pathStem: 'novel-promotion/director_shot_video_prompt',
+    variableKeys: ['scene_storyboard_json', 'characters_age_gender', 'characters_introduction'],
+  },
+  [PROMPT_IDS.NP_DIRECTOR_SHOT_SOUND_DESIGN]: {
+    pathStem: 'novel-promotion/director_shot_sound_design',
+    variableKeys: ['scene_storyboard_json', 'characters_lib_name', 'characters_voice_config'],
+  },
 }

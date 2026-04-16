@@ -72,6 +72,8 @@ const SINGLE_ATTEMPT_TASK_TYPES = new Set<TaskType>([
   // IP 模式
   TASK_TYPE.IP_ASSET_INIT_RUN,
   TASK_TYPE.IP_SCREENPLAY_REWRITE_RUN,
+  // 导演模式
+  TASK_TYPE.DIRECTOR_MODE_RUN,
 ])
 
 export function getQueueTypeByTaskType(type: TaskType): QueueType {

@@ -19,16 +19,18 @@ type AnyObj = Record<string, unknown>
  */
 export async function handleIpExtractFace(job: Job<TaskJobData>) {
   const payload = (job.data.payload || {}) as AnyObj
-  const ipCharacterId = typeof payload.ipCharacterId === 'string' ? payload.ipCharacterId : job.data.targetId
+  const globalCharacterId = typeof payload.globalCharacterId === 'string'
+    ? payload.globalCharacterId
+    : job.data.targetId
 
   await reportTaskProgress(job, 10, { stage: 'ip_extract_face_start' })
 
-  const character = await prisma.ipCharacter.findUnique({
-    where: { id: ipCharacterId },
+  const character = await prisma.globalCharacter.findUnique({
+    where: { id: globalCharacterId },
   })
 
   if (!character?.faceReferenceUrl) {
-    throw new Error('IP character has no face reference image')
+    throw new Error('Global character has no face reference image')
   }
 
   await reportTaskProgress(job, 30, { stage: 'ip_extract_face_analyzing' })
@@ -41,8 +43,8 @@ export async function handleIpExtractFace(job: Job<TaskJobData>) {
     tags: [],
   }
 
-  await prisma.ipCharacter.update({
-    where: { id: ipCharacterId },
+  await prisma.globalCharacter.update({
+    where: { id: globalCharacterId },
     data: {
       faceDescriptor: JSON.stringify(descriptor),
     },
@@ -50,7 +52,7 @@ export async function handleIpExtractFace(job: Job<TaskJobData>) {
 
   await reportTaskProgress(job, 100, { stage: 'ip_extract_face_done' })
 
-  return { ipCharacterId, faceDescriptor: descriptor }
+  return { globalCharacterId, faceDescriptor: descriptor }
 }
 
 // ==================== 参考图集生成 ====================
@@ -105,29 +107,30 @@ export async function handleIpRefSheetGenerate(job: Job<TaskJobData>) {
  */
 export async function handleIpVariantPreview(job: Job<TaskJobData>) {
   const payload = (job.data.payload || {}) as AnyObj
-  const variantId = typeof payload.variantId === 'string' ? payload.variantId : job.data.targetId
+  const globalCharacterId = typeof payload.globalCharacterId === 'string' ? payload.globalCharacterId : job.data.targetId
+  const appearanceIndex = typeof payload.appearanceIndex === 'number' ? payload.appearanceIndex : 0
 
   await reportTaskProgress(job, 10, { stage: 'ip_variant_preview_start' })
 
-  const variant = await prisma.ipCharacterVariant.findUnique({
-    where: { id: variantId },
-    include: { ipCharacter: true },
+  const appearance = await prisma.globalCharacterAppearance.findFirst({
+    where: { characterId: globalCharacterId, appearanceIndex },
+    include: { character: true },
   })
 
-  if (!variant) {
-    throw new Error(`IP variant not found: ${variantId}`)
+  if (!appearance) {
+    throw new Error(`Global character appearance not found: ${globalCharacterId}[${appearanceIndex}]`)
   }
 
   await reportTaskProgress(job, 30, { stage: 'ip_variant_preview_generating' })
 
   // TODO: 使用 feature decomposer 组装 prompt 并生成预览图
-  // const decomposed = decomposeFeatures({ ipCharacter: variant.ipCharacter, variant, ... })
+  // const decomposed = decomposeFeatures({ ipCharacter: appearance.character, variant: null, ... })
   // const prompt = assembleIpImagePrompt(decomposed)
   // const images = await generateImage({ prompt, referenceImages: [...] })
 
   await reportTaskProgress(job, 100, { stage: 'ip_variant_preview_done' })
 
-  return { variantId }
+  return { globalCharacterId, appearanceIndex }
 }
 
 // ==================== IP 增强图像生成 ====================

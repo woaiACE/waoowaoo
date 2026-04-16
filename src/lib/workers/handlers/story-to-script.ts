@@ -417,6 +417,45 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
         }
       }
 
+      // 构建基础角色介绍
+      const baseCharacterIntroductions = (novelData.characters || []).map((item) => ({
+        name: item.name,
+        introduction: item.introduction || '',
+      }))
+
+      // IP 模式：注入选角人设上下文
+      if (novelData.ipModeEnabled) {
+        const ipCastings = await prisma.ipCasting.findMany({
+          where: { projectId: novelData.id },
+          include: { globalCharacter: true },
+          orderBy: { createdAt: 'asc' },
+        })
+        for (const casting of ipCastings) {
+          const char = casting.globalCharacter
+          const personality = casting.personalityOverride ?? char.personality ?? ''
+          const speakingStyle = casting.speakingStyleOverride ?? char.speakingStyle ?? ''
+          const backstory = char.backstory ?? ''
+          const castRole = casting.castRole ?? ''
+
+          const ipIntro = [
+            castRole ? `在本剧中扮演：${castRole}` : '',
+            char.gender ? `性别：${char.gender}` : '',
+            char.ageRange ? `年龄段：${char.ageRange}` : '',
+            personality ? `性格：${personality}` : '',
+            backstory ? `背景：${backstory}` : '',
+            speakingStyle ? `说话风格：${speakingStyle}` : '',
+          ].filter(Boolean).join('；')
+
+          const existing = baseCharacterIntroductions.find((c) => c.name === char.name)
+          if (existing) {
+            // 合并：保留原有介绍，追加 IP 人设
+            existing.introduction = [existing.introduction, ipIntro].filter(Boolean).join('\n')
+          } else {
+            baseCharacterIntroductions.push({ name: char.name, introduction: ipIntro })
+          }
+        }
+      }
+
       const result: StoryToScriptOrchestratorResult = await (async () => {
         try {
           return await withInternalLLMStreamCallbacks(
@@ -424,17 +463,14 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
             async () => await runStoryToScriptOrchestrator({
               concurrency: workflowConcurrency.analysis,
               content,
-              baseCharacters: (novelData.characters || []).map((item) => item.name),
+              baseCharacters: baseCharacterIntroductions.map((item) => item.name),
               baseLocations: (novelData.locations || [])
                 .filter((item) => readAssetKind(item as unknown as Record<string, unknown>) !== 'prop')
                 .map((item) => item.name),
               baseProps: (novelData.locations || [])
                 .filter((item) => readAssetKind(item as unknown as Record<string, unknown>) === 'prop')
                 .map((item) => item.name),
-              baseCharacterIntroductions: (novelData.characters || []).map((item) => ({
-                name: item.name,
-                introduction: item.introduction || '',
-              })),
+              baseCharacterIntroductions,
               promptTemplates: {
                 characterPromptTemplate,
                 locationPromptTemplate,

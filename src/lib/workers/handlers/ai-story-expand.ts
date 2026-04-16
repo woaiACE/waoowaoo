@@ -56,7 +56,41 @@ export async function handleAiStoryExpandTask(job: Job<TaskJobData>) {
         if (globalAsset) {
           parts.push(`## 项目世界观与背景设定\n\n${globalAsset.slice(0, 800)}`)
         }
-        const charIntros = buildCharactersIntroduction(novelData.characters)
+
+        // 合并项目角色和 IP 选角角色
+        const allCharacters: Array<{ name: string; introduction?: string | null }> = [
+          ...(novelData.characters || []),
+        ]
+        if (novelData.ipModeEnabled) {
+          const ipCastings = await prisma.ipCasting.findMany({
+            where: { projectId: novelData.id },
+            include: { globalCharacter: true },
+            orderBy: { createdAt: 'asc' },
+          })
+          for (const casting of ipCastings) {
+            const char = casting.globalCharacter
+            const personality = casting.personalityOverride ?? char.personality ?? ''
+            const speakingStyle = casting.speakingStyleOverride ?? char.speakingStyle ?? ''
+            const backstory = char.backstory ?? ''
+            const castRole = casting.castRole ?? ''
+            const ipIntro = [
+              castRole ? `在本剧中扮演：${castRole}` : '',
+              char.gender ? `性别：${char.gender}` : '',
+              char.ageRange ? `年龄段：${char.ageRange}` : '',
+              personality ? `性格：${personality}` : '',
+              backstory ? `背景：${backstory}` : '',
+              speakingStyle ? `说话风格：${speakingStyle}` : '',
+            ].filter(Boolean).join('；')
+            const existing = allCharacters.find((c) => c.name === char.name)
+            if (existing) {
+              existing.introduction = [existing.introduction, ipIntro].filter(Boolean).join('\n')
+            } else {
+              allCharacters.push({ name: char.name, introduction: ipIntro })
+            }
+          }
+        }
+
+        const charIntros = buildCharactersIntroduction(allCharacters)
         if (charIntros && charIntros !== '暂无角色介绍') {
           parts.push(`## 已有角色档案（改写时保持角色名称和性格一致）\n\n${charIntros}`)
         }

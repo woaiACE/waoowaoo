@@ -40,11 +40,13 @@ export default function IpWorkbench({ userId: _userId, onCharacterSelect }: IpWo
 
   const handleCreate = useCallback(async (data: { name: string; faceReferenceUrl?: string }) => {
     try {
-      await createCharacter(data)
-      setIsCreating(false)
+      const result = await createCharacter(data)
+      const characterId = result?.character?.id
       showToast(t('character.created'), 'success')
+      return characterId ? { id: characterId } : undefined
     } catch {
       showToast(t('character.createFailed'), 'error')
+      throw new Error('create failed')
     }
   }, [createCharacter, showToast, t])
 

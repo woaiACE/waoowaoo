@@ -140,6 +140,7 @@ model NovelPromotionEpisode {
   storyboards             NovelPromotionStoryboard[]
   voiceLines              NovelPromotionVoiceLine[]
   editorProject           VideoEditorProject?
+  directorScript          DirectorScript?
 
   @@unique([novelPromotionProjectId, episodeNumber])
   @@index([novelPromotionProjectId])
@@ -862,16 +863,35 @@ model GlobalCharacter {
   customVoiceMediaId String?
   customVoiceMedia MediaObject? @relation("GlobalCharacterVoiceMedia", fields: [customVoiceMediaId], references: [id], onDelete: SetNull)
   globalVoiceId    String? // 绑定的全局音色 ID
+
+  // ---- IP 模式扩展字段 ----
+  personality        String?  @db.Text       // IP: 性格描述自然语言
+  speakingStyle      String?  @db.Text       // IP: 说话口吻/语言风格
+  backstory          String?  @db.Text       // IP: 背景故事
+  gender             String?                 // IP: 性别 male|female|neutral
+  ageRange           String?                 // IP: 年龄段
+  faceDescriptor     String?  @db.Text       // IP: 面部特征结构化描述 JSON
+  faceReferenceUrl   String?  @db.Text       // IP: 面部参考图 URL
+  faceMediaId        String?                 // IP: 面部参考图 MediaObject
+  faceMedia          MediaObject? @relation("GlobalCharacterFaceMedia", fields: [faceMediaId], references: [id], onDelete: SetNull)
+  bodyArchetype      String?  @db.Text       // IP: 基础骨架描述
+  voiceEmotionConfig String?  @db.Text       // IP: 默认情感参数 JSON
+  ipStatus           String?                 // IP: null=普通角色, "draft"|"active"|"archived"
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   user        User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   folder      GlobalAssetFolder?          @relation(fields: [folderId], references: [id], onDelete: SetNull)
   appearances GlobalCharacterAppearance[]
+  ipCastings  IpCasting[]
+  ipScreenplaySegments IpScreenplaySegment[]
 
   @@index([userId])
   @@index([folderId])
   @@index([customVoiceMediaId])
+  @@index([faceMediaId])
+  @@index([ipStatus])
   @@map("global_characters")
 }
 
@@ -895,6 +915,12 @@ model GlobalCharacterAppearance {
   previousImageUrls    String?  @db.Text
   previousDescription  String?  @db.Text // 上一次的描述词（用于撤回）
   previousDescriptions String?  @db.Text // 上一次的描述词数组（用于撤回）
+
+  // ---- IP 模式扩展字段 ----
+  variantLabel         String?              // IP: 变体名称 "现代版"/"古装版"
+  costumeDescription   String?  @db.Text   // IP: 服装描述
+  environmentHint      String?  @db.Text   // IP: 环境/时代提示
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -1009,6 +1035,7 @@ model MediaObject {
   novelPromotionVoiceLineAudios         NovelPromotionVoiceLine[]   @relation("NovelPromotionVoiceLineAudioMedia")
   voicePresetAudios                     VoicePreset[]               @relation("VoicePresetAudioMedia")
   globalCharacterVoices                 GlobalCharacter[]           @relation("GlobalCharacterVoiceMedia")
+  globalCharacterFaceMedia              GlobalCharacter[]           @relation("GlobalCharacterFaceMedia")
   globalCharacterAppearanceImages       GlobalCharacterAppearance[] @relation("GlobalCharacterAppearanceImageMedia")
   globalCharacterAppearancePreviousImgs GlobalCharacterAppearance[] @relation("GlobalCharacterAppearancePreviousImageMedia")
   globalLocationImageImages             GlobalLocationImage[]       @relation("GlobalLocationImageMedia")
@@ -1088,8 +1115,6 @@ model IpCharacter {
   // ---- 关联 ----
   variants          IpCharacterVariant[]
   referenceSheets   IpReferenceSheet[]
-  castings          IpCasting[]
-  screenplaySegments IpScreenplaySegment[]
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   folder            GlobalAssetFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
@@ -1125,7 +1150,6 @@ model IpCharacterVariant {
   updatedAt         DateTime @updatedAt
 
   ipCharacter       IpCharacter @relation(fields: [ipCharacterId], references: [id], onDelete: Cascade)
-  castings          IpCasting[]
 
   @@index([ipCharacterId])
   @@index([previewMediaId])
@@ -1158,57 +1182,119 @@ model IpReferenceSheet {
   @@map("ip_reference_sheets")
 }
 
-/// IP 选角：将 IP 角色投射到具体项目中
+/// IP 选角：将全局资产库角色投射到具体项目中
 model IpCasting {
-  id                String   @id @default(uuid())
-  projectId         String
-  ipCharacterId     String
-  ipVariantId       String?
+  id                  String   @id @default(uuid())
+  projectId           String
+  globalCharacterId   String                         // 来自全局资产库的角色 ID
+  appearanceIndex     Int?                           // 使用的形态外观序号（对应 GlobalCharacterAppearance.appearanceIndex）
 
-  projectCharacterId String?                        // 映射到项目内 NovelPromotionCharacter
-  castRole          String?  @db.Text               // 在本项目中扮演的角色
-  personalityOverride String? @db.Text
+  projectCharacterId  String?                        // 映射到项目内 NovelPromotionCharacter
+  castRole            String?  @db.Text              // 在本项目中扮演的角色
+  personalityOverride String?  @db.Text
   speakingStyleOverride String? @db.Text
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  ipCharacter       IpCharacter @relation(fields: [ipCharacterId], references: [id])
-  ipVariant         IpCharacterVariant? @relation(fields: [ipVariantId], references: [id], onDelete: SetNull)
-  project           NovelPromotionProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  screenplaySegments IpScreenplaySegment[]
+  globalCharacter     GlobalCharacter @relation(fields: [globalCharacterId], references: [id])
+  project             NovelPromotionProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  screenplaySegments  IpScreenplaySegment[]
 
-  @@unique([projectId, ipCharacterId])
+  @@unique([projectId, globalCharacterId])
   @@index([projectId])
-  @@index([ipCharacterId])
-  @@index([ipVariantId])
+  @@index([globalCharacterId])
   @@map("ip_castings")
 }
 
 /// IP 剧本结构化段落
 model IpScreenplaySegment {
-  id                String   @id @default(uuid())
-  projectId         String
-  episodeId         String?
-  clipId            String
-  segmentIndex      Int
+  id                  String   @id @default(uuid())
+  projectId           String
+  episodeId           String?
+  clipId              String
+  segmentIndex        Int
 
-  segmentType       String                          // "scene_desc" | "dialogue" | "action" | "narration" | "transition"
-  content           String   @db.Text
+  segmentType         String                         // "scene_desc" | "dialogue" | "action" | "narration" | "transition"
+  content             String   @db.Text
 
-  ipCharacterId     String?
-  ipCastingId       String?
-  emotionTag        String?                         // "happy" | "angry" | "sad" | "fearful" | "surprised" | "neutral"
-  emotionIntensity  Float?
-  stageDirection    String?  @db.Text
+  globalCharacterId   String?                        // 关联的全局资产库角色
+  ipCastingId         String?
+  emotionTag          String?                        // "happy" | "angry" | "sad" | "fearful" | "surprised" | "neutral"
+  emotionIntensity    Float?
+  stageDirection      String?  @db.Text
 
-  createdAt         DateTime @default(now())
+  createdAt           DateTime @default(now())
 
-  ipCharacter       IpCharacter? @relation(fields: [ipCharacterId], references: [id], onDelete: SetNull)
-  ipCasting         IpCasting? @relation(fields: [ipCastingId], references: [id], onDelete: SetNull)
+  globalCharacter     GlobalCharacter? @relation(fields: [globalCharacterId], references: [id], onDelete: SetNull)
+  ipCasting           IpCasting? @relation(fields: [ipCastingId], references: [id], onDelete: SetNull)
 
   @@index([projectId, clipId])
-  @@index([ipCharacterId])
+  @@index([globalCharacterId])
   @@index([ipCastingId])
   @@map("ip_screenplay_segments")
+}
+
+// ---- 导演模式 ----
+
+model DirectorScript {
+  id              String                @id @default(uuid())
+  episodeId       String                @unique
+  episode         NovelPromotionEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  sceneCount      Int
+  scriptJson      String                @db.Text
+  characterInfo   String?               @db.Text
+  locationInfo    String?               @db.Text
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  storyboard      DirectorStoryboard?
+
+  @@index([episodeId])
+  @@map("director_scripts")
+}
+
+model DirectorStoryboard {
+  id              String                @id @default(uuid())
+  scriptId        String                @unique
+  script          DirectorScript        @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  shotCount       Int
+  storyboardJson  String                @db.Text
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  shots           DirectorShot[]
+
+  @@index([scriptId])
+  @@map("director_storyboards")
+}
+
+model DirectorShot {
+  id                String              @id @default(uuid())
+  storyboardId      String
+  storyboard        DirectorStoryboard  @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
+  shotIndex         Int
+
+  shotCaption       String?             @db.Text
+  globalPosition    String?             @db.Text
+  imagePromptLT     String?             @db.Text
+  imagePromptRT     String?             @db.Text
+  imagePromptLB     String?             @db.Text
+  imagePromptRB     String?             @db.Text
+  videoPrompt       String?             @db.Text
+  shotType          String?
+  voiceSpeaker      String?
+  soundEffect       String?             @db.Text
+
+  imageUrl          String?
+  imageMediaId      String?
+  videoUrl          String?
+  videoMediaId      String?
+  voiceUrl          String?
+  voiceMediaId      String?
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([storyboardId, shotIndex])
+  @@index([storyboardId])
+  @@map("director_shots")
 }

@@ -27,7 +27,7 @@ export const PATCH = apiHandler(async (request: NextRequest, ctx: { params: Prom
   const body = await request.json() as Record<string, unknown>
   const data: Record<string, unknown> = {}
   const allowed = [
-    'ipVariantId', 'castRole', 'personalityOverride',
+    'appearanceIndex', 'castRole', 'personalityOverride',
     'speakingStyleOverride', 'projectCharacterId',
   ]
   for (const field of allowed) {

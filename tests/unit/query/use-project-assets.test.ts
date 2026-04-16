@@ -35,6 +35,7 @@ describe('useProjectAssets adapters', () => {
         isRunning: false,
         lastError: null,
       },
+      ipStatus: null,
       voice: {
         voiceType: null,
         voiceId: null,

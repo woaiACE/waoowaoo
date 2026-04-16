@@ -93,6 +93,7 @@ const ROUTE_FILES = [
   'src/app/api/novel-promotion/[projectId]/download-images/route.ts',
   'src/app/api/novel-promotion/[projectId]/download-videos/route.ts',
   'src/app/api/novel-promotion/[projectId]/download-voices/route.ts',
+  'src/app/api/novel-promotion/[projectId]/director-mode-stream/route.ts',
   'src/app/api/novel-promotion/[projectId]/editor/route.ts',
   'src/app/api/novel-promotion/[projectId]/editor/render/route.ts',
   'src/app/api/novel-promotion/[projectId]/episodes/[episodeId]/route.ts',
@@ -214,6 +215,7 @@ function resolveContractGroup(routeFile: string): RouteContractGroup {
     || routeFile.includes('/analyze')
     || routeFile.includes('/story-to-script-stream/')
     || routeFile.includes('/script-to-storyboard-stream/')
+    || routeFile.includes('/director-mode-stream/')
     || routeFile.includes('/screenplay-conversion/')
     || routeFile.includes('/reference-to-character/')
     || routeFile.includes('/character-profile/')

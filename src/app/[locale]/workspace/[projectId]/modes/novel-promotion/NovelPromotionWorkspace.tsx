@@ -4,6 +4,7 @@ import ProgressToast from '@/components/ProgressToast'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import { AnimatedBackground } from '@/components/ui/SharedComponents'
 import { useTranslations } from 'next-intl'
+import { useState, useCallback } from 'react'
 import { WorkspaceProvider } from './WorkspaceProvider'
 import WorkspaceRunStreamConsoles from './components/WorkspaceRunStreamConsoles'
 import WorkspaceStageContent from './components/WorkspaceStageContent'
@@ -12,6 +13,7 @@ import WorkspaceHeaderShell from './components/WorkspaceHeaderShell'
 import { WorkspaceStageRuntimeProvider } from './WorkspaceStageRuntimeContext'
 import { useNovelPromotionWorkspaceController } from './hooks/useNovelPromotionWorkspaceController'
 import type { NovelPromotionWorkspaceProps } from './types'
+import { apiFetch } from '@/lib/api-fetch'
 import '@/styles/animations.css'
 
 function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
@@ -29,8 +31,23 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
     onEpisodeDelete,
   } = props
 
+  // IP 模式状态：以 project 数据为初始值，支持乐观更新（必须在所有 early return 前声明）
+  const [ipModeEnabled, setIpModeEnabled] = useState<boolean>(vm.project.ipModeEnabled)
+  const handleIpModeToggle = useCallback(async (enabled: boolean) => {
+    const prev = ipModeEnabled
+    setIpModeEnabled(enabled)
+    try {
+      const endpoint = enabled ? 'enable' : 'disable'
+      const res = await apiFetch(`/api/novel-promotion/${projectId}/ip/${endpoint}`, { method: 'POST' })
+      if (!res.ok) throw new Error('toggle failed')
+    } catch {
+      setIpModeEnabled(prev)
+    }
+  }, [ipModeEnabled, projectId])
+
   const storyToScriptStream = vm.execution.storyToScriptStream
   const scriptToStoryboardStream = vm.execution.scriptToStoryboardStream
+  const directorModeStream = vm.execution.directorModeStream
   const storyToScriptActive =
     storyToScriptStream.isRunning ||
     storyToScriptStream.isRecoveredRunning ||
@@ -39,6 +56,10 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
     scriptToStoryboardStream.isRunning ||
     scriptToStoryboardStream.isRecoveredRunning ||
     scriptToStoryboardStream.status === 'running'
+  const directorModeActive =
+    directorModeStream.isRunning ||
+    directorModeStream.isRecoveredRunning ||
+    directorModeStream.status === 'running'
 
   const showStoryToScriptMinBadge =
     storyToScriptStream.isVisible &&
@@ -49,6 +70,11 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
     scriptToStoryboardStream.isVisible &&
     scriptToStoryboardActive &&
     vm.execution.scriptToStoryboardConsoleMinimized
+
+  const showDirectorModeMinBadge =
+    directorModeStream.isVisible &&
+    directorModeActive &&
+    vm.execution.directorModeConsoleMinimized
 
   const runBadges: { id: string; label: string; onClick: () => void }[] = []
 
@@ -65,6 +91,14 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
       id: 'script-to-storyboard',
       label: tProgress('runConsole.scriptToStoryboardRunning'),
       onClick: () => vm.execution.setScriptToStoryboardConsoleMinimized(false),
+    })
+  }
+
+  if (showDirectorModeMinBadge) {
+    runBadges.push({
+      id: 'director-mode',
+      label: tProgress('runConsole.directorModeRunning'),
+      onClick: () => vm.execution.setDirectorModeConsoleMinimized(false),
     })
   }
 
@@ -114,11 +148,17 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
         assetLibraryLabel={vm.i18n.t('buttons.assetLibrary')}
         settingsLabel={vm.i18n.t('buttons.settings')}
         refreshTitle={vm.i18n.t('buttons.refreshData')}
+        ipModeEnabled={ipModeEnabled}
+        onIpModeToggle={handleIpModeToggle}
       />
 
       <div className="pt-24">
         <WorkspaceStageRuntimeProvider value={vm.runtime.stageRuntime}>
-          <WorkspaceStageContent currentStage={vm.stageNav.currentStage} />
+          <WorkspaceStageContent
+            currentStage={vm.stageNav.currentStage}
+            projectId={projectId}
+            ipModeEnabled={ipModeEnabled}
+          />
         </WorkspaceStageRuntimeProvider>
 
         <WorkspaceAssetLibraryModal
@@ -159,10 +199,13 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
         <WorkspaceRunStreamConsoles
           storyToScriptStream={vm.execution.storyToScriptStream}
           scriptToStoryboardStream={vm.execution.scriptToStoryboardStream}
+          directorModeStream={vm.execution.directorModeStream}
           storyToScriptConsoleMinimized={vm.execution.storyToScriptConsoleMinimized}
           scriptToStoryboardConsoleMinimized={vm.execution.scriptToStoryboardConsoleMinimized}
+          directorModeConsoleMinimized={vm.execution.directorModeConsoleMinimized}
           onStoryToScriptMinimizedChange={vm.execution.setStoryToScriptConsoleMinimized}
           onScriptToStoryboardMinimizedChange={vm.execution.setScriptToStoryboardConsoleMinimized}
+          onDirectorModeMinimizedChange={vm.execution.setDirectorModeConsoleMinimized}
           hideMinimizedBadges={vm.execution.showCreatingToast}
         />
       </div>

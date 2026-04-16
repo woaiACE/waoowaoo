@@ -134,6 +134,7 @@ describe('AssetGrid', () => {
             profileConfirmed: null,
             profileTaskRefs: [],
             profileTaskState: { isRunning: false, lastError: null },
+            ipStatus: null,
             voice: {
               voiceType: null,
               voiceId: null,

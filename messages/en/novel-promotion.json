@@ -12,7 +12,8 @@
     "assetLibrary": "Asset Library",
     "settings": "Project Config",
     "refreshData": "Refresh Data",
-    "enterVideoGeneration": "Enter Video Generation →"
+    "enterVideoGeneration": "Enter Video Generation →",
+    "directorMode": "🎬 Director Mode"
   },
   "smartImport": {
     "title": "Start Your Creative Journey",
@@ -160,6 +161,8 @@
     "scriptToStoryboardRunning": "Script→Storyboard V2 running",
     "storyToScriptFailed": "Story to script failed",
     "scriptToStoryboardFailed": "Script to storyboard failed",
+    "directorModeRunning": "Director Mode running",
+    "directorModeFailed": "Director mode failed",
     "taskStreamTimeout": "Task timed out. The task may still be running in the background — please check its status or retry"
   },
   "rebuildConfirm": {

@@ -264,6 +264,7 @@ export interface NovelPromotionProject {
   targetPlatform: string
   screenplayTone: string
   storyRewriteMode: string
+  ipModeEnabled?: boolean
   audioUrl: string | null
   media?: MediaRef | null
   srtContent: string | null

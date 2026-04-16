@@ -34,6 +34,13 @@ export const PROMPT_IDS = {
   IP_SCREENPLAY_REWRITE: 'ip_screenplay_rewrite',
   IP_SEGMENT_PARSE: 'ip_segment_parse',
   IP_REF_SHEET_GENERATE: 'ip_ref_sheet_generate',
+  // 导演模式
+  NP_DIRECTOR_SPLIT_SCENES: 'np_director_split_scenes',
+  NP_DIRECTOR_SCENE_TO_EVENTS: 'np_director_scene_to_events',
+  NP_DIRECTOR_EVENTS_TO_STORYBOARD: 'np_director_events_to_storyboard',
+  NP_DIRECTOR_SHOT_IMAGE_PROMPT: 'np_director_shot_image_prompt',
+  NP_DIRECTOR_SHOT_VIDEO_PROMPT: 'np_director_shot_video_prompt',
+  NP_DIRECTOR_SHOT_SOUND_DESIGN: 'np_director_shot_sound_design',
 } as const
 
 export type PromptId = (typeof PROMPT_IDS)[keyof typeof PROMPT_IDS]

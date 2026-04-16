@@ -23,16 +23,16 @@ export async function resolveIpVoiceContext(segmentId: string) {
   const segment = await prisma.ipScreenplaySegment.findUnique({
     where: { id: segmentId },
     include: {
-      ipCharacter: true,
+      globalCharacter: true,
       ipCasting: {
-        include: { ipCharacter: true },
+        include: { globalCharacter: true },
       },
     },
   })
 
   if (!segment) throw new Error(`IP screenplay segment not found: ${segmentId}`)
 
-  const ipCharacter = segment.ipCasting?.ipCharacter ?? segment.ipCharacter
+  const ipCharacter = segment.ipCasting?.globalCharacter ?? segment.globalCharacter
   if (!ipCharacter) throw new Error(`No IP character associated with segment: ${segmentId}`)
 
   // 解析情感

@@ -52,10 +52,17 @@ describe('WorkspaceRunStreamConsoles', () => {
           isVisible: false,
           isRecoveredRunning: false,
         }),
+        directorModeStream: createStreamState({
+          status: 'idle',
+          isVisible: false,
+          isRecoveredRunning: false,
+        }),
         storyToScriptConsoleMinimized: false,
         scriptToStoryboardConsoleMinimized: true,
+        directorModeConsoleMinimized: true,
         onStoryToScriptMinimizedChange: () => undefined,
         onScriptToStoryboardMinimizedChange: () => undefined,
+        onDirectorModeMinimizedChange: () => undefined,
       }),
     )
 

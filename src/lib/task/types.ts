@@ -90,6 +90,9 @@ export const TASK_TYPE = {
   IP_VOICE_LINE: 'ip_voice_line',
   IP_ASSET_INIT_RUN: 'ip_asset_init_run',
   IP_SCREENPLAY_REWRITE_RUN: 'ip_screenplay_rewrite_run',
+
+  // ---- 导演模式 ----
+  DIRECTOR_MODE_RUN: 'director_mode_run',
 } as const
 
 export type TaskType = (typeof TASK_TYPE)[keyof typeof TASK_TYPE]

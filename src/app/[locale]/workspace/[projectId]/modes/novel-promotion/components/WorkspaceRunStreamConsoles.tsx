@@ -37,20 +37,26 @@ type RunStreamState = {
 interface WorkspaceRunStreamConsolesProps {
   storyToScriptStream: RunStreamState
   scriptToStoryboardStream: RunStreamState
+  directorModeStream: RunStreamState
   storyToScriptConsoleMinimized: boolean
   scriptToStoryboardConsoleMinimized: boolean
+  directorModeConsoleMinimized: boolean
   onStoryToScriptMinimizedChange: (next: boolean) => void
   onScriptToStoryboardMinimizedChange: (next: boolean) => void
+  onDirectorModeMinimizedChange: (next: boolean) => void
   hideMinimizedBadges?: boolean
 }
 
 export default function WorkspaceRunStreamConsoles({
   storyToScriptStream,
   scriptToStoryboardStream,
+  directorModeStream,
   storyToScriptConsoleMinimized,
   scriptToStoryboardConsoleMinimized,
+  directorModeConsoleMinimized,
   onStoryToScriptMinimizedChange,
   onScriptToStoryboardMinimizedChange,
+  onDirectorModeMinimizedChange,
   hideMinimizedBadges,
 }: WorkspaceRunStreamConsolesProps) {
   const t = useTranslations('progress')
@@ -121,6 +127,41 @@ export default function WorkspaceRunStreamConsoles({
     scriptToStoryboardStream.isRunning &&
     scriptToStoryboardStream.selectedStep?.id === scriptToStoryboardStream.activeStepId &&
     scriptToStoryboardSelectedStage?.status === 'processing'
+
+  const directorModeActive =
+    directorModeStream.isRunning ||
+    directorModeStream.isRecoveredRunning ||
+    directorModeStream.status === 'running'
+
+  const showDirectorModeConsole =
+    directorModeStream.isVisible &&
+    (directorModeStream.stages.length > 0 || !!directorModeStream.errorMessage || directorModeActive)
+  const directorModeFallbackStatus: LLMStageViewItem['status'] =
+    directorModeStream.status === 'failed' ? 'failed' : 'processing'
+  const directorModeStages = directorModeStream.stages.length > 0
+    ? directorModeStream.stages
+    : [{
+      id: 'director_mode_run',
+      title: t('runConsole.directorMode'),
+      status: directorModeFallbackStatus,
+      progress: 0,
+      subtitle: directorModeStream.errorMessage || undefined,
+    }]
+  const directorModeActiveStage = directorModeStream.activeStepId
+    ? directorModeStages.find((stage) => stage.id === directorModeStream.activeStepId) || null
+    : null
+  const directorModeCardTitle =
+    directorModeActiveStage?.title ||
+    t('runConsole.directorMode')
+  const directorModeSelectedStageId =
+    directorModeStream.selectedStep?.id || directorModeStream.activeStepId || null
+  const directorModeSelectedStage = directorModeSelectedStageId
+    ? directorModeStages.find((stage) => stage.id === directorModeSelectedStageId) || null
+    : null
+  const directorModeShowCursor =
+    directorModeStream.isRunning &&
+    directorModeStream.selectedStep?.id === directorModeStream.activeStepId &&
+    directorModeSelectedStage?.status === 'processing'
 
   const handleRetryStepById = async (
     stream: RunStreamState,
@@ -232,6 +273,58 @@ export default function WorkspaceRunStreamConsoles({
                   <button
                     type="button"
                     onClick={() => onScriptToStoryboardMinimizedChange(true)}
+                    className="glass-btn-base glass-btn-secondary rounded-lg px-3 py-1.5 text-xs"
+                  >
+                    {t('runConsole.minimize')}
+                  </button>
+                </div>
+              )}
+            />
+          </div>
+        </div>
+      )}
+
+      {!hideMinimizedBadges && showDirectorModeConsole && directorModeConsoleMinimized && directorModeActive && (
+        <button
+          type="button"
+          onClick={() => onDirectorModeMinimizedChange(false)}
+          className="fixed right-6 bottom-34 z-120 glass-surface-modal rounded-2xl px-4 py-3 text-sm font-medium text-(--glass-tone-info-fg)"
+        >
+          {t('runConsole.directorModeRunning')}
+        </button>
+      )}
+
+      {showDirectorModeConsole && !directorModeConsoleMinimized && (
+        <div className="fixed inset-0 z-120 glass-overlay backdrop-blur-sm">
+          <div className="mx-auto mt-4 h-[calc(100vh-2rem)] w-[min(96vw,1400px)]">
+            <LLMStageStreamCard
+              title={directorModeCardTitle}
+              subtitle={t('runConsole.directorModeSubtitle')}
+              stages={directorModeStages}
+              activeStageId={directorModeStream.activeStepId || directorModeStages[directorModeStages.length - 1]?.id || ''}
+              selectedStageId={directorModeStream.selectedStep?.id || undefined}
+              onSelectStage={directorModeStream.selectStep}
+              onRetryStage={(stepId) => {
+                void handleRetryStepById(directorModeStream, stepId)
+              }}
+              outputText={directorModeStream.outputText}
+              activeMessage={directorModeStream.activeMessage}
+              overallProgress={directorModeStream.overallProgress}
+              showCursor={directorModeShowCursor}
+              autoScroll={directorModeStream.selectedStep?.id === directorModeStream.activeStepId}
+              errorMessage={directorModeStream.errorMessage}
+              topRightAction={(
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={directorModeStream.reset}
+                    className="glass-btn-base glass-btn-secondary rounded-lg px-3 py-1.5 text-xs"
+                  >
+                    {t('runConsole.stop')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDirectorModeMinimizedChange(true)}
                     className="glass-btn-base glass-btn-secondary rounded-lg px-3 py-1.5 text-xs"
                   >
                     {t('runConsole.minimize')}

@@ -70,6 +70,7 @@ export default function ConfigStage() {
       storyRewriteMode={runtime.storyRewriteMode ?? undefined}
       onStoryRewriteModeChange={runtime.onStoryRewriteModeChange}
       onNext={runtime.onRunStoryToScript}
+      onDirectorMode={runtime.onRunDirectorMode}
       onSmartSplit={handleSmartSplit}
       projectId={projectId}
     />

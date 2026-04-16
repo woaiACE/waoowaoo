@@ -21,6 +21,7 @@ export interface WorkspaceStageRuntimeValue {
   isConfirmingAssets: boolean
   isStartingStoryToScript: boolean
   isStartingScriptToStoryboard: boolean
+  isStartingDirectorMode: boolean
   videoRatio: string | null | undefined
   artStyle: string | null | undefined
   colorGradePreset: string | null | undefined
@@ -38,6 +39,7 @@ export interface WorkspaceStageRuntimeValue {
   onScreenplayToneChange: (value: string) => Promise<void>
   onStoryRewriteModeChange: (value: string) => Promise<void>
   onRunStoryToScript: () => Promise<void>
+  onRunDirectorMode: () => Promise<void>
   onClipUpdate: (clipId: string, data: unknown) => Promise<void>
   onOpenAssetLibrary: () => void
   onRunScriptToStoryboard: () => Promise<void>

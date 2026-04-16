@@ -7,12 +7,14 @@ import type { BatchVideoGenerationParams, VideoGenerationOptions } from '../comp
 import type { CapabilitySelections } from '@/lib/model-config-contract'
 import type { VideoPricingTier } from '@/lib/model-pricing/video-tier'
 import type {
+  useDirectorModeRunStream,
   useScriptToStoryboardRunStream,
   useStoryToScriptRunStream,
 } from '@/lib/query/hooks'
 
 type StoryToScriptStreamState = ReturnType<typeof useStoryToScriptRunStream>
 type ScriptToStoryboardStreamState = ReturnType<typeof useScriptToStoryboardRunStream>
+type DirectorModeStreamState = ReturnType<typeof useDirectorModeRunStream>
 
 interface ProjectSnapshotInput {
   projectData: unknown
@@ -31,6 +33,7 @@ interface ProjectSnapshotInput {
   capabilityOverrides: CapabilitySelections
   ttsRate: string | number | undefined
   artStyle: string | undefined
+  ipModeEnabled: boolean
 }
 
 interface BuildWorkspaceControllerViewModelParams {
@@ -90,16 +93,21 @@ interface BuildWorkspaceControllerViewModelParams {
     isTransitioning: boolean
     isStartingStoryToScript: boolean
     isStartingScriptToStoryboard: boolean
+    isStartingDirectorMode: boolean
     transitionProgress: { step?: string; total?: number; current?: number }
     storyToScriptConsoleMinimized: boolean
     setStoryToScriptConsoleMinimized: (minimized: boolean) => void
     scriptToStoryboardConsoleMinimized: boolean
     setScriptToStoryboardConsoleMinimized: (minimized: boolean) => void
+    directorModeConsoleMinimized: boolean
+    setDirectorModeConsoleMinimized: (minimized: boolean) => void
     storyToScriptStream: StoryToScriptStreamState
     scriptToStoryboardStream: ScriptToStoryboardStreamState
+    directorModeStream: DirectorModeStreamState
     handleGenerateTTS: () => Promise<void>
     handleAnalyzeAssets: () => Promise<void>
     runStoryToScriptFlow: () => Promise<void>
+    runDirectorModeFlow: () => Promise<void>
     runScriptToStoryboardFlow: () => Promise<void>
     showCreatingToast: boolean
   }

@@ -36,6 +36,8 @@ interface NovelInputStageProps {
   // 回调函数
   onNovelTextChange: (value: string) => void
   onNext: () => void
+  /** 触发导演模式 */
+  onDirectorMode?: () => void
   /** 触发智能分集流程（携带当前文本） */
   onSmartSplit?: (text: string) => void
   // 状态
@@ -66,6 +68,7 @@ export default function NovelInputStage({
   episodeName,
   onNovelTextChange,
   onNext,
+  onDirectorMode,
   onSmartSplit,
   isSubmittingTask = false,
   isSwitchingStage = false,
@@ -233,23 +236,36 @@ export default function NovelInputStage({
             </button>
           )}
           secondaryActions={(
-            <button
-              onClick={() => setAiWriteOpen(true)}
-              disabled={isSubmittingTask || isSwitchingStage}
-              className="glass-btn-base flex h-10 flex-shrink-0 items-center gap-1.5 border border-[var(--glass-stroke-strong)] px-3 text-sm transition-all hover:border-[var(--glass-tone-info-fg)]/40"
-            >
-              <AppIcon name="sparkles" className="w-4 h-4 text-[#7c3aed]" />
-              <span
-                className="font-medium"
-                style={{
-                  background: 'linear-gradient(135deg, #3b82f6, #7c3aed)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
+            <>
+              <button
+                onClick={() => setAiWriteOpen(true)}
+                disabled={isSubmittingTask || isSwitchingStage}
+                className="glass-btn-base flex h-10 flex-shrink-0 items-center gap-1.5 border border-[var(--glass-stroke-strong)] px-3 text-sm transition-all hover:border-[var(--glass-tone-info-fg)]/40"
               >
-                {homeT('aiWrite.trigger')}
-              </span>
-            </button>
+                <AppIcon name="sparkles" className="w-4 h-4 text-[#7c3aed]" />
+                <span
+                  className="font-medium"
+                  style={{
+                    background: 'linear-gradient(135deg, #3b82f6, #7c3aed)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  {homeT('aiWrite.trigger')}
+                </span>
+              </button>
+              {onDirectorMode && (
+                <button
+                  onClick={onDirectorMode}
+                  disabled={!hasContent || isSubmittingTask || isSwitchingStage}
+                  className="glass-btn-base flex h-10 flex-shrink-0 items-center gap-1.5 border border-[var(--glass-stroke-strong)] px-3 text-sm transition-all hover:border-amber-500/40 disabled:opacity-50"
+                >
+                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                    {t('buttons.directorMode')}
+                  </span>
+                </button>
+              )}
+            </>
           )}
         />
       </div>

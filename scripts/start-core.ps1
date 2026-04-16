@@ -1003,6 +1003,29 @@ function Invoke-Phase8-PrismaDbPush {
             }
         }
 
+        # 预清理：删除 session 表以避免 InnoDB FK 约束名重复冲突（errno 121）。
+        # session 表仅存储临时认证令牌，删除后由 db push 自动重建，不会丢失业务数据。
+        Write-Step -Phase 'Prisma' -Message "预清理 session 表（排除 FK 重名冲突）..."
+        $cleanupSql = "SET FOREIGN_KEY_CHECKS=0; DROP TABLE IF EXISTS ``session``; SET FOREIGN_KEY_CHECKS=1;"
+        $cleanupSqlFile = Join-Path $env:TEMP 'waoowaoo-cleanup-session.sql'
+        Set-Content -Path $cleanupSqlFile -Value $cleanupSql -Encoding UTF8 -Force
+        $cleanupArgs = @(
+            "-h127.0.0.1",
+            "-P$Script:PortMySql",
+            '-uroot',
+            "-p$Script:DbRootPassword",
+            $Script:DbName,
+            '--connect-timeout=10'
+        )
+        Start-Process `
+            -FilePath $Script:MySqlCli `
+            -ArgumentList $cleanupArgs `
+            -NoNewWindow `
+            -RedirectStandardInput $cleanupSqlFile `
+            -PassThru `
+            -Wait | Out-Null
+        Remove-Item -Path $cleanupSqlFile -Force -ErrorAction SilentlyContinue
+
         $prismaProcess = Start-Process `
             -FilePath $Script:NpxCmd `
             -ArgumentList 'prisma', 'db', 'push', '--skip-generate' `

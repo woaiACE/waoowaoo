@@ -82,7 +82,8 @@
     "assetHubAiModifyCharacter": "Asset hub character modify",
     "assetHubAiModifyLocation": "Asset hub location modify",
     "assetHubAiModifyProp": "Asset hub prop modify",
-    "assetHubReferenceToCharacter": "Asset hub reference to character"
+    "assetHubReferenceToCharacter": "Asset hub reference to character",
+    "directorModeRun": "Director mode"
   },
   "stage": {
     "received": "Task received",
@@ -115,7 +116,11 @@
     "enqueueFailed": "Task enqueue failed",
     "llmProxySubmit": "Submit LLM task",
     "llmProxyExecute": "Execute LLM task",
-    "llmProxyPersist": "Persist LLM result"
+    "llmProxyPersist": "Persist LLM result",
+    "directorModePrepare": "Prepare director mode parameters",
+    "directorModeStep": "Execute director mode step",
+    "directorModeShotsDone": "Director mode shots completed",
+    "directorModeCompleted": "Director mode completed"
   },
   "runConsole": {
     "storyToScript": "Story to Script",
@@ -124,6 +129,9 @@
     "scriptToStoryboardRunning": "Script→Storyboard running",
     "storyToScriptSubtitle": "Story To Script V2",
     "scriptToStoryboardSubtitle": "Script To Storyboard V2",
+    "directorMode": "Director Mode",
+    "directorModeRunning": "Director Mode running",
+    "directorModeSubtitle": "Director Mode V1",
     "stop": "Stop",
     "minimize": "Minimize"
   },
@@ -137,6 +145,12 @@
     "cinematographyRules": "Generate cinematography rules",
     "actingDirection": "Generate acting direction",
     "storyboardDetailRefine": "Refine storyboard details",
-    "voiceAnalyze": "Analyze voice lines"
+    "voiceAnalyze": "Analyze voice lines",
+    "splitScenes": "Split scenes",
+    "sceneToEvents": "Extract events",
+    "eventsToStoryboard": "Generate storyboard",
+    "shotImagePrompt": "Image prompt",
+    "shotVideoPrompt": "Video prompt",
+    "shotSoundDesign": "Sound design"
   }
 }

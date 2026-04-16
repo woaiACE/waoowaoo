@@ -168,6 +168,7 @@ export function AssetGrid({
         name: asset.name,
         folderId: asset.folderId,
         customVoiceUrl: asset.voice.customVoiceUrl,
+        ipStatus: asset.ipStatus,
         appearances: asset.variants.map((variant) => ({
             id: variant.id,
             appearanceIndex: variant.index,

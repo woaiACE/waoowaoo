@@ -22,6 +22,7 @@
   "editor": {
     "createTitle": "Create IP Character",
     "editTitle": "Edit IP Character",
+    "addVariantsTitle": "Add Appearance Variants",
     "name": "Character Name",
     "namePlaceholder": "Enter character name",
     "nameRequired": "Character name is required",
@@ -30,7 +31,12 @@
     "cancel": "Cancel",
     "create": "Create",
     "save": "Save",
-    "saveFailed": "Failed to save"
+    "saveFailed": "Failed to save",
+    "nextStep": "Next: Add Variants",
+    "skipVariants": "Skip for now",
+    "finishCreate": "Finish",
+    "variantsHint": "Add appearance variants for this character (e.g., modern, traditional, school uniform). You can also add them later.",
+    "variantsAdded": "Variants added"
   },
   "variant": {
     "title": "Variant Manager",
@@ -78,13 +84,15 @@
     "addCasting": "Add Casting",
     "created": "Casting added",
     "createFailed": "Failed to add casting",
+    "alreadyCast": "This character is already in the casting list",
     "removed": "Casting removed",
     "removeFailed": "Failed to remove casting",
-    "empty": "No castings yet, add characters from IP Workbench",
+    "empty": "No castings yet, select characters from the asset library",
     "roleAs": "as",
     "selectCharacter": "Select Character",
     "selectPlaceholder": "Select an IP character",
     "roleLabel": "Role Label",
+    "roleLabelHint": "Enter the character's role name in this screenplay (optional)",
     "roleLabelPlaceholder": "Character name in screenplay (optional)",
     "confirm": "Confirm Casting"
   },

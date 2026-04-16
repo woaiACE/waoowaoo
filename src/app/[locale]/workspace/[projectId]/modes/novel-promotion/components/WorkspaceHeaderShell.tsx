@@ -78,6 +78,8 @@ interface WorkspaceHeaderShellProps {
   assetLibraryLabel: string
   settingsLabel: string
   refreshTitle: string
+  ipModeEnabled: boolean
+  onIpModeToggle: (enabled: boolean) => Promise<void>
 }
 
 export default function WorkspaceHeaderShell({
@@ -118,6 +120,8 @@ export default function WorkspaceHeaderShell({
   assetLibraryLabel,
   settingsLabel,
   refreshTitle,
+  ipModeEnabled,
+  onIpModeToggle,
 }: WorkspaceHeaderShellProps) {
   return (
     <>
@@ -208,6 +212,8 @@ export default function WorkspaceHeaderShell({
         assetLibraryLabel={assetLibraryLabel}
         settingsLabel={settingsLabel}
         refreshTitle={refreshTitle}
+        ipModeEnabled={ipModeEnabled}
+        onIpModeToggle={onIpModeToggle}
       />
     </>
   )

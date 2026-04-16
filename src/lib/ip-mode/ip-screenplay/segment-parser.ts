@@ -123,7 +123,7 @@ export async function persistSegments(params: {
       segmentIndex: index,
       segmentType: seg.type,
       content: seg.content,
-      ipCharacterId: seg.characterId ?? null,
+      globalCharacterId: seg.characterId ?? null,
       ipCastingId,
       emotionTag: seg.emotion ?? null,
       emotionIntensity: seg.emotionIntensity ?? null,
@@ -143,7 +143,7 @@ export async function getSegmentsByClip(projectId: string, clipId: string) {
   return prisma.ipScreenplaySegment.findMany({
     where: { projectId, clipId },
     include: {
-      ipCharacter: { select: { id: true, name: true } },
+      globalCharacter: { select: { id: true, name: true } },
     },
     orderBy: { segmentIndex: 'asc' },
   })

@@ -37,24 +37,24 @@ export async function handleIpAssetInitRun(job: Job<TaskJobData>) {
   const payload = (job.data.payload || {}) as AnyObj
   const _projectId = job.data.projectId
   const userId = job.data.userId
-  const ipCharacterId = typeof payload.ipCharacterId === 'string'
-    ? payload.ipCharacterId
+  const globalCharacterId = typeof payload.globalCharacterId === 'string'
+    ? payload.globalCharacterId
     : ''
   const runId = typeof payload.runId === 'string' ? payload.runId.trim() : ''
 
   if (!runId) {
     throw new Error('runId is required for ip_asset_init pipeline')
   }
-  if (!ipCharacterId) {
-    throw new Error('ipCharacterId is required for ip_asset_init pipeline')
+  if (!globalCharacterId) {
+    throw new Error('globalCharacterId is required for ip_asset_init pipeline')
   }
 
-  const character = await prisma.ipCharacter.findUnique({
-    where: { id: ipCharacterId },
+  const character = await prisma.globalCharacter.findUnique({
+    where: { id: globalCharacterId },
     include: { faceMedia: true },
   })
   if (!character) {
-    throw new Error('IP character not found')
+    throw new Error('Global character not found')
   }
 
   const workerId = buildWorkflowWorkerId(job, 'ip_asset_init')
@@ -88,7 +88,7 @@ export async function handleIpAssetInitRun(job: Job<TaskJobData>) {
         runId,
         stepKey: 'extract_face',
         artifactType: 'ip.face_descriptor',
-        refId: ipCharacterId,
+        refId: globalCharacterId,
         payload: { faceDescriptor, decomposed },
       })
 
@@ -109,7 +109,7 @@ export async function handleIpAssetInitRun(job: Job<TaskJobData>) {
           runId,
           stepKey,
           artifactType: 'ip.ref_sheet',
-          refId: ipCharacterId,
+          refId: globalCharacterId,
           payload: { type: sheetType, status: 'pending_generation' },
         })
       }
@@ -117,7 +117,7 @@ export async function handleIpAssetInitRun(job: Job<TaskJobData>) {
       await reportTaskProgress(job, 100, { stage: 'ip_asset_init_done' })
 
       return {
-        ipCharacterId,
+        globalCharacterId,
         faceDescriptor,
         refSheetCount: refSheetTypes.length,
       }

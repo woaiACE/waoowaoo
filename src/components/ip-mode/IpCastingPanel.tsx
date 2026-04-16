@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * IP 选角面板 — 为项目分配 IP 角色
+ * IP 选角面板 — 为项目从全局资产库分配角色
  */
 
 import { useState, useCallback } from 'react'
@@ -9,9 +9,9 @@ import { useTranslations } from 'next-intl'
 import { useToast } from '@/contexts/ToastContext'
 import { AppIcon } from '@/components/ui/icons'
 import GlassButton from '@/components/ui/primitives/GlassButton'
-import type { IpCastingSummary, IpCharacterSummary } from './types'
+import GlobalAssetPicker from '@/components/shared/assets/GlobalAssetPicker'
+import type { IpCastingSummary } from './types'
 import { useIpCastings } from './hooks/useIpCastings'
-import { useIpCharacters } from './hooks/useIpCharacters'
 
 interface IpCastingPanelProps {
   projectId: string
@@ -20,35 +20,49 @@ interface IpCastingPanelProps {
 export default function IpCastingPanel({ projectId }: IpCastingPanelProps) {
   const t = useTranslations('ipMode')
   const { showToast } = useToast()
-  const [isAdding, setIsAdding] = useState(false)
-  const [selectedCharId, setSelectedCharId] = useState('')
+
+  // 资产选择器状态
+  const [pickerOpen, setPickerOpen] = useState(false)
+  // 已从选择器选中但待填写角色名的角色 ID
+  const [pendingCharId, setPendingCharId] = useState('')
   const [roleLabel, setRoleLabel] = useState('')
 
   const { castings, isLoading, createCasting, deleteCasting } = useIpCastings(projectId)
-  const { characters } = useIpCharacters()
 
-  // Exclude already-cast characters
-  const castCharacterIds = new Set(castings.map((c: IpCastingSummary) => c.ipCharacterId))
-  const availableCharacters = characters.filter((c: IpCharacterSummary) => !castCharacterIds.has(c.id))
+  // 已选角的 globalCharacterId 集合（防重复选角）
+  const castCharacterIds = new Set(castings.map((c: IpCastingSummary) => c.globalCharacterId))
 
-  const handleAdd = useCallback(async () => {
-    if (!selectedCharId) {
-      showToast(t('casting.selectRequired'), 'error')
+  /** 从 GlobalAssetPicker 选中角色后 */
+  const handlePickerSelect = useCallback((globalAssetId: string) => {
+    setPickerOpen(false)
+    if (castCharacterIds.has(globalAssetId)) {
+      showToast(t('casting.alreadyCast'), 'error')
       return
     }
+    setPendingCharId(globalAssetId)
+    setRoleLabel('')
+  }, [castCharacterIds, showToast, t])
+
+  /** 提交选角 */
+  const handleConfirm = useCallback(async () => {
+    if (!pendingCharId) return
     try {
       await createCasting({
-        ipCharacterId: selectedCharId,
-        roleLabel: roleLabel.trim() || undefined,
+        globalCharacterId: pendingCharId,
+        castRole: roleLabel.trim() || undefined,
       })
-      setSelectedCharId('')
+      setPendingCharId('')
       setRoleLabel('')
-      setIsAdding(false)
-      showToast(t('casting.added'), 'success')
+      showToast(t('casting.created'), 'success')
     } catch {
-      showToast(t('casting.addFailed'), 'error')
+      showToast(t('casting.createFailed'), 'error')
     }
-  }, [selectedCharId, roleLabel, createCasting, showToast, t])
+  }, [pendingCharId, roleLabel, createCasting, showToast, t])
+
+  const handleCancelPending = useCallback(() => {
+    setPendingCharId('')
+    setRoleLabel('')
+  }, [])
 
   const handleRemove = useCallback(async (castingId: string) => {
     try {
@@ -69,10 +83,9 @@ export default function IpCastingPanel({ projectId }: IpCastingPanelProps) {
           variant="secondary"
           size="sm"
           iconLeft={<AppIcon name="plus" className="w-4 h-4" />}
-          onClick={() => setIsAdding(true)}
-          disabled={availableCharacters.length === 0}
+          onClick={() => setPickerOpen(true)}
         >
-          {t('casting.addCast')}
+          {t('casting.addCasting')}
         </GlassButton>
       </div>
 
@@ -104,7 +117,7 @@ export default function IpCastingPanel({ projectId }: IpCastingPanelProps) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium glass-text-primary">{casting.characterName}</p>
                 {casting.roleLabel && (
-                  <p className="text-xs glass-text-tertiary">{t('casting.as')} {casting.roleLabel}</p>
+                  <p className="text-xs glass-text-tertiary">{t('casting.roleAs')} {casting.roleLabel}</p>
                 )}
               </div>
               <button
@@ -118,19 +131,10 @@ export default function IpCastingPanel({ projectId }: IpCastingPanelProps) {
         </div>
       )}
 
-      {/* Add Casting Form */}
-      {isAdding && (
+      {/* 待确认角色名表单 */}
+      {pendingCharId && (
         <div className="mt-3 p-3 rounded-lg bg-[var(--glass-bg-muted)] flex flex-col gap-2">
-          <select
-            className="glass-input w-full text-sm"
-            value={selectedCharId}
-            onChange={(e) => setSelectedCharId(e.target.value)}
-          >
-            <option value="">{t('casting.selectCharacter')}</option>
-            {availableCharacters.map((c: IpCharacterSummary) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <p className="text-xs glass-text-secondary">{t('casting.roleLabelHint')}</p>
           <input
             className="glass-input w-full text-sm"
             value={roleLabel}
@@ -138,15 +142,23 @@ export default function IpCastingPanel({ projectId }: IpCastingPanelProps) {
             placeholder={t('casting.roleLabelPlaceholder')}
           />
           <div className="flex justify-end gap-2">
-            <GlassButton variant="ghost" size="sm" onClick={() => setIsAdding(false)}>
+            <GlassButton variant="ghost" size="sm" onClick={handleCancelPending}>
               {t('editor.cancel')}
             </GlassButton>
-            <GlassButton variant="primary" size="sm" onClick={handleAdd}>
+            <GlassButton variant="primary" size="sm" onClick={handleConfirm}>
               {t('casting.confirm')}
             </GlassButton>
           </div>
         </div>
       )}
+
+      {/* 全局资产库角色选择器 */}
+      <GlobalAssetPicker
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handlePickerSelect}
+        type="character"
+      />
     </div>
   )
 }

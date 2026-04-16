@@ -36,6 +36,7 @@ import { handleAssetHubAIModifyTask } from './handlers/asset-hub-ai-modify'
 import { handleReferenceToCharacterTask } from './handlers/reference-to-character'
 import { handleShotAITask } from './handlers/shot-ai-tasks'
 import { handleCharacterProfileTask } from './handlers/character-profile'
+import { handleDirectorModeTask } from './handlers/director-mode'
 
 function readAssetKind(value: Record<string, unknown>): string {
   return typeof value.assetKind === 'string' ? value.assetKind : 'location'
@@ -708,6 +709,9 @@ async function processTextTask(job: Job<TaskJobData>) {
       return await (await import('@/lib/ip-mode/handlers/ip-run-handlers')).handleIpAssetInitRun(job) as Record<string, unknown>
     case TASK_TYPE.IP_SCREENPLAY_REWRITE_RUN:
       return await (await import('@/lib/ip-mode/handlers/ip-run-handlers')).handleIpScreenplayRewriteRun(job) as Record<string, unknown>
+    // 导演模式
+    case TASK_TYPE.DIRECTOR_MODE_RUN:
+      return await handleDirectorModeTask(job)
     default:
       throw new Error(`Unsupported text task type: ${job.data.type}`)
   }

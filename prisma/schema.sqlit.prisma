@@ -267,6 +267,8 @@ model NovelPromotionProject {
   episodes        NovelPromotionEpisode[]
   locations       NovelPromotionLocation[]
   project         Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  ipModeEnabled   Boolean                   @default(false)
+  ipCastings      IpCasting[]
 
   @@map("novel_promotion_projects")
 }
@@ -670,16 +672,35 @@ model GlobalCharacter {
   customVoiceMediaId String?
   customVoiceMedia MediaObject? @relation("GlobalCharacterVoiceMedia", fields: [customVoiceMediaId], references: [id], onDelete: SetNull)
   globalVoiceId    String? // 绑定的全局音色 ID
+
+  // ---- IP 模式扩展字段 ----
+  personality        String?            // IP: 性格描述
+  speakingStyle      String?            // IP: 说话口吻
+  backstory          String?            // IP: 背景故事
+  gender             String?            // IP: 性别 male|female|neutral
+  ageRange           String?            // IP: 年龄段
+  faceDescriptor     String?            // IP: 面部特征结构化描述 JSON
+  faceReferenceUrl   String?            // IP: 面部参考图 URL
+  faceMediaId        String?            // IP: 面部参考图 MediaObject
+  faceMedia          MediaObject? @relation("GlobalCharacterFaceMedia", fields: [faceMediaId], references: [id], onDelete: SetNull)
+  bodyArchetype      String?            // IP: 基础骨架描述
+  voiceEmotionConfig String?            // IP: 默认情感参数 JSON
+  ipStatus           String?            // IP: null=普通, "draft"|"active"|"archived"
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   user        User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   folder      GlobalAssetFolder?          @relation(fields: [folderId], references: [id], onDelete: SetNull)
   appearances GlobalCharacterAppearance[]
+  ipCastings  IpCasting[]
+  ipScreenplaySegments IpScreenplaySegment[]
 
   @@index([userId])
   @@index([folderId])
   @@index([customVoiceMediaId])
+  @@index([faceMediaId])
+  @@index([ipStatus])
   @@map("global_characters")
 }
 
@@ -703,6 +724,12 @@ model GlobalCharacterAppearance {
   previousImageUrls    String?
   previousDescription  String? // 上一次的描述词（用于撤回）
   previousDescriptions String? // 上一次的描述词数组（用于撤回）
+
+  // ---- IP 模式扩展字段 ----
+  variantLabel         String?            // IP: 变体名称
+  costumeDescription   String?            // IP: 服装描述
+  environmentHint      String?            // IP: 环境/时代提示
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -821,6 +848,7 @@ model MediaObject {
   globalLocationImageImages             GlobalLocationImage[]       @relation("GlobalLocationImageMedia")
   globalLocationImagePreviousImages     GlobalLocationImage[]       @relation("GlobalLocationImagePreviousImageMedia")
   globalVoiceCustomVoices               GlobalVoice[]               @relation("GlobalVoiceCustomVoiceMedia")
+  globalCharacterFaceMedia              GlobalCharacter[]           @relation("GlobalCharacterFaceMedia")
 
   @@index([createdAt])
   @@map("media_objects")
@@ -839,4 +867,59 @@ model LegacyMediaRefBackup {
   @@index([runId])
   @@index([tableName, fieldName])
   @@map("legacy_media_refs_backup")
+}
+
+// ==================== IP 角色模式 ====================
+
+/// IP 选角：将全局资产库角色投射到具体项目中
+model IpCasting {
+  id                  String   @id @default(uuid())
+  projectId           String
+  globalCharacterId   String                         // 来自全局资产库的角色 ID
+  appearanceIndex     Int?                           // 使用的形态外观序号
+
+  projectCharacterId  String?                        // 映射到项目内 NovelPromotionCharacter
+  castRole            String?                        // 在本项目中扮演的角色
+  personalityOverride String?
+  speakingStyleOverride String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  globalCharacter     GlobalCharacter @relation(fields: [globalCharacterId], references: [id])
+  project             NovelPromotionProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  screenplaySegments  IpScreenplaySegment[]
+
+  @@unique([projectId, globalCharacterId])
+  @@index([projectId])
+  @@index([globalCharacterId])
+  @@map("ip_castings")
+}
+
+/// IP 剧本结构化段落
+model IpScreenplaySegment {
+  id                  String   @id @default(uuid())
+  projectId           String
+  episodeId           String?
+  clipId              String
+  segmentIndex        Int
+
+  segmentType         String                         // "scene_desc" | "dialogue" | "action" | "narration" | "transition"
+  content             String
+
+  globalCharacterId   String?                        // 关联的全局资产库角色
+  ipCastingId         String?
+  emotionTag          String?
+  emotionIntensity    Float?
+  stageDirection      String?
+
+  createdAt           DateTime @default(now())
+
+  globalCharacter     GlobalCharacter? @relation(fields: [globalCharacterId], references: [id], onDelete: SetNull)
+  ipCasting           IpCasting? @relation(fields: [ipCastingId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, clipId])
+  @@index([globalCharacterId])
+  @@index([ipCastingId])
+  @@map("ip_screenplay_segments")
 }

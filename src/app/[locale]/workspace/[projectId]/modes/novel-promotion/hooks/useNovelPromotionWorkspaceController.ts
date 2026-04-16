@@ -115,6 +115,10 @@ export function useNovelPromotionWorkspaceController({
 
   const isStartingStoryToScript = rebuildState.pendingActionType === 'storyToScript'
   const isStartingScriptToStoryboard = rebuildState.pendingActionType === 'scriptToStoryboard'
+  const isStartingDirectorMode =
+    execution.directorModeStream.isRunning ||
+    execution.directorModeStream.isRecoveredRunning ||
+    execution.directorModeStream.status === 'running'
   const isStoryToScriptRunning =
     execution.storyToScriptStream.isRunning ||
     execution.storyToScriptStream.isRecoveredRunning ||
@@ -128,6 +132,7 @@ export function useNovelPromotionWorkspaceController({
   const isAnyOperationRunning =
     isStartingStoryToScript ||
     isStartingScriptToStoryboard ||
+    isStartingDirectorMode ||
     execution.isSubmittingTTS ||
     execution.isAssetAnalysisRunning ||
     execution.isConfirmingAssets ||
@@ -159,6 +164,7 @@ export function useNovelPromotionWorkspaceController({
     isConfirmingAssets: execution.isConfirmingAssets,
     isStartingStoryToScript,
     isStartingScriptToStoryboard,
+    isStartingDirectorMode,
     videoRatio: projectSnapshot.videoRatio,
     artStyle: projectSnapshot.artStyle,
     colorGradePreset: projectSnapshot.colorGradePreset,
@@ -172,6 +178,7 @@ export function useNovelPromotionWorkspaceController({
     handleUpdateConfig: configActions.handleUpdateConfig,
     runWithRebuildConfirm: rebuildState.runWithRebuildConfirm,
     runStoryToScriptFlow: execution.runStoryToScriptFlow,
+    runDirectorModeFlow: execution.runDirectorModeFlow,
     runScriptToStoryboardFlow: execution.runScriptToStoryboardFlow,
     runSingleClipStoryboardFlow: execution.runSingleClipStoryboardFlow,
     handleUpdateClip: videoActions.handleUpdateClip,
@@ -216,16 +223,21 @@ export function useNovelPromotionWorkspaceController({
     isTransitioning: execution.isTransitioning,
     isStartingStoryToScript,
     isStartingScriptToStoryboard,
+    isStartingDirectorMode,
     transitionProgress: execution.transitionProgress,
     storyToScriptConsoleMinimized: execution.storyToScriptConsoleMinimized,
     setStoryToScriptConsoleMinimized: execution.setStoryToScriptConsoleMinimized,
     scriptToStoryboardConsoleMinimized: execution.scriptToStoryboardConsoleMinimized,
     setScriptToStoryboardConsoleMinimized: execution.setScriptToStoryboardConsoleMinimized,
+    directorModeConsoleMinimized: execution.directorModeConsoleMinimized,
+    setDirectorModeConsoleMinimized: execution.setDirectorModeConsoleMinimized,
     storyToScriptStream: execution.storyToScriptStream,
     scriptToStoryboardStream: execution.scriptToStoryboardStream,
+    directorModeStream: execution.directorModeStream,
     handleGenerateTTS: execution.handleGenerateTTS,
     handleAnalyzeAssets: execution.handleAnalyzeAssets,
     runStoryToScriptFlow: execution.runStoryToScriptFlow,
+    runDirectorModeFlow: execution.runDirectorModeFlow,
     runScriptToStoryboardFlow: execution.runScriptToStoryboardFlow,
     showCreatingToast: execution.showCreatingToast,
   }

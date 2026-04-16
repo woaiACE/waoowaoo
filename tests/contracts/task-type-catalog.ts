@@ -32,6 +32,7 @@ const TASK_TYPE_OWNER_MAP = {
   [TASK_TYPE.VOICE_ANALYZE]: 'tests/unit/worker/voice-analyze.test.ts',
   [TASK_TYPE.ANALYZE_GLOBAL]: 'tests/unit/worker/analyze-global.test.ts',
   [TASK_TYPE.AI_STORY_EXPAND]: 'tests/unit/worker/ai-story-expand.test.ts',
+  [TASK_TYPE.DIRECTOR_MODE_RUN]: 'tests/unit/worker/director-mode.test.ts',
   [TASK_TYPE.AI_MODIFY_APPEARANCE]: 'tests/unit/worker/shot-ai-prompt-appearance.test.ts',
   [TASK_TYPE.AI_MODIFY_LOCATION]: 'tests/unit/worker/shot-ai-prompt-location.test.ts',
   [TASK_TYPE.AI_MODIFY_PROP]: 'tests/unit/helpers/prop-modify-task-registration.test.ts',

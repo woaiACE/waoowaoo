@@ -141,6 +141,7 @@
     "express": "^5.2.1",
     "file-saver": "^2.0.5",
     "geist": "^1.7.0",
+    "gitnexus": "^1.6.2-rc.10",
     "ioredis": "^5.9.2",
     "jsonrepair": "^3.13.2",
     "jszip": "^3.10.1",
