@@ -1,0 +1,54 @@
+{
+  "title": "LXT剧本",
+  "steps": {
+    "novelInput": "小说原文",
+    "generateScript": "生成剧本",
+    "generateStoryboard": "生成分镜",
+    "generateFinalScript": "生成脚本"
+  },
+  "step1": {
+    "hint": "请粘贴您的小说文本。",
+    "nextBtn": "下一步: 生成剧本",
+    "placeholder": "在此粘贴小说原文..."
+  },
+  "step2": {
+    "hint": "小说转换后的标准剧本格式，请进行校对",
+    "originalLabel": "原文",
+    "editorLabel": "剧本编辑器",
+    "nextBtn": "下一步: 生成分镜",
+    "placeholder": "AI生成的剧本将在此显示，可直接编辑..."
+  },
+  "step3": {
+    "hint": "基于剧本生成的视觉分镜，请进行校对",
+    "scriptLabel": "剧本",
+    "editorLabel": "分镜编辑器",
+    "nextBtn": "下一步: 生成脚本",
+    "placeholder": "AI生成的分镜内容将在此显示，可直接编辑..."
+  },
+  "step4": {
+    "hint": "最终的制作脚本，请进行校对",
+    "storyboardLabel": "分镜",
+    "editorLabel": "制作脚本编辑器",
+    "newTaskBtn": "新建任务",
+    "placeholder": "AI生成的制作脚本将在此显示，可直接编辑..."
+  },
+  "instruction": {
+    "title": "指令管理",
+    "titleStep1": "指令管理 (小说转剧本)",
+    "titleStep2": "指令管理 (剧本转分镜)",
+    "titleStep3": "指令管理 (分镜转制作)",
+    "presetLabel": "指令预设：",
+    "defaultPreset": "默认指令",
+    "presetNamePlaceholder": "输入预设名称...",
+    "saveBtn": "保存",
+    "deleteBtn": "删除",
+    "placeholder": "在此输入AI指令，本指令将作为附加要求填写在推理提示词中..."
+  },
+  "history": {
+    "title": "历史记录",
+    "empty": "暂无历史记录"
+  },
+  "prevBtn": "上一步",
+  "generating": "生成中...",
+  "generateBtn": "生成"
+}

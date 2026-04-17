@@ -1,6 +1,7 @@
 {
   "workspace": "Workspace",
   "assetHub": "Asset Hub",
+  "lxtScript": "LXT Script",
   "profile": "Settings",
   "downloadLogs": "Download Logs",
   "signin": "Sign In",

@@ -1,0 +1,54 @@
+{
+  "title": "LXT Script",
+  "steps": {
+    "novelInput": "Novel Input",
+    "generateScript": "Generate Script",
+    "generateStoryboard": "Generate Storyboard",
+    "generateFinalScript": "Generate Final Script"
+  },
+  "step1": {
+    "hint": "Please paste your novel text.",
+    "nextBtn": "Next: Generate Script",
+    "placeholder": "Paste your novel text here..."
+  },
+  "step2": {
+    "hint": "Standard screenplay format converted from the novel, please review.",
+    "originalLabel": "Original",
+    "editorLabel": "Script Editor",
+    "nextBtn": "Next: Generate Storyboard",
+    "placeholder": "AI-generated script will appear here, editable..."
+  },
+  "step3": {
+    "hint": "Visual storyboard generated from the script, please review.",
+    "scriptLabel": "Script",
+    "editorLabel": "Storyboard Editor",
+    "nextBtn": "Next: Generate Final Script",
+    "placeholder": "AI-generated storyboard will appear here, editable..."
+  },
+  "step4": {
+    "hint": "Final production script, please review.",
+    "storyboardLabel": "Storyboard",
+    "editorLabel": "Production Script Editor",
+    "newTaskBtn": "New Task",
+    "placeholder": "AI-generated production script will appear here, editable..."
+  },
+  "instruction": {
+    "title": "Instruction Manager",
+    "titleStep1": "Instruction Manager (Novel → Script)",
+    "titleStep2": "Instruction Manager (Script → Storyboard)",
+    "titleStep3": "Instruction Manager (Storyboard → Production)",
+    "presetLabel": "Preset:",
+    "defaultPreset": "Default",
+    "presetNamePlaceholder": "Enter preset name...",
+    "saveBtn": "Save",
+    "deleteBtn": "Delete",
+    "placeholder": "Enter AI instructions here. These will be added as extra requirements in the inference prompt..."
+  },
+  "history": {
+    "title": "History",
+    "empty": "No history yet"
+  },
+  "prevBtn": "Previous",
+  "generating": "Generating...",
+  "generateBtn": "Generate"
+}
