@@ -90,6 +90,11 @@ export const TASK_TYPE = {
   IP_VOICE_LINE: 'ip_voice_line',
   IP_ASSET_INIT_RUN: 'ip_asset_init_run',
   IP_SCREENPLAY_REWRITE_RUN: 'ip_screenplay_rewrite_run',
+
+  // ---- LXT 剧本模式 ----
+  LXT_NOVEL_TO_SCRIPT: 'lxt_novel_to_script',
+  LXT_SCRIPT_TO_STORYBOARD: 'lxt_script_to_storyboard',
+  LXT_STORYBOARD_TO_SCRIPT: 'lxt_storyboard_to_script',
 } as const
 
 export type TaskType = (typeof TASK_TYPE)[keyof typeof TASK_TYPE]

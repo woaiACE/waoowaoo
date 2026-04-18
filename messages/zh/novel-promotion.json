@@ -6,7 +6,10 @@
     "video": "成片",
     "editor": "AI剪辑",
     "editorComingSoon": "开发中，关注我们获取最新消息",
-    "editorNeedsVideo": "请先完成成片阶段，生成视频后即可进入剪辑台"
+    "editorNeedsVideo": "请先完成成片阶段，生成视频后即可进入剪辑台",
+    "lxtScript": "LXT 剧本",
+    "lxtStoryboard": "LXT 分镜",
+    "lxtFinalScript": "LXT 脚本"
   },
   "buttons": {
     "assetLibrary": "资产库",

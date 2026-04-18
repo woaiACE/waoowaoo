@@ -131,6 +131,8 @@ model NovelPromotionEpisode {
   audioMediaId            String?
   audioMedia              MediaObject?               @relation("NovelPromotionEpisodeAudioMedia", fields: [audioMediaId], references: [id], onDelete: SetNull)
   srtContent              String?                    @db.Text
+  shotListContent         String?                    @db.Text
+  scriptContent           String?                    @db.Text
   createdAt               DateTime                   @default(now())
   updatedAt               DateTime                   @default(now()) @updatedAt
   speakerVoices           String?                    @db.Text
@@ -385,15 +387,47 @@ model Project {
   name               String
   description        String?                @db.Text
   userId             String
+  mode               String                 @default("novel-promotion") // 'novel-promotion' | 'lxt'
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @default(now()) @updatedAt
   lastAccessedAt     DateTime?
   novelPromotionData NovelPromotionProject?
+  lxtData            LxtProject?
   user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   usageCosts         UsageCost[]
 
   @@index([userId])
   @@map("projects")
+}
+
+model LxtProject {
+  id            String       @id @default(uuid())
+  projectId     String       @unique
+  analysisModel String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @default(now()) @updatedAt
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episodes      LxtEpisode[]
+
+  @@map("lxt_projects")
+}
+
+model LxtEpisode {
+  id              String     @id @default(uuid())
+  lxtProjectId    String
+  episodeNumber   Int
+  name            String
+  novelText       String?    @db.Text
+  srtContent      String?    @db.Text
+  shotListContent String?    @db.Text
+  scriptContent   String?    @db.Text
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @default(now()) @updatedAt
+  lxtProject      LxtProject @relation(fields: [lxtProjectId], references: [id], onDelete: Cascade)
+
+  @@unique([lxtProjectId, episodeNumber])
+  @@index([lxtProjectId])
+  @@map("lxt_episodes")
 }
 
 model Session {

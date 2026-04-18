@@ -39,6 +39,9 @@ function resolveChainTestByTaskType(taskType: TaskType): string {
     || taskType === 'asset_hub_ai_modify_character'
     || taskType === 'asset_hub_ai_modify_location'
     || taskType === 'asset_hub_reference_to_character'
+    || taskType === 'lxt_novel_to_script'
+    || taskType === 'lxt_script_to_storyboard'
+    || taskType === 'lxt_storyboard_to_script'
   ) {
     return 'tests/integration/chain/text.chain.test.ts'
   }
@@ -69,6 +72,9 @@ function resolveApiContractByTaskType(taskType: TaskType): string {
     || taskType === 'asset_hub_ai_modify_character'
     || taskType === 'asset_hub_ai_modify_location'
     || taskType === 'asset_hub_reference_to_character'
+    || taskType === 'lxt_novel_to_script'
+    || taskType === 'lxt_script_to_storyboard'
+    || taskType === 'lxt_storyboard_to_script'
   ) {
     return 'tests/integration/api/contract/llm-observe-routes.test.ts'
   }

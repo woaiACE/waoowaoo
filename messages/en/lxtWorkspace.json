@@ -1,0 +1,14 @@
+{
+  "tabs": {
+    "script": "Script",
+    "storyboard": "Storyboard",
+    "finalScript": "Final Script"
+  },
+  "episodeList": "Episodes",
+  "newEpisodePlaceholder": "Episode name",
+  "novelTextLabel": "Source Text",
+  "novelTextPlaceholder": "Paste or type the source novel text...",
+  "noNovelText": "No source text yet. Click Edit to add.",
+  "noEpisodesHint": "No episodes yet. Create your first episode below.",
+  "createFirstEpisode": "Create First Episode"
+}

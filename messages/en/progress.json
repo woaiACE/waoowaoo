@@ -82,7 +82,10 @@
     "assetHubAiModifyCharacter": "Asset hub character modify",
     "assetHubAiModifyLocation": "Asset hub location modify",
     "assetHubAiModifyProp": "Asset hub prop modify",
-    "assetHubReferenceToCharacter": "Asset hub reference to character"
+    "assetHubReferenceToCharacter": "Asset hub reference to character",
+    "lxtNovelToScript": "LXT Novel to Script",
+    "lxtScriptToStoryboard": "LXT Script to Storyboard",
+    "lxtStoryboardToScript": "LXT Storyboard to Script"
   },
   "stage": {
     "received": "Task received",

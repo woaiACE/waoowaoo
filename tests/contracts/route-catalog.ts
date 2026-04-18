@@ -2,6 +2,7 @@ export type RouteCategory =
   | 'assets'
   | 'asset-hub'
   | 'novel-promotion'
+  | 'lxt'
   | 'projects'
   | 'tasks'
   | 'user'
@@ -187,6 +188,13 @@ const ROUTE_FILES = [
   'src/app/api/user/ai-story-expand/route.ts',
   'src/app/api/user/models/route.ts',
   'src/app/api/user/transactions/route.ts',
+  // LXT 剧本模式
+  'src/app/api/lxt/[projectId]/episodes/[episodeId]/route.ts',
+  'src/app/api/lxt/[projectId]/episodes/route.ts',
+  'src/app/api/lxt-script/[projectId]/generate-stream/route.ts',
+  'src/app/api/lxt-script/generate-final-script/route.ts',
+  'src/app/api/lxt-script/generate-script/route.ts',
+  'src/app/api/lxt-script/generate-storyboard/route.ts',
 ] as const
 
 function resolveCategory(routeFile: string): RouteCategory {
@@ -194,6 +202,7 @@ function resolveCategory(routeFile: string): RouteCategory {
   if (routeFile.startsWith('src/app/api/asset-hub/')) return 'asset-hub'
   if (routeFile.startsWith('src/app/api/ip-hub/')) return 'asset-hub'
   if (routeFile.startsWith('src/app/api/novel-promotion/')) return 'novel-promotion'
+  if (routeFile.startsWith('src/app/api/lxt/') || routeFile.startsWith('src/app/api/lxt-script/')) return 'lxt'
   if (routeFile.startsWith('src/app/api/projects/')) return 'projects'
   if (
     routeFile.startsWith('src/app/api/tasks/')
@@ -220,6 +229,7 @@ function resolveContractGroup(routeFile: string): RouteContractGroup {
     || routeFile.endsWith('/clips/route.ts')
     || routeFile.endsWith('/episodes/split/route.ts')
     || routeFile.endsWith('/voice-analyze/route.ts')
+    || routeFile.startsWith('src/app/api/lxt-script/')
   ) {
     return 'llm-observe-routes'
   }
@@ -245,7 +255,7 @@ function resolveContractGroup(routeFile: string): RouteContractGroup {
   }
   if (routeFile.startsWith('src/app/api/assets/')) return 'crud-assets-routes'
   if (routeFile.startsWith('src/app/api/asset-hub/') || routeFile.startsWith('src/app/api/ip-hub/')) return 'crud-asset-hub-routes'
-  if (routeFile.startsWith('src/app/api/novel-promotion/')) return 'crud-novel-promotion-routes'
+  if (routeFile.startsWith('src/app/api/novel-promotion/') || routeFile.startsWith('src/app/api/lxt/')) return 'crud-novel-promotion-routes'
   if (
     routeFile.startsWith('src/app/api/tasks/')
     || routeFile.startsWith('src/app/api/runs/')

@@ -6,7 +6,10 @@
     "video": "Video",
     "editor": "AI Editor",
     "editorComingSoon": "Coming soon, follow us for updates",
-    "editorNeedsVideo": "Please complete the video generation stage first"
+    "editorNeedsVideo": "Please complete the video generation stage first",
+    "lxtScript": "LXT Script",
+    "lxtStoryboard": "LXT Storyboard",
+    "lxtFinalScript": "LXT Production Script"
   },
   "buttons": {
     "assetLibrary": "Asset Library",

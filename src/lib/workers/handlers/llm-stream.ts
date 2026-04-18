@@ -42,7 +42,8 @@ export function createWorkerLLMStreamCallbacks(
 ): WorkerInternalLLMStreamCallbacks {
   const maxChunkChars = 128
   const activeProbeIntervalMs = 600
-  let publishQueue: Promise<void> = Promise.resolve()
+  // 每个 stepId 独立一条 publishQueue，允许不同步骤并行发布，避免全局串行瓶颈
+  const publishQueues: Record<string, Promise<void>> = {}
   let terminatedError: TaskTerminatedError | null = null
   let checkingActive = false
   let lastActiveProbeAt = 0
@@ -92,10 +93,13 @@ export function createWorkerLLMStreamCallbacks(
       })
   }
 
-  const enqueue = (stage: string, work: () => Promise<void>) => {
+  // stepId 为 null 时走 '__global' 队列（onStage/onComplete 等低频事件）
+  const enqueue = (stage: string, stepId: string | null, work: () => Promise<void>) => {
     ensureActiveOrThrow(stage)
     scheduleActiveProbe()
-    publishQueue = publishQueue
+    const queueKey = stepId || '__global'
+    const prev = publishQueues[queueKey] || Promise.resolve()
+    publishQueues[queueKey] = prev
       .catch(() => undefined)
       .then(async () => {
         ensureActiveOrThrow(stage)
@@ -136,7 +140,7 @@ export function createWorkerLLMStreamCallbacks(
         typeof step?.total === 'number' && Number.isFinite(step.total)
           ? Math.max(stepIndex || 1, Math.floor(step.total))
           : null
-      enqueue(`worker_llm_stage:${stage}`, async () => {
+      enqueue(`worker_llm_stage:${stage}`, stepId, async () => {
         await reportTaskProgress(job, 65, {
           stage: stageKey,
           stageLabel,
@@ -174,7 +178,7 @@ export function createWorkerLLMStreamCallbacks(
       for (let i = 0; i < delta.length; i += maxChunkChars) {
         const piece = delta.slice(i, i + maxChunkChars)
         if (!piece) continue
-        enqueue('worker_llm_stream', async () => {
+        enqueue('worker_llm_stream', stepId, async () => {
           await reportTaskStreamChunk(
             job,
             {
@@ -214,7 +218,7 @@ export function createWorkerLLMStreamCallbacks(
         typeof step?.total === 'number' && Number.isFinite(step.total)
           ? Math.max(stepIndex || 1, Math.floor(step.total))
           : null
-      enqueue('worker_llm_complete', async () => {
+      enqueue('worker_llm_complete', stepId, async () => {
         await reportTaskProgress(job, 90, {
           stage: 'worker_llm_complete',
           stageLabel: 'progress.runtime.stage.llmCompleted',
@@ -249,7 +253,7 @@ export function createWorkerLLMStreamCallbacks(
         typeof step?.total === 'number' && Number.isFinite(step.total)
           ? Math.max(stepIndex || 1, Math.floor(step.total))
           : null
-      enqueue('worker_llm_error', async () => {
+      enqueue('worker_llm_error', stepId, async () => {
         await reportTaskProgress(job, 90, {
           stage: 'worker_llm_error',
           stageLabel: 'progress.runtime.stage.llmFailed',
@@ -265,7 +269,7 @@ export function createWorkerLLMStreamCallbacks(
       })
     },
     async flush() {
-      await publishQueue.catch(() => undefined)
+      await Promise.all(Object.values(publishQueues).map((q) => q.catch(() => undefined)))
       if (terminatedError) {
         throw terminatedError
       }

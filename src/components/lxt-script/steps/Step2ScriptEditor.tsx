@@ -1,6 +1,7 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
+import { useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 import GlassTextarea from '@/components/ui/primitives/GlassTextarea'
 import InstructionManager from '../InstructionManager'
 import HistoryPanel from '../HistoryPanel'
@@ -30,6 +31,27 @@ export default function Step2ScriptEditor({
   onRestoreHistory,
 }: Step2ScriptEditorProps) {
   const t = useTranslations('lxtScript')
+  const locale = useLocale()
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  async function handleGenerate() {
+    if (!novelText.trim() || isGenerating) return
+    setIsGenerating(true)
+    try {
+      const res = await fetch('/api/lxt-script/generate-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ novelText, instruction, locale }),
+      })
+      if (!res.ok) throw new Error('generate failed')
+      const data = (await res.json()) as { scriptText?: string }
+      if (data.scriptText) {
+        onScriptTextChange(data.scriptText)
+      }
+    } finally {
+      setIsGenerating(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -57,9 +79,19 @@ export default function Step2ScriptEditor({
 
         {/* Right: Script editor */}
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-[var(--glass-accent)] uppercase tracking-wide">
-            {t('step2.editorLabel')}
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[var(--glass-accent)] uppercase tracking-wide">
+              {t('step2.editorLabel')}
+            </span>
+            <button
+              type="button"
+              disabled={!novelText.trim() || isGenerating}
+              onClick={handleGenerate}
+              className="glass-btn-base glass-btn-primary h-7 px-3 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isGenerating ? t('generating') : t('generateBtn')}
+            </button>
+          </div>
           <div className="rounded-xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] overflow-hidden ring-1 ring-[var(--glass-accent)]/20">
             <GlassTextarea
               value={scriptText}

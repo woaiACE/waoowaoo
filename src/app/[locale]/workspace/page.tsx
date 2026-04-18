@@ -75,14 +75,16 @@ export default function WorkspacePage() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    mode: 'novel-promotion' as 'novel-promotion' | 'lxt'
   })
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const [editFormData, setEditFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    mode: 'novel-promotion' as 'novel-promotion' | 'lxt'
   })
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -202,7 +204,7 @@ export default function WorkspacePage() {
         setPagination(prev => ({ ...prev, page: 1 }))
         void fetchProjects(1, '')
         setShowCreateModal(false)
-        setFormData({ name: '', description: '' })
+        setFormData({ name: '', description: '', mode: 'novel-promotion' })
 
         if (shouldOpenModelSetup) {
           alert(t('analysisModelRequiredAfterCreate'))
@@ -259,7 +261,7 @@ export default function WorkspacePage() {
         setProjects(projects.map(p => p.id === editingProject.id ? data.project : p))
         setShowEditModal(false)
         setEditingProject(null)
-        setEditFormData({ name: '', description: '' })
+        setEditFormData({ name: '', description: '', mode: 'novel-promotion' })
       } else {
         setEditError(await readApiErrorMessage(response, t('updateFailed')))
       }
@@ -314,7 +316,8 @@ export default function WorkspacePage() {
     setEditError(null)
     setEditFormData({
       name: project.name,
-      description: project.description || ''
+      description: project.description || '',
+      mode: 'novel-promotion'
     })
     setShowEditModal(true)
   }
@@ -642,6 +645,36 @@ export default function WorkspacePage() {
                   maxLength={500}
                 />
               </div>
+              {/* 模式选择 */}
+              <div className="mb-6">
+                <p className="glass-field-label mb-2">{t('projectMode')}</p>
+                <div className="flex gap-3">
+                  {[
+                    { value: 'novel-promotion', label: t('modeNovelPromotion') },
+                    { value: 'lxt', label: t('modeLxt') },
+                  ].map(opt => (
+                    <label
+                      key={opt.value}
+                      className={[
+                        'flex items-center gap-2 px-4 py-2.5 rounded-xl border cursor-pointer transition-all text-sm',
+                        formData.mode === opt.value
+                          ? 'border-[var(--glass-accent)] bg-[var(--glass-accent)]/10 text-[var(--glass-text-primary)]'
+                          : 'border-[var(--glass-stroke-base)] text-[var(--glass-text-secondary)] hover:border-[var(--glass-stroke-muted)]',
+                      ].join(' ')}
+                    >
+                      <input
+                        type="radio"
+                        name="projectMode"
+                        value={opt.value}
+                        checked={formData.mode === opt.value}
+                        onChange={() => setFormData({ ...formData, mode: opt.value as 'novel-promotion' | 'lxt' })}
+                        className="sr-only"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
               {createError && (
                 <p className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-600">
                   {createError}
@@ -653,7 +686,7 @@ export default function WorkspacePage() {
                   onClick={() => {
                     setShowCreateModal(false)
                     setCreateError(null)
-                    setFormData({ name: '', description: '' })
+                    setFormData({ name: '', description: '', mode: 'novel-promotion' })
                   }}
                   className="glass-btn-base glass-btn-secondary px-4 py-2"
                   disabled={createLoading}
@@ -730,7 +763,7 @@ export default function WorkspacePage() {
                     setShowEditModal(false)
                     setEditingProject(null)
                     setEditError(null)
-                    setEditFormData({ name: '', description: '' })
+                    setEditFormData({ name: '', description: '', mode: 'novel-promotion' })
                   }}
                   className="glass-btn-base glass-btn-secondary px-4 py-2"
                   disabled={createLoading}

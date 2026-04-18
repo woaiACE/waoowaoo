@@ -7,6 +7,9 @@ import { useWorkspaceProvider } from '../WorkspaceProvider'
 interface EpisodeStagePayload {
   name?: string
   novelText?: string | null
+  srtContent?: string | null
+  shotListContent?: string | null
+  scriptContent?: string | null
   clips?: NovelPromotionClip[]
   storyboards?: NovelPromotionStoryboard[]
 }
@@ -19,6 +22,9 @@ export function useWorkspaceEpisodeStageData() {
   return {
     episodeName: payload?.name,
     novelText: payload?.novelText || '',
+    srtContent: payload?.srtContent || '',
+    shotListContent: payload?.shotListContent || '',
+    scriptContent: payload?.scriptContent || '',
     clips: payload?.clips || [],
     storyboards: payload?.storyboards || [],
   }

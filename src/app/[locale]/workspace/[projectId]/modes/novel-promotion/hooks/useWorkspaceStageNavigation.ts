@@ -37,6 +37,12 @@ export function useWorkspaceStageNavigation({
         return stageArtifacts.hasVideo ? 'ready' : 'empty'
       case 'voice':
         return stageArtifacts.hasVoice ? 'ready' : 'empty'
+      case 'lxt-script':
+        return 'active'
+      case 'lxt-storyboard':
+        return 'active'
+      case 'lxt-final-script':
+        return 'active'
       default:
         return 'empty'
     }
@@ -55,5 +61,8 @@ export function useWorkspaceStageNavigation({
       disabled: !stageArtifacts.hasVideo,
       disabledLabel: !stageArtifacts.hasVideo ? t('stages.editorNeedsVideo') : undefined,
     },
+    { id: 'lxt-script', icon: 'L', label: t('stages.lxtScript'), status: getStageStatus('lxt-script') },
+    { id: 'lxt-storyboard', icon: 'S', label: t('stages.lxtStoryboard'), status: getStageStatus('lxt-storyboard') },
+    { id: 'lxt-final-script', icon: 'P', label: t('stages.lxtFinalScript'), status: getStageStatus('lxt-final-script') },
   ]
 }

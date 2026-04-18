@@ -206,6 +206,9 @@ export {
 export {
     useScriptToStoryboardRunStream,
 } from './useScriptToStoryboardRunStream'
+export {
+    useLxtFinalScriptRunStream,
+} from './useLxtFinalScriptRunStream'
 
 export {
     useAssetTaskPresentation,

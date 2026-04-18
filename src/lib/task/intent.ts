@@ -73,6 +73,10 @@ const TASK_INTENT_BY_TYPE: Record<TaskType, TaskIntent> = {
   [TASK_TYPE.IP_VOICE_LINE]: 'generate',
   [TASK_TYPE.IP_ASSET_INIT_RUN]: 'build',
   [TASK_TYPE.IP_SCREENPLAY_REWRITE_RUN]: 'build',
+  // LXT 剧本模式
+  [TASK_TYPE.LXT_NOVEL_TO_SCRIPT]: 'convert',
+  [TASK_TYPE.LXT_SCRIPT_TO_STORYBOARD]: 'convert',
+  [TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT]: 'convert',
 }
 
 export function resolveTaskIntent(taskType: string | null | undefined): TaskIntent {

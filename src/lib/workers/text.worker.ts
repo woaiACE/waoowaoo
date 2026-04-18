@@ -708,6 +708,13 @@ async function processTextTask(job: Job<TaskJobData>) {
       return await (await import('@/lib/ip-mode/handlers/ip-run-handlers')).handleIpAssetInitRun(job) as Record<string, unknown>
     case TASK_TYPE.IP_SCREENPLAY_REWRITE_RUN:
       return await (await import('@/lib/ip-mode/handlers/ip-run-handlers')).handleIpScreenplayRewriteRun(job) as Record<string, unknown>
+    // LXT 剧本模式
+    case TASK_TYPE.LXT_NOVEL_TO_SCRIPT:
+      return await (await import('@/lib/workers/handlers/lxt-novel-to-script')).handleLxtNovelToScriptTask(job)
+    case TASK_TYPE.LXT_SCRIPT_TO_STORYBOARD:
+      return await (await import('@/lib/workers/handlers/lxt-script-to-storyboard')).handleLxtScriptToStoryboardTask(job)
+    case TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT:
+      return await (await import('@/lib/workers/handlers/lxt-storyboard-to-script')).handleLxtStoryboardToScriptTask(job)
     default:
       throw new Error(`Unsupported text task type: ${job.data.type}`)
   }

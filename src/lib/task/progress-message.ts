@@ -41,6 +41,10 @@ const TASK_TYPE_LABELS: Record<string, string> = {
   [TASK_TYPE.ASSET_HUB_AI_MODIFY_LOCATION]: 'progress.taskType.assetHubAiModifyLocation',
   [TASK_TYPE.ASSET_HUB_AI_MODIFY_PROP]: 'progress.taskType.assetHubAiModifyProp',
   [TASK_TYPE.ASSET_HUB_REFERENCE_TO_CHARACTER]: 'progress.taskType.assetHubReferenceToCharacter',
+  // LXT 剧本模式
+  [TASK_TYPE.LXT_NOVEL_TO_SCRIPT]: 'progress.taskType.lxtNovelToScript',
+  [TASK_TYPE.LXT_SCRIPT_TO_STORYBOARD]: 'progress.taskType.lxtScriptToStoryboard',
+  [TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT]: 'progress.taskType.lxtStoryboardToScript',
 }
 
 const STAGE_LABELS: Record<string, string> = {

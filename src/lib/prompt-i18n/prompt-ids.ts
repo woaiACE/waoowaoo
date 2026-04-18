@@ -29,6 +29,14 @@ export const PROMPT_IDS = {
   NP_SINGLE_PANEL_IMAGE: 'np_single_panel_image',
   NP_STORYBOARD_EDIT: 'np_storyboard_edit',
   NP_VOICE_ANALYSIS: 'np_voice_analysis',
+  // LXT 剧本模式
+  LXT_NOVEL_TO_SCRIPT: 'lxt_novel_to_script',
+  LXT_SCRIPT_TO_STORYBOARD: 'lxt_script_to_storyboard',
+  LXT_STORYBOARD_TO_SCRIPT: 'lxt_storyboard_to_script',
+  LXT_SHOT_PHASE1_BASE: 'lxt_shot_phase1_base',
+  LXT_SHOT_PHASE2A_IMAGE: 'lxt_shot_phase2a_image',
+  LXT_SHOT_PHASE2B_ACTING_ARC: 'lxt_shot_phase2b_acting_arc',
+  LXT_SHOT_PHASE3_VIDEO_REFINE: 'lxt_shot_phase3_video_refine',
   // IP 角色模式
   IP_FACE_DESCRIBE: 'ip_face_describe',
   IP_SCREENPLAY_REWRITE: 'ip_screenplay_rewrite',

@@ -103,6 +103,7 @@ const RUN_STREAM_REPLAY_PERSIST_TYPES = new Set<string>([
 const DIRECT_RUN_EVENT_TASK_TYPES = new Set<string>([
   TASK_TYPE.STORY_TO_SCRIPT_RUN,
   TASK_TYPE.SCRIPT_TO_STORYBOARD_RUN,
+  TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT,
 ])
 
 function shouldPersistRunStreamReplay(taskType: string): boolean {
@@ -676,6 +677,27 @@ export async function reportTaskProgress(job: Job<TaskJobData>, progress: number
 
   const updated = await tryUpdateTaskProgress(job.data.taskId, value, nextPayload)
   if (!updated) {
+    // 当任务整体 progress 已被并发 shot 推进到更高值时，step 级事件（有 stepId 的 STEP_START/STEP_COMPLETE）
+    // 依然需要发布到 run-stream，否则该步骤会永久停留在 "running" 状态。
+    const stepId = typeof nextPayload.stepId === 'string' ? nextPayload.stepId.trim() : ''
+    if (stepId) {
+      await publishMirroredRunEvents({
+        taskId: job.data.taskId,
+        projectId: job.data.projectId,
+        userId: job.data.userId,
+        taskType: job.data.type,
+        targetType: job.data.targetType,
+        targetId: job.data.targetId,
+        episodeId: job.data.episodeId || null,
+        eventType: TASK_SSE_EVENT_TYPE.LIFECYCLE,
+        payload: {
+          ...nextPayload,
+          progress: value,
+          trace: { requestId: job.data.trace?.requestId || null },
+          lifecycleType: TASK_EVENT_TYPE.PROCESSING,
+        },
+      })
+    }
     return
   }
   await publishLifecycleEvent({

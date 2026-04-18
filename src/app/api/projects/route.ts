@@ -81,7 +81,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const projectIds = projects.map(p => p.id)
 
   // ⚡ 并行获取：费用 + 项目统计（章节数、图片数、视频数）
-  const [costsByProject, novelProjects] = await Promise.all([
+  const [costsByProject, novelProjects, lxtProjects] = await Promise.all([
     // 一次性获取所有项目的费用（代替 N+1 查询）
     prisma.usageCost.groupBy({
       by: ['projectId'],
@@ -127,6 +127,19 @@ export const GET = apiHandler(async (request: NextRequest) => {
           }
         }
       }
+    }),
+    // LXT 项目集数统计
+    prisma.lxtProject.findMany({
+      where: { projectId: { in: projectIds } },
+      select: {
+        projectId: true,
+        _count: { select: { episodes: true } },
+        episodes: {
+          orderBy: { episodeNumber: 'asc' },
+          take: 1,
+          select: { novelText: true },
+        }
+      }
     })
   ])
 
@@ -135,7 +148,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
     costsByProject.map(item => [item.projectId, toMoneyNumber(item._sum.cost)])
   )
 
-  // 构建统计映射表 + 第一集预览
+  // 构建统计映射表 + 第一集预览（novel-promotion）
   const statsMap = new Map<string, { episodes: number; images: number; videos: number; panels: number; firstEpisodePreview: string | null }>(
     novelProjects.map(np => {
       let imageCount = 0
@@ -162,6 +175,18 @@ export const GET = apiHandler(async (request: NextRequest) => {
       }]
     })
   )
+
+  // 合并 LXT 项目统计
+  for (const lxt of lxtProjects) {
+    const firstEp = lxt.episodes[0]
+    statsMap.set(lxt.projectId, {
+      episodes: lxt._count.episodes,
+      images: 0,
+      videos: 0,
+      panels: 0,
+      firstEpisodePreview: firstEp?.novelText ? firstEp.novelText.slice(0, 100) : null,
+    })
+  }
 
   // 合并项目、费用与统计
   const projectsWithStats = projects.map(project => ({
@@ -203,6 +228,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const { name, description } = normalizeProjectDraft(draft)
 
+  // 解析模式（默认 novel-promotion）
+  const mode = typeof body.mode === 'string' && body.mode === 'lxt' ? 'lxt' : 'novel-promotion'
+
   // 获取用户偏好配置
   const userPreference = await prisma.userPreference.findUnique({
     where: { userId: session.user.id }
@@ -213,32 +241,43 @@ export const POST = apiHandler(async (request: NextRequest) => {
     data: {
       name: name.trim(),
       description: description?.trim() || null,
-      userId: session.user.id
+      userId: session.user.id,
+      mode,
     }
   })
 
-  // 创建 novel-promotion 数据表，使用用户偏好作为默认值
-  // 注意：不再自动创建默认剧集，由用户在选择界面决定：
-  // - 手动创作 → 创建第一个空白剧集
-  // - 智能导入 → AI 分析后批量创建剧集
-  // 🔥 artStylePrompt 通过实时查询获取，不再存储到数据库
-  await prisma.novelPromotionProject.create({
-    data: {
-      projectId: project.id,
-      ...(userPreference && {
-        analysisModel: userPreference.analysisModel,
-        characterModel: userPreference.characterModel,
-        locationModel: userPreference.locationModel,
-        storyboardModel: userPreference.storyboardModel,
-        editModel: userPreference.editModel,
-        videoModel: userPreference.videoModel,
-        audioModel: userPreference.audioModel,
-        videoRatio: userPreference.videoRatio,
-        artStyle: isArtStyleValue(userPreference.artStyle) ? userPreference.artStyle : 'american-comic',
-        ttsRate: userPreference.ttsRate
-      })
-    }
-  })
+  if (mode === 'lxt') {
+    // LXT 模式：创建 LxtProject
+    await prisma.lxtProject.create({
+      data: {
+        projectId: project.id,
+        ...(userPreference?.analysisModel ? { analysisModel: userPreference.analysisModel } : {}),
+      }
+    })
+  } else {
+    // 创建 novel-promotion 数据表，使用用户偏好作为默认值
+    // 注意：不再自动创建默认剧集，由用户在选择界面决定：
+    // - 手动创作 → 创建第一个空白剧集
+    // - 智能导入 → AI 分析后批量创建剧集
+    // 🔥 artStylePrompt 通过实时查询获取，不再存储到数据库
+    await prisma.novelPromotionProject.create({
+      data: {
+        projectId: project.id,
+        ...(userPreference && {
+          analysisModel: userPreference.analysisModel,
+          characterModel: userPreference.characterModel,
+          locationModel: userPreference.locationModel,
+          storyboardModel: userPreference.storyboardModel,
+          editModel: userPreference.editModel,
+          videoModel: userPreference.videoModel,
+          audioModel: userPreference.audioModel,
+          videoRatio: userPreference.videoRatio,
+          artStyle: isArtStyleValue(userPreference.artStyle) ? userPreference.artStyle : 'american-comic',
+          ttsRate: userPreference.ttsRate
+        })
+      }
+    })
+  }
 
   return NextResponse.json({ project }, { status: 201 })
 })

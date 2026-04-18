@@ -126,6 +126,7 @@ type GraphCheckpointModel = {
 
 type GraphArtifactModel = {
   upsert: (args: unknown) => Promise<GraphArtifactRow>
+  update: (args: unknown) => Promise<GraphArtifactRow>
   findMany: (args: unknown) => Promise<GraphArtifactRow[]>
   deleteMany: (args: unknown) => Promise<{ count: number }>
 }
@@ -369,6 +370,10 @@ async function ensureGraphArtifactUniqueIndex() {
   }
 }
 
+function isPrismaUniqueConstraintError(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === 'P2002'
+}
+
 async function upsertArtifactStrict(params: {
   artifactModel: GraphArtifactModel
   runId: string
@@ -379,28 +384,50 @@ async function upsertArtifactStrict(params: {
   payload: unknown
 }) {
   await ensureGraphArtifactUniqueIndex()
-  return await params.artifactModel.upsert({
-    where: {
-      runId_stepKey_artifactType_refId: {
+  try {
+    return await params.artifactModel.upsert({
+      where: {
+        runId_stepKey_artifactType_refId: {
+          runId: params.runId,
+          stepKey: params.stepKey,
+          artifactType: params.artifactType,
+          refId: params.refId,
+        },
+      },
+      create: {
         runId: params.runId,
         stepKey: params.stepKey,
         artifactType: params.artifactType,
         refId: params.refId,
+        versionHash: params.versionHash,
+        payload: params.payload,
       },
-    },
-    create: {
-      runId: params.runId,
-      stepKey: params.stepKey,
-      artifactType: params.artifactType,
-      refId: params.refId,
-      versionHash: params.versionHash,
-      payload: params.payload,
-    },
-    update: {
-      versionHash: params.versionHash,
-      payload: params.payload,
-    },
-  })
+      update: {
+        versionHash: params.versionHash,
+        payload: params.payload,
+      },
+    })
+  } catch (err) {
+    // P2002: concurrent INSERT race — both saw no row and tried to create simultaneously.
+    // Fall back to a plain UPDATE on the now-existing row.
+    if (isPrismaUniqueConstraintError(err)) {
+      return await params.artifactModel.update({
+        where: {
+          runId_stepKey_artifactType_refId: {
+            runId: params.runId,
+            stepKey: params.stepKey,
+            artifactType: params.artifactType,
+            refId: params.refId,
+          },
+        },
+        data: {
+          versionHash: params.versionHash,
+          payload: params.payload,
+        },
+      })
+    }
+    throw err
+  }
 }
 
 function buildStepProjection(input: RunEventInput) {
@@ -468,6 +495,11 @@ function buildArtifactProjection(params: {
 async function applyRunProjection(tx: GraphRuntimeTx, input: RunEventInput) {
   const payload = toObject(input.payload)
   const now = new Date()
+
+  // STEP_CHUNK 仅携带 streaming delta，无需写 graphStep/graphStepAttempt 投影，
+  // 避免每个 token 都触发 UPSERT，大幅减少并发写压力
+  if (input.eventType === RUN_EVENT_TYPE.STEP_CHUNK) return
+
   if (input.eventType === RUN_EVENT_TYPE.RUN_START) {
     await tx.graphRun.update({
       where: { id: input.runId },

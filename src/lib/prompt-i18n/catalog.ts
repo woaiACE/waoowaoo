@@ -154,6 +154,34 @@ export const PROMPT_CATALOG: Record<PromptId, PromptCatalogEntry> = {
     pathStem: 'novel-promotion/voice_analysis',
     variableKeys: ['input', 'characters_lib_name', 'characters_introduction', 'storyboard_json'],
   },
+  // LXT 剧本模式
+  [PROMPT_IDS.LXT_NOVEL_TO_SCRIPT]: {
+    pathStem: 'lxt-script/novel_to_script',
+    variableKeys: ['novel_text', 'instruction'],
+  },
+  [PROMPT_IDS.LXT_SCRIPT_TO_STORYBOARD]: {
+    pathStem: 'lxt-script/script_to_storyboard',
+    variableKeys: ['script'],
+  },  [PROMPT_IDS.LXT_STORYBOARD_TO_SCRIPT]: {
+    pathStem: 'lxt-script/storyboard_to_script',
+    variableKeys: ['story', 'script', 'storyboard'],
+  },
+  [PROMPT_IDS.LXT_SHOT_PHASE1_BASE]: {
+    pathStem: 'lxt-script/shot_phase1_base',
+    variableKeys: ['story', 'script', 'shot'],
+  },
+  [PROMPT_IDS.LXT_SHOT_PHASE2A_IMAGE]: {
+    pathStem: 'lxt-script/shot_phase2a_image',
+    variableKeys: ['shot', 'spatial_context_json'],
+  },
+  [PROMPT_IDS.LXT_SHOT_PHASE2B_ACTING_ARC]: {
+    pathStem: 'lxt-script/shot_phase2b_acting_arc',
+    variableKeys: ['shot', 'spatial_context_json', 'scene_type'],
+  },
+  [PROMPT_IDS.LXT_SHOT_PHASE3_VIDEO_REFINE]: {
+    pathStem: 'lxt-script/shot_phase3_video_refine',
+    variableKeys: ['acting_arc_json', 'spatial_context_json', 'scene_type'],
+  },
   // IP 角色模式
   [PROMPT_IDS.IP_FACE_DESCRIBE]: {
     pathStem: 'ip-mode/face_describe',

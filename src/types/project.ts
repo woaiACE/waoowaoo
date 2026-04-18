@@ -287,8 +287,33 @@ export interface NovelPromotionProject {
 }
 
 // ============================================
+// LXT 短剧模式类型
+// ============================================
+export interface LxtEpisode {
+  id: string
+  lxtProjectId: string
+  episodeNumber: number
+  name: string
+  novelText?: string | null
+  srtContent?: string | null
+  shotListContent?: string | null
+  scriptContent?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LxtProjectData {
+  id: string
+  projectId: string
+  analysisModel?: string | null
+  episodes?: LxtEpisode[]
+}
+
+// ============================================
 // 完整项目类型 (包含基础信息和模式数据)
 // ============================================
 export interface Project extends BaseProject {
+  mode?: string
   novelPromotionData?: NovelPromotionProject
+  lxtData?: LxtProjectData
 }

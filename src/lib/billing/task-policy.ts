@@ -54,6 +54,10 @@ const BILLABLE_TASK_TYPES = new Set<TaskType>([
   TASK_TYPE.ASSET_HUB_AI_MODIFY_LOCATION,
   TASK_TYPE.ASSET_HUB_AI_MODIFY_PROP,
   TASK_TYPE.ASSET_HUB_REFERENCE_TO_CHARACTER,
+  // LXT 剧本模式
+  TASK_TYPE.LXT_NOVEL_TO_SCRIPT,
+  TASK_TYPE.LXT_SCRIPT_TO_STORYBOARD,
+  TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT,
 ])
 
 function toNumber(value: unknown, fallback: number) {
@@ -301,6 +305,9 @@ export function buildDefaultTaskBillingInfo(taskType: TaskType, payload: AnyPayl
     case TASK_TYPE.ASSET_HUB_AI_MODIFY_LOCATION:
     case TASK_TYPE.ASSET_HUB_AI_MODIFY_PROP:
     case TASK_TYPE.ASSET_HUB_REFERENCE_TO_CHARACTER:
+    case TASK_TYPE.LXT_NOVEL_TO_SCRIPT:
+    case TASK_TYPE.LXT_SCRIPT_TO_STORYBOARD:
+    case TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT:
       return buildTextTaskInfo(taskType, payload)
     case TASK_TYPE.PANEL_VARIANT:
       return buildImageTaskInfo(taskType, payload)

@@ -69,6 +69,7 @@
     "insufficientBalance": "余额不足",
     "insufficientBalanceDetail": "账户余额不足，请充值后继续使用",
     "operationFailed": "操作失败",
+    "saveFailed": "保存失败",
     "pleaseRetry": "请重试",
     "recommended": "推荐",
     "language": {

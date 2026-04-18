@@ -69,12 +69,35 @@ export const GET = apiHandler(async (
     }
   })
 
-  if (!novelPromotionData) {
+  if (!novelPromotionData && project.mode !== 'lxt') {
     throw new ApiError('NOT_FOUND')
   }
 
-  // 转换为稳定媒体 URL（并保留兼容字段）
-  const novelPromotionDataWithSignedUrls = await attachMediaFieldsToProject(novelPromotionData)
+  // LXT 模式：查 lxtData，若不存在则自动初始化（防御性 upsert）
+  if (project.mode === 'lxt') {
+    const lxtData = await prisma.lxtProject.upsert({
+      where: { projectId },
+      create: { projectId },
+      update: {},
+      include: {
+        episodes: {
+          orderBy: { episodeNumber: 'asc' }
+        }
+      }
+    })
+
+    const fullProject = {
+      ...project,
+      lxtData,
+    }
+
+    return NextResponse.json({ project: fullProject })
+  }
+
+  // novel-promotion 模式（原有逻辑）
+  // At this point novelPromotionData is guaranteed non-null (the !novelPromotionData check above throws for non-lxt)
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const novelPromotionDataWithSignedUrls = await attachMediaFieldsToProject(novelPromotionData!)
   const filteredNovelPromotionData = {
     ...novelPromotionDataWithSignedUrls,
     locations: (novelPromotionDataWithSignedUrls.locations || []).filter((item) => readAssetKind(item) !== 'prop'),

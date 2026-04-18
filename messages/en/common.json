@@ -69,6 +69,7 @@
     "insufficientBalance": "Insufficient Balance",
     "insufficientBalanceDetail": "Insufficient account balance, please recharge to continue",
     "operationFailed": "Operation failed",
+    "saveFailed": "Save failed",
     "pleaseRetry": "Please retry",
     "recommended": "Recommended",
     "language": {

@@ -11,6 +11,7 @@ import TaskStatusInline from '@/components/task/TaskStatusInline'
 import { useProjectData, useEpisodeData, useUserModels } from '@/lib/query/hooks'
 import { queryKeys } from '@/lib/query/keys'
 import NovelPromotionWorkspace from './modes/novel-promotion/NovelPromotionWorkspace'
+import LxtWorkspace from './modes/lxt/LxtWorkspace'
 import SmartImportWizard, { SplitEpisode } from './modes/novel-promotion/components/SmartImportWizard'
 import { resolveTaskPresentationState } from '@/lib/task/presentation'
 import { resolveSelectedEpisodeId } from './episode-selection'
@@ -21,7 +22,7 @@ import { useRouter } from '@/i18n/navigation'
 import { readApiErrorMessage } from '@/lib/api/read-error-message'
 
 // 有效的stage值
-const VALID_STAGES = ['config', 'script', 'assets', 'text-storyboard', 'storyboard', 'videos', 'voice', 'editor'] as const
+const VALID_STAGES = ['config', 'script', 'assets', 'text-storyboard', 'storyboard', 'videos', 'voice', 'editor', 'lxt-script', 'lxt-storyboard', 'lxt-final-script'] as const
 type Stage = typeof VALID_STAGES[number]
 
 interface Episode {
@@ -107,8 +108,15 @@ export default function ProjectDetailPage() {
   }, [updateUrlParams])
 
   // Stage 状态完全由 URL 控制，不再从数据库同步
-  // 如果 URL 没有 stage 参数，默认使用 'config'
-  const effectiveStage = currentUrlStage || 'config'
+  // 如果 URL 没有 stage 参数，默认使用 'config'（LXT 默认 lxt-script）
+  const isLxtMode = project?.mode === 'lxt'
+  const effectiveStage = currentUrlStage || (isLxtMode ? 'lxt-script' : 'config')
+
+  // LXT 剧集列表（独立于 novel-promotion）
+  const lxtEpisodes = useMemo(() => {
+    const eps = project?.lxtData?.episodes ?? []
+    return [...eps].sort((a, b) => a.episodeNumber - b.episodeNumber)
+  }, [project?.lxtData?.episodes])
 
   // 获取剧集列表
   const novelPromotionData = project?.novelPromotionData as NovelPromotionData | undefined
@@ -138,7 +146,7 @@ export default function ProjectDetailPage() {
   // 零状态：无剧集且非导入中 → 自动创建第一集
   const isZeroState = episodes.length === 0
   const shouldShowImportWizard = importStatus === 'pending' // 仅分集预览中才显示 wizard
-  const shouldAutoCreateEpisode = isZeroState && importStatus !== 'pending'
+  const shouldAutoCreateEpisode = isZeroState && importStatus !== 'pending' && !isLxtMode
   const autoCreateTriggered = useRef(false)
 
   useEffect(() => {
@@ -191,7 +199,7 @@ export default function ProjectDetailPage() {
     }
   }, [shouldGateImportWizardByModel])
 
-  // 初始化 URL：无效/缺失 episode 时，统一回写默认 episode
+  // 初始化 URL：无效/缺失 episode 时，统一回写默认 episode（novel-promotion）
   useEffect(() => {
     if (!project || isGlobalAssetsView || episodes.length === 0) return
     if (urlEpisodeId && episodes.some((episode) => episode.id === urlEpisodeId)) return
@@ -307,6 +315,58 @@ export default function ProjectDetailPage() {
     updateUrlParams({ episode: episodeId })
   }
 
+  // ============ LXT 模式处理器 ============
+
+  // LXT 集导航状态
+  const lxtSelectedEpisodeId = urlEpisodeId && lxtEpisodes.some(ep => ep.id === urlEpisodeId)
+    ? urlEpisodeId
+    : (lxtEpisodes[0]?.id ?? null)
+
+  // 初始化 URL：LXT 模式下无 episode 参数时回写默认集
+  useEffect(() => {
+    if (!isLxtMode || !project || lxtEpisodes.length === 0) return
+    if (urlEpisodeId && lxtEpisodes.some(ep => ep.id === urlEpisodeId)) return
+    if (lxtSelectedEpisodeId) {
+      updateUrlParams({ episode: lxtSelectedEpisodeId })
+    }
+  }, [isLxtMode, lxtEpisodes, lxtSelectedEpisodeId, project, updateUrlParams, urlEpisodeId])
+
+  const handleLxtEpisodeSelect = useCallback((episodeId: string) => {
+    updateUrlParams({ episode: episodeId })
+  }, [updateUrlParams])
+
+  const handleLxtCreateEpisode = useCallback(async (name: string) => {
+    const res = await apiFetch(`/api/lxt/${projectId}/episodes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    if (!res.ok) throw new Error(await readApiErrorMessage(res, t('createFailed')))
+    const data = await res.json()
+    queryClient.invalidateQueries({ queryKey: queryKeys.projectData(projectId) })
+    updateUrlParams({ episode: data.episode.id })
+  }, [projectId, queryClient, t, updateUrlParams])
+
+  const handleLxtRenameEpisode = useCallback(async (episodeId: string, newName: string) => {
+    const res = await apiFetch(`/api/lxt/${projectId}/episodes/${episodeId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    })
+    if (!res.ok) throw new Error(t('renameFailed'))
+    queryClient.invalidateQueries({ queryKey: queryKeys.projectData(projectId) })
+  }, [projectId, queryClient, t])
+
+  const handleLxtDeleteEpisode = useCallback(async (episodeId: string) => {
+    const res = await apiFetch(`/api/lxt/${projectId}/episodes/${episodeId}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error(t('deleteFailed'))
+    queryClient.invalidateQueries({ queryKey: queryKeys.projectData(projectId) })
+    if (episodeId === lxtSelectedEpisodeId) {
+      const remaining = lxtEpisodes.filter(ep => ep.id !== episodeId)
+      updateUrlParams({ episode: remaining[0]?.id ?? null })
+    }
+  }, [projectId, queryClient, t, lxtSelectedEpisodeId, lxtEpisodes, updateUrlParams])
+
   const handleSaveDefaultAnalysisModel = async () => {
     const modelKey = analysisModelDraft.trim()
     if (!modelKey) {
@@ -340,8 +400,8 @@ export default function ProjectDetailPage() {
   // 条件：正在加载 或 (有剧集但episode数据未准备好)
   // 排除：如果要显示导入向导，则不需要等待剧集数据
   const isInitializing = loading ||
-    (!shouldShowImportWizard && !isGlobalAssetsView && episodes.length > 0 && (!selectedEpisodeId || !currentEpisode)) ||
-    (project && !project.novelPromotionData)
+    (!isLxtMode && !shouldShowImportWizard && !isGlobalAssetsView && episodes.length > 0 && (!selectedEpisodeId || !currentEpisode)) ||
+    (project && !project.novelPromotionData && !isLxtMode)
   const initLoadingState = resolveTaskPresentationState({
     phase: 'processing',
     intent: 'generate',
@@ -389,7 +449,20 @@ export default function ProjectDetailPage() {
       {/* 主内容区 - 占满全部宽度 */}
       <main className="flex-1 overflow-y-auto">
         <div className="container mx-auto px-4 py-8">
-          {isGlobalAssetsView && project.novelPromotionData ? (
+          {isLxtMode ? (
+            // LXT 短剧模式工作台
+            <LxtWorkspace
+              projectId={projectId}
+              urlStage={effectiveStage}
+              onStageChange={updateUrlStage}
+              episodes={lxtEpisodes}
+              selectedEpisodeId={lxtSelectedEpisodeId}
+              onEpisodeSelect={handleLxtEpisodeSelect}
+              onEpisodeCreate={handleLxtCreateEpisode}
+              onEpisodeRename={handleLxtRenameEpisode}
+              onEpisodeDelete={handleLxtDeleteEpisode}
+            />
+          ) : isGlobalAssetsView && project.novelPromotionData ? (
             // 全局资产视图（确保数据准备好）
             <div>
               <h1 className="text-2xl font-bold text-[var(--glass-text-primary)] mb-6">{t('globalAssets')}</h1>

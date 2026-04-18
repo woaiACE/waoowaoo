@@ -1,0 +1,14 @@
+{
+  "tabs": {
+    "script": "原文分镜",
+    "storyboard": "分镜脚本",
+    "finalScript": "制作脚本"
+  },
+  "episodeList": "集数列表",
+  "newEpisodePlaceholder": "集名称",
+  "novelTextLabel": "原文内容",
+  "novelTextPlaceholder": "粘贴或输入短剧原文...",
+  "noNovelText": "暂无原文，点击编辑添加",
+  "noEpisodesHint": "还没有集，点击下方按钮创建第一集",
+  "createFirstEpisode": "创建第一集"
+}

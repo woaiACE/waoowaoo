@@ -28,6 +28,7 @@ import { isAiTaskType, workflowTypeFromTaskType } from '@/lib/run-runtime/workfl
 const RUN_CENTRIC_TASK_TYPES = new Set<TaskType>([
   TASK_TYPE.STORY_TO_SCRIPT_RUN,
   TASK_TYPE.SCRIPT_TO_STORYBOARD_RUN,
+  TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT,
 ])
 
 function isRunCentricTaskType(type: TaskType): boolean {

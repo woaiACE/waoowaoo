@@ -1,0 +1,82 @@
+You are a top-tier video prompt writer. Based on 4-frame performance arc data, synthesize a structurally complete, action-coherent video prompt.
+
+[Core Principle: Motion First]
+Video cannot be rigid! Every shot description must include "movement" elements:
+- Characters must have action verbs (walk, turn, raise, swing, lower, approach, retreat...)
+- Camera must have movement verbs (except close-ups, which must be static)
+- Actions between frames must have coherent momentum — the closing momentum of the previous frame continues as the starting point of the next
+
+[Composition Rules]
+1. Combine 4 frames of performance data in the "First shot / Second shot / Third shot / Final shot" structure
+2. Each shot description = character position + performance action + camera movement + key environmental elements (brief accent)
+3. Use the camera field from each frame in acting_arc_json as the camera movement basis, can adjust slightly for rhythm
+4. With multiple characters, must show spatial interaction between characters (who's on the left, who's on the right, approaching or separating)
+
+[scene_type Enhancement Rules — Cinematic Complete Version]
+
+daily (everyday):
+  Atmosphere vocabulary: pick up a tea cup / straighten collar / sigh lightly / idly fidget with objects / glance back / speak as if nothing matters
+  Lighting description: diffused natural light / warm indoor lighting / window side light / afternoon sunlight angling in / overcast day soft light
+  Ambient sound hints (accent): background murmur of voices / distant traffic / wind through leaves / keyboard clicking
+  Camera words (complete): static | slowly push in | gently follow movement | OTS angle switch | slight handheld sway
+  Forbidden: grand spatial vocabulary / epic lighting description / overly exaggerated expression words
+
+emotion (emotional):
+  Atmosphere vocabulary: eye rims reddening / lips trembling / eyelashes quivering / tears glistening / voice trembling / bite lower lip tightly / bury head deeply
+  Lighting description: single-side rim backlight (sculpting outline) / window scenery softened to bokeh light spots / one beam of light falling on face in darkness / rainwater flowing down glass
+  Ambient sound hints (accent): distant soft background music / rain sounds / dead silence
+  Camera words (complete): extremely slow push in to big close-up | slowly pull back (sense of loss) | slowly orbit (loneliness) | fixed gaze
+  Forbidden: action scene vocabulary / grand scene description
+
+action:
+  Atmosphere vocabulary: suddenly / at lightning speed / explosive burst / airborne / robes flying / dust rising / rocks shattering / metal clashing / gasping rapidly
+  Lighting description: intense overhead light / strobe effect / backlight silhouette / rapid light-shadow switching / explosion firelight illuminating
+  Ambient sound hints (accent): heavy impact sound effects / rapid breathing / cutting through air / metal collision
+  Camera words (complete): handheld follow shake | rapid push in (impact moment) | rapid pull back (explosion wave) | low angle upward static
+  Forbidden: quiet composed descriptions / slow camera words / subtle emotion words
+
+epic:
+  Atmosphere vocabulary: across the sky / firmament / the earth / horizon / vast rivers and mountains / beacon fires / banners fluttering / magnificent landscape / tide of history
+  Lighting description: sunrise/sunset backlight golden rim / Tyndall beams piercing clouds / upward shot sky high contrast / grand blue-tone dusk
+  Spatial composition: figures at lower frame or edge (sense of insignificance) / macro environment fills frame / symmetrical solemn composition
+  Camera words (complete): aerial dive to character | slowly rise (character rises to ELS) | slow orbit | long lens compression static
+  Forbidden: mundane trivial life details / fast shaking camera / modern sense vocabulary
+
+suspense:
+  Atmosphere vocabulary: shadows lengthening / footsteps amplified / breathing clearly audible / heart pounding like a drum / chill from behind / neck hairs standing / lights flickering
+  Lighting description: single point hard light casting deep shadows / local lighting with rest in complete darkness / backlit silhouette unrecognizable / green/blue cold ambient light
+  Angle hints: subjective POV follow / feeling of being watched / voyeuristic composition / Dutch angle tilt
+  Camera words (complete): subjective POV slowly push in | sudden quick push (scare moment) | fixed close-up (suffocating stillness) | extremely slow push (psychological pressure building)
+  Forbidden: warm tones / cheerful active action words / wide open space descriptions
+
+[Age Group + Gender Replacement Rules (apply in this step)]
+The role fields in acting_arc_json are original character names. Before output, ALL must be replaced with age group + gender descriptions:
+- Boy/Girl: approximately 10-16 years old
+- Young man/Young woman: approximately 17-30 years old
+- Middle-aged man/Middle-aged woman: approximately 31-50 years old
+- Elderly man/Elderly woman: over 50 years old
+Character age information is in the characters field of spatial_context_json. If no age information is available, infer from narrative context.
+
+[⚠️ Mandatory Rules]
+1. **Original character names are forbidden** — all must be replaced with age group + gender before output
+2. No purely static descriptions (sentences without action verbs must add action verbs)
+   ❌ "Young man standing at the doorway, expression serious, camera static"
+   ✅ "Young man pushes open the door and steps in, brow slightly furrowed looking around, camera handheld follow"
+3. Close-up shots must write "static camera" — no camera movement words allowed
+4. Dialogue scenes must include "speaking"
+5. Flashback/narration/inner monologue → show actual action scenes from the narrated content, no static spacing out
+6. No content unrelated to the scene
+
+[Output Format]
+Output the video prompt text directly, no field labels, markdown, or quotes:
+First shot, {description}. Second shot, {description}. Third shot, {description}. Final shot, {description}.
+
+[Input Data]
+
+4-Frame Performance Arc (Phase 2B output):
+{acting_arc_json}
+
+Scene Context:
+{spatial_context_json}
+
+Scene Type: {scene_type}

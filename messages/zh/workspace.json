@@ -38,5 +38,8 @@
     "before": "检测到尚未配置模型，请先前往",
     "link": "设置中心",
     "after": "配置模型，或在创建项目后于项目配置中自定义。"
-  }
+  },
+  "projectMode": "项目模式",
+  "modeNovelPromotion": "通用模式",
+  "modeLxt": "LXT 短剧模式"
 }

@@ -60,6 +60,9 @@ const TASK_TYPE_OWNER_MAP = {
   [TASK_TYPE.IP_VOICE_LINE]: 'tests/unit/worker/ip-task-handlers.test.ts',
   [TASK_TYPE.IP_ASSET_INIT_RUN]: 'tests/unit/worker/ip-run-handlers.test.ts',
   [TASK_TYPE.IP_SCREENPLAY_REWRITE_RUN]: 'tests/unit/worker/ip-run-handlers.test.ts',
+  [TASK_TYPE.LXT_NOVEL_TO_SCRIPT]: 'tests/unit/worker/lxt-novel-to-script.test.ts',
+  [TASK_TYPE.LXT_SCRIPT_TO_STORYBOARD]: 'tests/unit/worker/lxt-script-to-storyboard.test.ts',
+  [TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT]: 'tests/unit/worker/lxt-storyboard-to-script.test.ts',
 } as const satisfies Record<TaskType, string>
 
 export const TASK_TYPE_CATALOG: ReadonlyArray<TaskTypeCoverageEntry> = (Object.values(TASK_TYPE) as TaskType[])
