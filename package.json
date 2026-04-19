@@ -15,7 +15,7 @@
     "dev:watchdog": "tsx watch --env-file=.env scripts/watchdog.ts",
     "dev:board": "tsx watch --env-file=.env scripts/bull-board.ts",
     "dev:turbo": "next dev --turbopack -H 0.0.0.0",
-    "prebuild": "node -e \"const fs=require('fs');const p='.next/cache';try{fs.rmSync(p,{recursive:true,force:true})}catch(e){}\"",
+    "prebuild": "node -e \"const fs=require('fs');try{fs.rmSync('.next',{recursive:true,force:true})}catch(e){}\"",
     "build": "node scripts/prisma-generate-safe.mjs && next build",
     "build:turbo": "next build --turbopack",
     "start": "npm run storage:init && concurrently --kill-others \"npm run start:next\" \"npm run start:worker\" \"npm run start:watchdog\" \"npm run start:board\"",
