@@ -104,6 +104,7 @@ const DIRECT_RUN_EVENT_TASK_TYPES = new Set<string>([
   TASK_TYPE.STORY_TO_SCRIPT_RUN,
   TASK_TYPE.SCRIPT_TO_STORYBOARD_RUN,
   TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT,
+  TASK_TYPE.LXT_ANALYZE_ASSETS,
 ])
 
 function shouldPersistRunStreamReplay(taskType: string): boolean {

@@ -6,9 +6,6 @@ import StoryboardStage from './StoryboardStage'
 import VideoStageRoute from './VideoStageRoute'
 import VoiceStageRoute from './VoiceStageRoute'
 import EditorStageRoute from './EditorStageRoute'
-import LxtScriptStage from './LxtScriptStage'
-import LxtStoryboardStage from './LxtStoryboardStage'
-import LxtFinalScriptStage from './LxtFinalScriptStage'
 
 interface WorkspaceStageContentProps {
   currentStage: string
@@ -30,12 +27,6 @@ export default function WorkspaceStageContent({
       {currentStage === 'voice' && <VoiceStageRoute />}
 
       {currentStage === 'editor' && <EditorStageRoute />}
-
-      {currentStage === 'lxt-script' && <LxtScriptStage />}
-
-      {currentStage === 'lxt-storyboard' && <LxtStoryboardStage />}
-
-      {currentStage === 'lxt-final-script' && <LxtFinalScriptStage />}
     </div>
   )
 }

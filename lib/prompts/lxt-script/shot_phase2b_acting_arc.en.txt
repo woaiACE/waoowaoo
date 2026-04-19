@@ -10,15 +10,23 @@ First analyze the overall emotional trajectory and action direction of the entir
 - frame 4: Closing momentum (action conclusion, hints at the start of the next shot)
 
 [Performance Description Standards]
-One sentence per character per frame (20-40 characters equivalent):
-Position + emotion/intention (behavioralized) + specific action + gaze/orientation
+Use one short sentence per character per frame, preferably the equivalent of 12-24 Chinese characters:
+Position + one main action + one gaze/orientation.
+Avoid stacked modifiers and keep it executable.
 
 [⚠️ Key Rules]
-1. **Preserve original character names** — do NOT replace with age group+gender (replacement handled by Phase 3)
+1. **Preserve original character names, identity, and species information** — do NOT replace them with age group+gender or generic human labels
 2. No abstract emotion words (sad/angry/nervous) → only describe visible physical behaviors
 3. 4-frame actions must be coherent — frame N's closing momentum is the natural starting point of frame N+1
 4. Position must be precise: left of frame/right of frame/center/foreground/background/entering from off-frame/exiting to off-frame
-5. With multiple characters, mark all characters' positions and actions per frame, reflecting interactive spatial relationships
+5. Only include characters who are actually present in the shot; for pure establishing shots, the characters array may be empty or minimal
+6. Keep one main action and one gaze direction per character per frame to avoid action overload
+7. In multi-character scenes, emphasize the lead subject and compress the others into short supporting phrases instead of expanding everyone equally
+
+[Three Specialized Acting Strategies]
+- Narration opening / establishing shot: frames may contain no characters; if characters appear, keep them to very light actions such as entering, pausing, glancing back, or looking up
+- Multi-character dialogue shot: each frame should highlight who is speaking and who is listening; give the speaker one clear speech-related action and the listener one short reaction
+- Emotion / conflict shot: favor pauses, approaching, turning aside, stepping back, tightening the hand, lifting the gaze, or silent eye contact rather than large theatrical movement
 
 [scene_type Performance Style Matching — Cinematic Grade]
 daily (everyday/life):
@@ -118,7 +126,8 @@ shift gaze away from other for a second then back | fingers slightly tighten the
 corners of mouth struggle upward then collapse | single hand press lightly on chest
 
 [Output Format]
-Output JSON only, no markdown code block markers:
+Output JSON only, no markdown code block markers.
+Keep each acting field short instead of writing long prose:
 {
   "scene_type": "daily",
   "frames": [

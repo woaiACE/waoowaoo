@@ -401,13 +401,14 @@ model Project {
 }
 
 model LxtProject {
-  id            String       @id @default(uuid())
-  projectId     String       @unique
+  id            String            @id @default(uuid())
+  projectId     String            @unique
   analysisModel String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @default(now()) @updatedAt
-  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @default(now()) @updatedAt
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   episodes      LxtEpisode[]
+  assets        LxtProjectAsset[]
 
   @@map("lxt_projects")
 }
@@ -428,6 +429,30 @@ model LxtEpisode {
   @@unique([lxtProjectId, episodeNumber])
   @@index([lxtProjectId])
   @@map("lxt_episodes")
+}
+
+model LxtProjectAsset {
+  id                String      @id @default(uuid())
+  lxtProjectId      String
+  kind              String
+  name              String
+  summary           String?     @db.Text
+  globalCharacterId String?
+  globalLocationId  String?
+  globalPropId      String?
+  voiceId           String?
+  voiceType         String?
+  customVoiceUrl    String?     @db.Text
+  imageUrl          String?     @db.Text
+  imageMediaId      String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @default(now()) @updatedAt
+  lxtProject        LxtProject  @relation(fields: [lxtProjectId], references: [id], onDelete: Cascade)
+
+  @@index([lxtProjectId])
+  @@index([kind])
+  @@unique([lxtProjectId, kind, name])
+  @@map("lxt_project_assets")
 }
 
 model Session {

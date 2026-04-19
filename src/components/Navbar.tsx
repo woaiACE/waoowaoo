@@ -51,15 +51,6 @@ export default function Navbar() {
                   className="object-contain transition-transform group-hover:scale-110"
                 />
               </Link>
-              {session && (
-                <Link
-                  href={{ pathname: '/lxt-script' }}
-                  className="glass-btn-base glass-btn-secondary h-7 px-3 text-xs font-semibold flex items-center gap-1.5 rounded-full"
-                >
-                  <AppIcon name="clapperboard" className="w-3.5 h-3.5" />
-                  {t('lxtScript')}
-                </Link>
-              )}
               <button
                 type="button"
                 onClick={openModal}

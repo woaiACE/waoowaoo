@@ -715,6 +715,8 @@ async function processTextTask(job: Job<TaskJobData>) {
       return await (await import('@/lib/workers/handlers/lxt-script-to-storyboard')).handleLxtScriptToStoryboardTask(job)
     case TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT:
       return await (await import('@/lib/workers/handlers/lxt-storyboard-to-script')).handleLxtStoryboardToScriptTask(job)
+    case TASK_TYPE.LXT_ANALYZE_ASSETS:
+      return await (await import('@/lib/workers/handlers/lxt-analyze-assets')).handleLxtAnalyzeAssetsTask(job)
     default:
       throw new Error(`Unsupported text task type: ${job.data.type}`)
   }

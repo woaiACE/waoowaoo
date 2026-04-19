@@ -1,5 +1,5 @@
-import LxtScriptWizard from '@/components/lxt-script/LxtScriptWizard'
+import { redirect } from 'next/navigation'
 
 export default function LxtScriptPage() {
-  return <LxtScriptWizard />
+  redirect('/workspace')
 }

@@ -9,10 +9,19 @@ The 4 frames represent 4 keyframes from the start to end of the shot:
 
 [Core Rules]
 1. All 4 frames must maintain the same shot size and camera position (visual continuity)
-2. Only incremental details between frames (minor changes in posture/lighting/foreground elements)
+2. Only incremental details between frames (minor changes in posture/lighting/foreground elements); do not cram multiple plot beats into one frame
 3. Close-up shots must use a fixed camera — no movement words allowed
 4. Global physical space description goes first, including camera-to-scene relative position
 5. Camera angle or shot size must not change between frames
+6. The image prompt should focus on composition, lighting, subject placement, and environment detail rather than retelling the whole plot
+7. Opening narration / establishing shots may contain no characters or very few characters, prioritizing a stable atmosphere
+8. If characters appear, preserve their original names and species identity instead of generic labels like "middle-aged woman" or "young man"
+9. Keep only one core visual change per frame to avoid overload
+
+[Three Specialized Composition Strategies]
+- Narration opening / establishing shot: prefer empty frames, environment shots, long shots, or medium long shots; emphasize space and atmosphere before character action
+- Multi-character dialogue shot: prefer medium shots, two-shots, and over-the-shoulder compositions; keep the main speaker clear and the listener reactive while downplaying others
+- Emotion / conflict shot: prefer medium close-up, close-up, or tighter framing; emphasize face, hands, pressure in blocking, and negative space instead of excessive plot motion
 
 [Shot Size Vocabulary — Full Cinematic Spectrum]
 Extreme Long Shot (ELS): tiny figures in vast environment, epic scale, opening/chapter transitions

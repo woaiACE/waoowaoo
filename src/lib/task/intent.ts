@@ -77,6 +77,8 @@ const TASK_INTENT_BY_TYPE: Record<TaskType, TaskIntent> = {
   [TASK_TYPE.LXT_NOVEL_TO_SCRIPT]: 'convert',
   [TASK_TYPE.LXT_SCRIPT_TO_STORYBOARD]: 'convert',
   [TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT]: 'convert',
+  [TASK_TYPE.LXT_ANALYZE_ASSETS]: 'process',
+  [TASK_TYPE.LXT_ASSET_VOICE_DESIGN]: 'generate',
 }
 
 export function resolveTaskIntent(taskType: string | null | undefined): TaskIntent {

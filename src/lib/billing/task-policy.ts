@@ -22,6 +22,7 @@ const BILLABLE_TASK_TYPES = new Set<TaskType>([
   TASK_TYPE.VOICE_LINE,
   TASK_TYPE.VOICE_DESIGN,
   TASK_TYPE.ASSET_HUB_VOICE_DESIGN,
+  TASK_TYPE.LXT_ASSET_VOICE_DESIGN,
   TASK_TYPE.REGENERATE_STORYBOARD_TEXT,
   TASK_TYPE.INSERT_PANEL,
   TASK_TYPE.PANEL_VARIANT,
@@ -277,6 +278,7 @@ export function buildDefaultTaskBillingInfo(taskType: TaskType, payload: AnyPayl
       return buildVoiceTaskInfo(taskType, payload)
     case TASK_TYPE.VOICE_DESIGN:
     case TASK_TYPE.ASSET_HUB_VOICE_DESIGN:
+    case TASK_TYPE.LXT_ASSET_VOICE_DESIGN:
       return buildVoiceDesignTaskInfo(taskType)
     case TASK_TYPE.REGENERATE_STORYBOARD_TEXT:
     case TASK_TYPE.INSERT_PANEL:

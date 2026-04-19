@@ -6,10 +6,11 @@ import { LxtWorkspaceProvider } from './LxtWorkspaceProvider'
 import { LxtWorkspaceStageRuntimeProvider } from './LxtWorkspaceStageRuntimeContext'
 import LxtScriptStage from './components/LxtScriptStage'
 import LxtStoryboardStage from './components/LxtStoryboardStage'
+import LxtAssetsStage from './components/LxtAssetsStage'
 import LxtFinalScriptStage from './components/LxtFinalScriptStage'
 
 // LXT 支持的 stages
-const LXT_STAGES = ['lxt-script', 'lxt-storyboard', 'lxt-final-script'] as const
+const LXT_STAGES = ['lxt-script', 'lxt-storyboard', 'lxt-assets', 'lxt-final-script'] as const
 type LxtStage = typeof LXT_STAGES[number]
 
 export interface LxtEpisodeItem {
@@ -81,6 +82,7 @@ export default function LxtWorkspace({
   const stageTabs: { key: LxtStage; label: string }[] = [
     { key: 'lxt-script', label: t('tabs.script') },
     { key: 'lxt-storyboard', label: t('tabs.storyboard') },
+    { key: 'lxt-assets', label: t('tabs.assets') },
     { key: 'lxt-final-script', label: t('tabs.finalScript') },
   ]
 
@@ -195,6 +197,7 @@ export default function LxtWorkspace({
                 {/* 始终挂载所有 Stage，用 hidden 切换显示，保持流式推理 state 不丢失 */}
                 <div className={effectiveStage !== 'lxt-script' ? 'hidden' : ''}><LxtScriptStage /></div>
                 <div className={effectiveStage !== 'lxt-storyboard' ? 'hidden' : ''}><LxtStoryboardStage /></div>
+                <div className={effectiveStage !== 'lxt-assets' ? 'hidden' : ''}><LxtAssetsStage /></div>
                 <div className={effectiveStage !== 'lxt-final-script' ? 'hidden' : ''}><LxtFinalScriptStage /></div>
               </LxtWorkspaceStageRuntimeProvider>
             </LxtWorkspaceProvider>

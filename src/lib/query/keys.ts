@@ -47,6 +47,12 @@ export const queryKeys = {
         detail: (projectId: string) => ['project-assets', projectId, 'detail'] as const,
     },
 
+    // ============ LXT 资产 ============
+    lxtAssets: {
+        all: (projectId: string) => ['lxt-assets', projectId] as const,
+        list: (projectId: string) => ['lxt-assets', projectId, 'list'] as const,
+    },
+
     // ============ 分镜（Storyboard）============
     storyboards: {
         all: (episodeId: string) => ['storyboards', episodeId] as const,

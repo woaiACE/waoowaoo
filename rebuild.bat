@@ -2,11 +2,11 @@
 chcp 65001 >nul 2>&1
 setlocal
 
-:: ============================================================
-:: waoowaoo 强制重建入口
-:: 代码更新后（git pull）双击此文件以重建 Next.js 并重启所有服务
-:: 等同于 start.bat + --ForceRebuild 参数
-:: ============================================================
+REM ============================================================
+REM waoowaoo force rebuild launcher
+REM Rebuilds Next.js and restarts the local services
+REM Equivalent to start.bat plus --ForceRebuild
+REM ============================================================
 
 set "REPO_DIR=%~dp0"
 set "REPO_DIR=%REPO_DIR:~0,-1%"

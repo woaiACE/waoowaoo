@@ -13,6 +13,16 @@ Narration | Dialogue | Inner Monologue | Mixed
 - Cover three spatial layers: foreground/background/distance
 - Be specific not abstract ("crisp echo of leather shoes on stone pavement" > "footsteps")
 
+[Character and Scene Identity Rules]
+- Preserve the original character identity and species information; if the source says "Pig Mom", "Pig Brother", "Fox Boss", or "Robot Assistant", keep that identity in later phases
+- Do NOT flatten named characters into generic human labels such as "middle-aged woman", "young man", or "boy"
+- If the current shot is only an opening narration, environment establishment, or mood setup, it is acceptable to have no characters and focus on a stable scene description instead of inventing group actions
+
+[Three Specialized Shot Judgments]
+- Narration opening / establishing shot: prioritize environment, camera position, lighting, and atmosphere; the characters field may be empty
+- Multi-character dialogue shot: identify the main speaker, the key listener, and the spatial relationship rather than making everyone equally central
+- Emotion / conflict shot: identify the strongest emotional subject and the opposing relationship, emphasizing pressure, pause, or confrontation
+
 [spatial_context Field Description]
 - scene: brief scene name (e.g. "study", "street", "battlefield")
 - time: time period (daytime/dusk/night/dawn/overcast)

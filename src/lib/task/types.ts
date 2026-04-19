@@ -95,6 +95,8 @@ export const TASK_TYPE = {
   LXT_NOVEL_TO_SCRIPT: 'lxt_novel_to_script',
   LXT_SCRIPT_TO_STORYBOARD: 'lxt_script_to_storyboard',
   LXT_STORYBOARD_TO_SCRIPT: 'lxt_storyboard_to_script',
+  LXT_ANALYZE_ASSETS: 'lxt_analyze_assets',
+  LXT_ASSET_VOICE_DESIGN: 'lxt_asset_voice_design',
 } as const
 
 export type TaskType = (typeof TASK_TYPE)[keyof typeof TASK_TYPE]

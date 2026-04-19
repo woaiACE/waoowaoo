@@ -191,6 +191,13 @@ const ROUTE_FILES = [
   // LXT 剧本模式
   'src/app/api/lxt/[projectId]/episodes/[episodeId]/route.ts',
   'src/app/api/lxt/[projectId]/episodes/route.ts',
+  // LXT 资产库
+  'src/app/api/lxt/[projectId]/assets/route.ts',
+  'src/app/api/lxt/[projectId]/assets/analyze/route.ts',
+  'src/app/api/lxt/[projectId]/assets/[assetId]/route.ts',
+  'src/app/api/lxt/[projectId]/assets/[assetId]/bind-global/route.ts',
+  'src/app/api/lxt/[projectId]/assets/[assetId]/voice-design/route.ts',
+  'src/app/api/lxt/[projectId]/assets/[assetId]/voice/route.ts',
   'src/app/api/lxt-script/[projectId]/generate-stream/route.ts',
   'src/app/api/lxt-script/generate-final-script/route.ts',
   'src/app/api/lxt-script/generate-script/route.ts',

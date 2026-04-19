@@ -2,6 +2,7 @@
   "tabs": {
     "script": "Script",
     "storyboard": "Storyboard",
+    "assets": "Assets",
     "finalScript": "Final Script"
   },
   "episodeList": "Episodes",

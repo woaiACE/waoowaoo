@@ -1070,14 +1070,29 @@ function Invoke-Phase9a-NextBuild {
 
     $nextDir       = Join-Path $RepoDir '.next'
     $buildIdFile   = Join-Path $nextDir 'BUILD_ID'
-    $gitCommitFile = Join-Path $nextDir 'GIT_COMMIT'   # 构建时写入，用于跨启动检测代码变更
+    $gitCommitFile = Join-Path $nextDir 'GIT_COMMIT'        # 构建时写入，用于跨启动检测代码变更
+    $gitStatusFile = Join-Path $nextDir 'GIT_STATUS_HASH'   # 记录未提交工作区指纹，避免漏掉本地源码修改
 
-    # ── 获取当前 git HEAD commit hash ────────────────────────
+    # ── 获取当前 git HEAD commit hash / 工作区状态 ───────────
     $currentCommit = ''
+    $workingTreeHash = ''
     try {
         $gitOutput = & git -C $RepoDir rev-parse HEAD 2>&1
         if ($LASTEXITCODE -eq 0) {
             $currentCommit = $gitOutput.Trim()
+        }
+
+        $gitStatus = @(& git -C $RepoDir status --porcelain 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $gitStatus.Count -gt 0) {
+            $workingTreeState = ($gitStatus -join "`n").Trim()
+            $sha = [System.Security.Cryptography.SHA256]::Create()
+            try {
+                $bytes = [System.Text.Encoding]::UTF8.GetBytes($workingTreeState)
+                $workingTreeHash = ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+            }
+            finally {
+                $sha.Dispose()
+            }
         }
     }
     catch { <# git 不可用，跳过 commit 比对 #> }
@@ -1093,6 +1108,19 @@ function Invoke-Phase9a-NextBuild {
     elseif (-not (Test-Path $buildIdFile)) {
         $needRebuild  = $true
         $rebuildReason = '首次构建或 .next 目录已清除'
+    }
+    elseif ($workingTreeHash -ne '') {
+        if (-not (Test-Path $gitStatusFile)) {
+            $needRebuild  = $true
+            $rebuildReason = '检测到本地未提交代码变更，重建以同步最新界面'
+        }
+        else {
+            $lastStatusHash = (Get-Content $gitStatusFile -ErrorAction SilentlyContinue).Trim()
+            if ($lastStatusHash -ne $workingTreeHash) {
+                $needRebuild  = $true
+                $rebuildReason = '检测到新的本地源码变更，重建以同步最新界面'
+            }
+        }
     }
     elseif ($currentCommit -ne '') {
         if (-not (Test-Path $gitCommitFile)) {
@@ -1110,7 +1138,12 @@ function Invoke-Phase9a-NextBuild {
     }
 
     if (-not $needRebuild) {
-        Write-Success ".next 生产构建与当前代码一致（git: $($currentCommit.Substring(0,8))...），跳过构建。"
+        if ($currentCommit -ne '') {
+            Write-Success ".next 生产构建与当前代码一致（git: $($currentCommit.Substring(0,8))...），跳过构建。"
+        }
+        else {
+            Write-Success '.next 生产构建与当前代码一致，跳过构建。'
+        }
         return
     }
 
@@ -1145,10 +1178,19 @@ function Invoke-Phase9a-NextBuild {
         Pop-Location
     }
 
-    # 构建成功后写入 git commit hash，供下次启动比对
-    if ($currentCommit -ne '' -and (Test-Path $buildIdFile)) {
-        Set-Content -Path $gitCommitFile -Value $currentCommit -Encoding ASCII -Force
-        Write-Step -Phase '版本' -Message "已记录构建版本：$($currentCommit.Substring(0,8))..."
+    # 构建成功后写入 git commit / 工作区状态，供下次启动比对
+    if (Test-Path $buildIdFile) {
+        if ($currentCommit -ne '') {
+            Set-Content -Path $gitCommitFile -Value $currentCommit -Encoding ASCII -Force
+            Write-Step -Phase '版本' -Message "已记录构建版本：$($currentCommit.Substring(0,8))..."
+        }
+
+        if ($workingTreeHash -ne '') {
+            Set-Content -Path $gitStatusFile -Value $workingTreeHash -Encoding ASCII -Force
+        }
+        elseif (Test-Path $gitStatusFile) {
+            Remove-Item $gitStatusFile -Force -ErrorAction SilentlyContinue
+        }
     }
 
     Write-Success 'Next.js 构建完成。'

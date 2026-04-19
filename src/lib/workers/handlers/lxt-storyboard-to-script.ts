@@ -6,6 +6,7 @@ import { assertTaskActive } from '@/lib/workers/utils'
 import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
 import { mapWithConcurrency } from '@/lib/async/map-with-concurrency'
 import { parseLxtShots } from '@/lib/lxt/parse-shots'
+import { buildLxtAssetPromptContext } from '@/lib/lxt/project-assets'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 import { createWorkerLLMStreamContext, createWorkerLLMStreamCallbacks } from './llm-stream'
 import { withInternalLLMStreamCallbacks, type InternalLLMStreamCallbacks, type InternalLLMStreamStepMeta } from '@/lib/llm-observe/internal-stream-context'
@@ -60,7 +61,20 @@ export async function handleLxtStoryboardToScriptTask(job: Job<TaskJobData>) {
   // 1. 加载 lxtEpisode & lxtProject
   const lxtData = await prisma.lxtProject.findUnique({
     where: { projectId },
-    select: { analysisModel: true },
+    select: {
+      analysisModel: true,
+      assets: {
+        orderBy: [{ kind: 'asc' }, { createdAt: 'asc' }],
+        select: {
+          kind: true,
+          name: true,
+          summary: true,
+          voiceType: true,
+          voiceId: true,
+          customVoiceUrl: true,
+        },
+      },
+    },
   })
 
   const episode = await prisma.lxtEpisode.findUnique({
@@ -99,6 +113,7 @@ export async function handleLxtStoryboardToScriptTask(job: Job<TaskJobData>) {
 
   const story = episode.novelText || ''
   const script = episode.srtContent || ''
+  const assetPromptContext = buildLxtAssetPromptContext(lxtData?.assets ?? [])
   let completedShots = 0
   let startedShots = 0
 
@@ -147,10 +162,13 @@ export async function handleLxtStoryboardToScriptTask(job: Job<TaskJobData>) {
       stepTotal: totalShots * 4,
     })
 
-    const prompt1 = tpl.phase1
-      .replace('{story}', story)
-      .replace('{script}', script)
-      .replace('{shot}', shot.raw)
+    const prompt1 = [
+      tpl.phase1
+        .replace('{story}', story)
+        .replace('{script}', script)
+        .replace('{shot}', shot.raw),
+      assetPromptContext ? `\n\n已确认的项目资产参考：\n${assetPromptContext}` : '',
+    ].join('')
 
     const res1 = await withInternalLLMStreamCallbacks(phase1Callbacks, () =>
       executeAiTextStep({
@@ -255,10 +273,13 @@ export async function handleLxtStoryboardToScriptTask(job: Job<TaskJobData>) {
     const actingArcJson = res2b.text?.trim() ?? ''
 
     // Phase 3 —— 视频提示词合成
-    const prompt3 = tpl.phase3
-      .replace('{acting_arc_json}', actingArcJson)
-      .replace('{spatial_context_json}', spatialContextJson)
-      .replace('{scene_type}', sceneType)
+    const prompt3 = [
+      tpl.phase3
+        .replace('{acting_arc_json}', actingArcJson)
+        .replace('{spatial_context_json}', spatialContextJson)
+        .replace('{scene_type}', sceneType),
+      assetPromptContext ? `\n\n已确认的项目资产参考：\n${assetPromptContext}` : '',
+    ].join('')
 
     await reportTaskProgress(job, startProgress + 20, {
       stage: 'worker_llm_stage:start',

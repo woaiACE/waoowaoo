@@ -2,6 +2,7 @@
   "tabs": {
     "script": "原文分镜",
     "storyboard": "分镜脚本",
+    "assets": "资产库",
     "finalScript": "制作脚本"
   },
   "episodeList": "集数列表",

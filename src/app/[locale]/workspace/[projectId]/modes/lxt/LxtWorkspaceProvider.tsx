@@ -32,6 +32,11 @@ export function LxtWorkspaceProvider({
     const promises: Promise<unknown>[] = [
       queryClient.refetchQueries({ queryKey: queryKeys.projectData(projectId) }),
     ]
+    promises.push(
+      queryClient.refetchQueries({
+        queryKey: queryKeys.lxtAssets.all(projectId),
+      })
+    )
     if (episodeId) {
       // LXT episode 数据用独立 key
       promises.push(
