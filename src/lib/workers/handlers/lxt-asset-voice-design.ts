@@ -8,6 +8,7 @@ import {
 import { createLocalVoiceDesign } from '@/lib/providers/local-indextts'
 import { getProviderConfig, resolveModelSelectionOrSingle, getProviderKey } from '@/lib/api-config'
 import { prisma } from '@/lib/prisma'
+import { generateUniqueKey, uploadObject } from '@/lib/storage'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
 import type { TaskJobData } from '@/lib/task/types'
@@ -98,12 +99,23 @@ export async function handleLxtAssetVoiceDesignTask(job: Job<TaskJobData>) {
     displayMode: 'detail',
   })
 
+  let customVoiceUrl: string | null = null
+  if (designed.audioBase64) {
+    const projectId = typeof job.data.projectId === 'string' ? job.data.projectId : ''
+    if (projectId) {
+      const audioBuffer = Buffer.from(designed.audioBase64, 'base64')
+      const key = generateUniqueKey(`voice/lxt/${projectId}/${assetId}`, 'wav')
+      customVoiceUrl = await uploadObject(audioBuffer, key)
+    }
+  }
+
   // 写回 LxtProjectAsset
   await prisma.lxtProjectAsset.update({
     where: { id: assetId },
     data: {
       voiceId: designed.voiceId,
       voiceType: 'bailian',
+      customVoiceUrl,
     },
   })
 
@@ -111,5 +123,6 @@ export async function handleLxtAssetVoiceDesignTask(job: Job<TaskJobData>) {
     success: true,
     voiceId: designed.voiceId,
     assetId,
+    customVoiceUrl,
   }
 }

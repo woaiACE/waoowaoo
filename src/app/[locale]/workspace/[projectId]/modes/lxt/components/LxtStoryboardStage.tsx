@@ -240,7 +240,7 @@ export default function LxtStoryboardStage() {
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={() => runtime.onStageChange('lxt-final-script')}
+            onClick={() => runtime.onStageChange('lxt-assets')}
             className="glass-btn-base glass-btn-primary h-9 px-6 text-sm font-medium"
           >
             {t('storyboard.nextStepBtn')}

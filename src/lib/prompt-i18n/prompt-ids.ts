@@ -30,6 +30,7 @@ export const PROMPT_IDS = {
   NP_STORYBOARD_EDIT: 'np_storyboard_edit',
   NP_VOICE_ANALYSIS: 'np_voice_analysis',
   // LXT 剧本模式
+  LXT_VOICE_PROMPT_INFER: 'lxt_voice_prompt_infer',
   LXT_NOVEL_TO_SCRIPT: 'lxt_novel_to_script',
   LXT_SCRIPT_TO_STORYBOARD: 'lxt_script_to_storyboard',
   LXT_STORYBOARD_TO_SCRIPT: 'lxt_storyboard_to_script',

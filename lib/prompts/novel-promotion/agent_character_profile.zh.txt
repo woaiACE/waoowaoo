@@ -208,7 +208,7 @@ D级（群众演员）：
       "occupation": "企业家/学生/无",
       "costume_tier": 5,
       "suggested_colors": ["深蓝", "金色"],
-      "primary_identifier": "眼角泪痣（仅S/A级需要）",
+      "primary_identifier": "眼角泪痣（所有角色必须填写，体现其最具辨识度的外貌特征）",
       "visual_keywords": ["精英气质", "禁欲系"],
       "expected_appearances": [
         {"id": 1, "change_reason": "初始形象"},
@@ -264,7 +264,7 @@ D级（群众演员）：
 1. 只返回JSON，不得有其他文字
 2. role_level 必须是 S/A/B/C/D 之一
 3. costume_tier 必须是 1-5 的整数
-4. S/A 级角色必须有 primary_identifier
+4. 所有角色必须有 primary_identifier（最具辨识度的外貌标志，如「圆溜溜的大眼睛」「高挑身材配一头银发」）
 5. personality_tags 至少2个，最多5个
 6. suggested_colors 2-3个颜色
 7. introduction 必填，描述角色身份、关系、称呼映射

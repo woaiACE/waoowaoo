@@ -1,5 +1,62 @@
 import { logInfo as _ulogInfo } from '@/lib/logging/core'
 
+/**
+ * qwen-voice-design 支持的结构化参数（嵌入 voice_prompt 中的 JSON 块）
+ *
+ * 格式：[标签名称]{...参数JSON...}
+ * 示例：[角色音色]{"timbre":"温暖厚重的女中音","pitch_base":"200","speed_ratio":"0.9"}
+ *
+ * 参数说明：
+ * - timbre          : 音色主体描述（自然语言，如「温暖厚重的女中音，带鼻腔共鸣」）
+ * - tone_color      : 频谱特征描述（如「低频丰富，中频温暖，高频柔和不刺耳」）
+ * - pitch_base      : 基准音调（Hz）。女声参考：165-255，男声参考：85-180
+ * - pitch_range     : 音调变化范围，格式 "min-max"（如 "180-260"）
+ * - speed_ratio     : 语速比例，0.5~2.0，1.0 为正常速度（如 "0.9" 偏慢）
+ * - stability       : 声音稳定性，0~1，越高越稳定（如 "0.85"）
+ * - emotion_intensity: 情绪表达强度，0~1（如 "0.6"）
+ * - identity_lock   : 是否锁定声纹（"true"/"false"），锁定后 TTS 一致性更强
+ * - seed            : 随机种子，固定种子可复现相同声音（如 "4521"）
+ *
+ * LLM 推理提示词示例（供 lxt-asset-voice-design 任务使用）：
+ *   [角色音色]{
+ *     "timbre": "温暖厚重的女中音，带有明显的鼻腔共鸣，声音沉稳慈爱，语速中等偏慢",
+ *     "tone_color": "低频丰富，中频温暖，高频柔和不刺耳，整体听感如厚实的绒布",
+ *     "pitch_base": "220",
+ *     "pitch_range": "180-260",
+ *     "speed_ratio": "0.9",
+ *     "stability": "0.85",
+ *     "emotion_intensity": "0.6",
+ *     "identity_lock": "true",
+ *     "seed": "4521"
+ *   }
+ */
+export interface VoiceDesignStructuredParams {
+  timbre?: string
+  tone_color?: string
+  pitch_base?: string
+  pitch_range?: string
+  speed_ratio?: string
+  stability?: string
+  emotion_intensity?: string
+  identity_lock?: string
+  seed?: string
+}
+
+/**
+ * 将结构化参数序列化为 voice_prompt 的 JSON 块格式
+ * @param label 标签名称，如 "角色音色"
+ * @param params 结构化参数
+ * @param naturalLanguagePrefix 自然语言前缀（可选）
+ */
+export function serializeVoicePromptWithParams(
+  label: string,
+  params: VoiceDesignStructuredParams,
+  naturalLanguagePrefix?: string,
+): string {
+  const jsonBlock = `[${label}]${JSON.stringify(params)}`
+  return naturalLanguagePrefix ? `${naturalLanguagePrefix}\n${jsonBlock}` : jsonBlock
+}
+
 export interface VoiceDesignInput {
   voicePrompt: string
   previewText: string

@@ -20,6 +20,7 @@ import {
   handleIpImagePanel,
   handleIpImageCharacter,
 } from '@/lib/ip-mode/handlers/ip-task-handlers'
+import { handleLxtAssetImageTask } from './handlers/lxt-asset-image-task-handler'
 
 type AnyObj = Record<string, unknown>
 
@@ -57,6 +58,9 @@ async function processImageTask(job: Job<TaskJobData>) {
       return await handleIpImagePanel(job)
     case TASK_TYPE.IP_IMAGE_CHARACTER:
       return await handleIpImageCharacter(job)
+    // LXT 剧本模式
+    case TASK_TYPE.LXT_ASSET_IMAGE:
+      return await handleLxtAssetImageTask(job)
     default:
       throw new Error(`Unsupported image task type: ${job.data.type}`)
   }

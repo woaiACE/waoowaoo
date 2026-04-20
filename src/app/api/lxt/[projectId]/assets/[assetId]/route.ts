@@ -22,6 +22,9 @@ export const PATCH = apiHandler(async (
 
   if (typeof body.name === 'string') updateData.name = body.name.trim()
   if (body.summary !== undefined) updateData.summary = body.summary
+  if (body.profileData !== undefined) updateData.profileData = body.profileData
+  if (body.description !== undefined) updateData.description = body.description
+  if (typeof body.profileConfirmed === 'boolean') updateData.profileConfirmed = body.profileConfirmed
   if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl
   if (body.imageMediaId !== undefined) updateData.imageMediaId = body.imageMediaId
   if (body.voiceId !== undefined) updateData.voiceId = body.voiceId

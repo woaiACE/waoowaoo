@@ -9,6 +9,7 @@ import { resolveAnalysisModel } from './resolve-analysis-model'
 import { createWorkerLLMStreamContext, createWorkerLLMStreamCallbacks } from './llm-stream'
 import type { TaskJobData } from '@/lib/task/types'
 import { safeParseJsonObject } from '@/lib/json-repair'
+import type { CharacterProfileData, RoleLevel, CostumeTier } from '@/types/character-profile'
 
 type JsonRecord = Record<string, unknown>
 
@@ -218,6 +219,43 @@ export async function handleLxtAnalyzeAssetsTask(job: Job<TaskJobData>) {
         item.description ?? item.summary ?? item.introduction ?? '',
       ).trim()
 
+      // 对 character 类型，提取结构化档案数据（CharacterProfileData）
+      const profileDataJson: string | null = kind === 'character'
+        ? (() => {
+          const roleLevel = readText(item.role_level ?? item.importance_level ?? item.tier ?? item.importance ?? '')
+          const validRoleLevels: RoleLevel[] = ['S', 'A', 'B', 'C', 'D']
+          const profile: CharacterProfileData = {
+            role_level: (validRoleLevels.includes(roleLevel as RoleLevel) ? roleLevel : 'C') as RoleLevel,
+            archetype: readText(item.archetype ?? item.character_archetype ?? item.type ?? ''),
+            personality_tags: Array.isArray(item.personality_tags)
+              ? item.personality_tags.map((t: unknown) => readText(t)).filter(Boolean)
+              : typeof item.personality === 'string'
+                ? item.personality.split(/[,，、]/).map((s: string) => s.trim()).filter(Boolean)
+                : [],
+            era_period: readText(item.era_period ?? item.era ?? item.time_period ?? item.time ?? ''),
+            social_class: readText(item.social_class ?? item.class ?? item.social_status ?? ''),
+            occupation: readText(item.occupation ?? item.job ?? '') || undefined,
+            costume_tier: (typeof item.costume_tier === 'number' && item.costume_tier >= 1 && item.costume_tier <= 5
+              ? item.costume_tier
+              : 3) as CostumeTier,
+            suggested_colors: Array.isArray(item.suggested_colors)
+              ? item.suggested_colors.map((c: unknown) => readText(c)).filter(Boolean)
+              : Array.isArray(item.colors)
+                ? item.colors.map((c: unknown) => readText(c)).filter(Boolean)
+                : [],
+            primary_identifier: readText(item.primary_identifier ?? item.identifier ?? item.landmark ?? ''),
+            visual_keywords: Array.isArray(item.visual_keywords)
+              ? item.visual_keywords.map((k: unknown) => readText(k)).filter(Boolean)
+              : Array.isArray(item.keywords)
+                ? item.keywords.map((k: unknown) => readText(k)).filter(Boolean)
+                : [],
+            gender: readText(item.gender ?? item.sex ?? ''),
+            age_range: readText(item.age_range ?? item.age ?? ''),
+          }
+          return JSON.stringify(profile)
+        })()
+        : null
+
       await prisma.lxtProjectAsset.upsert({
         where: {
           lxtProjectId_kind_name: {
@@ -231,10 +269,12 @@ export async function handleLxtAnalyzeAssetsTask(job: Job<TaskJobData>) {
           kind,
           name,
           summary: description || null,
+          profileData: profileDataJson,
         },
         update: {
           // 不覆盖已有 summary，保留用户手动填写的内容
-          // （名字相同时视为已知资产，仅确保条目存在）
+          // 若 profileData 未确认过，则用新分析的覆盖
+          profileData: profileDataJson ?? undefined,
         },
       })
     }

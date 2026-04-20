@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-fetch'
 import { resolveTaskErrorMessage } from '@/lib/task/error-message'
+import { waitForTaskResult } from '@/lib/task/client'
 import { queryKeys } from '@/lib/query/keys'
 
 export type LxtAssetKind = 'character' | 'location' | 'prop'
@@ -13,6 +14,9 @@ export interface LxtProjectAsset {
   kind: LxtAssetKind
   name: string
   summary?: string | null
+  profileData?: string | null       // JSON: CharacterProfileData (仅 character)
+  description?: string | null       // LLM 生成的视觉形象描述提示词
+  profileConfirmed?: boolean        // 是否已确认档案并生成描述
   globalCharacterId?: string | null
   globalLocationId?: string | null
   globalPropId?: string | null
@@ -146,6 +150,138 @@ export function useUpdateLxtAssetVoice(projectId: string | null) {
       })
       if (!res.ok) await readError(res, 'Failed to update voice binding')
       return await res.json()
+    },
+    onSuccess: invalidate,
+  })
+}
+
+/** 更新角色档案（profileData）并立即刷新列表 */
+export function useUpdateLxtAssetProfile(projectId: string | null) {
+  const invalidate = useInvalidate(projectId)
+  return useMutation({
+    mutationFn: async ({ assetId, profileData }: { assetId: string; profileData: string }) => {
+      if (!projectId) throw new Error('Project ID is required')
+      const res = await apiFetch(`/api/lxt/${projectId}/assets/${assetId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileData }),
+      })
+      if (!res.ok) await readError(res, 'Failed to update asset profile')
+      return await res.json()
+    },
+    onSuccess: invalidate,
+  })
+}
+
+/** 提交 AI 图像生成任务 */
+export function useGenerateLxtAssetImage(projectId: string | null) {
+  const invalidate = useInvalidate(projectId)
+  return useMutation({
+    mutationFn: async (assetId: string) => {
+      if (!projectId) throw new Error('Project ID is required')
+      const res = await apiFetch(`/api/lxt/${projectId}/assets/${assetId}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) await readError(res, 'Failed to submit image generation')
+      return await res.json()
+    },
+    onSuccess: invalidate,
+  })
+}
+
+/** 上传自定义音色音频文件 */
+export function useUploadLxtAssetVoice(projectId: string | null) {
+  const invalidate = useInvalidate(projectId)
+  return useMutation({
+    mutationFn: async ({ assetId, file }: { assetId: string; file: File }) => {
+      if (!projectId) throw new Error('Project ID is required')
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await apiFetch(`/api/lxt/${projectId}/assets/${assetId}/voice-upload`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) await readError(res, 'Failed to upload voice')
+      return await res.json() as { audioUrl?: string }
+    },
+    onSuccess: invalidate,
+  })
+}
+
+/** 保存 AI 设计的声音（base64 音频写回）*/
+export function useSaveLxtAssetDesignedVoice(projectId: string | null) {
+  const invalidate = useInvalidate(projectId)
+  return useMutation({
+    mutationFn: async ({
+      assetId,
+      voiceId,
+      audioBase64,
+    }: {
+      assetId: string
+      voiceId: string
+      audioBase64: string
+    }) => {
+      if (!projectId) throw new Error('Project ID is required')
+      const res = await apiFetch(`/api/lxt/${projectId}/assets/${assetId}/voice-upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voiceDesign: { voiceId, audioBase64 } }),
+      })
+      if (!res.ok) await readError(res, 'Failed to save designed voice')
+      return await res.json() as { audioUrl?: string }
+    },
+    onSuccess: invalidate,
+  })
+}
+
+/** 提交 AI 音色参数推理任务并等待结果（LLM 根据角色档案推理 voicePrompt）*/
+export function useInferLxtAssetVoicePrompt(projectId: string | null) {
+  return useMutation({
+    mutationFn: async (assetId: string): Promise<{ voicePrompt: string; params?: Record<string, unknown> }> => {
+      if (!projectId) throw new Error('Project ID is required')
+      const res = await apiFetch(`/api/lxt/${projectId}/assets/${assetId}/voice-infer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) await readError(res, 'Failed to submit voice prompt inference')
+      const { taskId } = await res.json() as { taskId: string }
+      // 轮询等待 LLM 推理完成（通常 10~30s）
+      const result = await waitForTaskResult(taskId, { intervalMs: 2000 }) as {
+        voicePrompt?: string
+        params?: Record<string, unknown>
+      }
+      if (!result.voicePrompt) throw new Error('推理结果为空，请重试')
+      return { voicePrompt: result.voicePrompt, params: result.params }
+    },
+  })
+}
+
+/** AI 声音设计 — 提交任务并等待完成（任务 handler 自动写回资产）*/
+export function useDesignLxtAssetVoice(projectId: string | null) {
+  const invalidate = useInvalidate(projectId)
+  return useMutation({
+    mutationFn: async ({
+      assetId,
+      voicePrompt,
+      previewText,
+    }: {
+      assetId: string
+      voicePrompt: string
+      previewText: string
+    }) => {
+      if (!projectId) throw new Error('Project ID is required')
+      const res = await apiFetch(`/api/lxt/${projectId}/assets/${assetId}/voice-design`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voicePrompt, previewText }),
+      })
+      if (!res.ok) await readError(res, 'Failed to submit voice design')
+      const { taskId } = await res.json() as { taskId: string }
+      // 等待 BullMQ 任务完成（任务 handler 自动写回 LxtProjectAsset.voiceId）
+      await waitForTaskResult(taskId, { intervalMs: 2000 })
     },
     onSuccess: invalidate,
   })

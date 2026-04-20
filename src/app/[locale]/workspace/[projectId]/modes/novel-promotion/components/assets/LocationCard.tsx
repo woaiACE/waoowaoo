@@ -19,6 +19,7 @@ import LocationCardActions from './location-card/LocationCardActions'
 import { getImageGenerationCountOptions } from '@/lib/image-generation/count'
 import { useImageGenerationCount } from '@/lib/image-generation/use-image-generation-count'
 import { countGeneratedImageSlots, resolveDisplayImageSlots } from '@/lib/image-generation/slot-state'
+import type { SharedAssetCardAdapter } from '@/components/shared/assets/asset-card-adapter'
 import { AppIcon } from '@/components/ui/icons'
 import { AI_EDIT_BUTTON_CLASS, AI_EDIT_ICON_CLASS } from '@/components/ui/ai-edit-style'
 import AISparklesIcon from '@/components/ui/icons/AISparklesIcon'
@@ -66,6 +67,21 @@ export default function LocationCard({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingUploadIndex, setPendingUploadIndex] = useState<number | undefined>(undefined)
   const [isConfirmingSelection, setIsConfirmingSelection] = useState(false)
+
+  const cardAdapter: SharedAssetCardAdapter = {
+    id: location.id,
+    kind: assetType,
+    name: location.name,
+    summary: location.summary,
+    actions: {
+      onEdit,
+      onDelete,
+      onGenerate,
+      onRegenerate,
+      onUndo,
+      onCopyFromGlobal,
+    },
+  }
 
   // 触发文件选择
   const triggerUpload = (imageIndex?: number) => {
@@ -208,7 +224,7 @@ export default function LocationCard({
           value={generationCount}
           options={getImageGenerationCountOptions('location')}
           onValueChange={setGenerationCount}
-          onClick={() => onRegenerate(generatedImageCount)}
+          onClick={() => cardAdapter.actions.onRegenerate?.(generatedImageCount)}
           disabled={isTaskRunning || isAnyTaskRunning || uploadImage.isPending}
           showCountControl={false}
           ariaLabel={t('image.regenCountPrefix')}
@@ -216,7 +232,7 @@ export default function LocationCard({
         />
         {onUndo && hasPreviousVersion && (
           <button
-            onClick={onUndo}
+            onClick={() => cardAdapter.actions.onUndo?.()}
             disabled={isTaskRunning || isAnyTaskRunning}
             className="w-6 h-6 rounded hover:bg-[var(--glass-tone-warning-bg)] flex items-center justify-center transition-colors disabled:opacity-50"
             title={t('image.undo')}
@@ -225,7 +241,7 @@ export default function LocationCard({
           </button>
         )}
         <button
-          onClick={onDelete}
+          onClick={() => cardAdapter.actions.onDelete?.()}
           className="w-6 h-6 rounded hover:bg-[var(--glass-tone-danger-bg)] flex items-center justify-center transition-colors"
           title={t(`${assetKey}.delete`)}
         >
@@ -309,7 +325,7 @@ export default function LocationCard({
         </button>
       )}
       <button
-        onClick={() => onRegenerate()}
+        onClick={() => cardAdapter.actions.onRegenerate?.()}
         disabled={uploadImage.isPending || isTaskRunning}
         className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-90 ${isTaskRunning
           ? 'bg-[var(--glass-tone-success-fg)] hover:bg-[var(--glass-tone-success-fg)]'
@@ -325,7 +341,7 @@ export default function LocationCard({
       </button>
       {!isTaskRunning && currentImageUrl && onUndo && hasPreviousVersion && (
         <button
-          onClick={onUndo}
+          onClick={() => cardAdapter.actions.onUndo?.()}
           disabled={isTaskRunning || isAnyTaskRunning}
           className="w-7 h-7 rounded-full bg-[var(--glass-bg-surface-strong)] hover:bg-[var(--glass-tone-warning-fg)] hover:text-white flex items-center justify-center transition-all shadow-sm disabled:opacity-50"
           title={t('image.undo')}
@@ -340,7 +356,7 @@ export default function LocationCard({
     <>
       {onCopyFromGlobal && (
           <button
-            onClick={onCopyFromGlobal}
+            onClick={() => cardAdapter.actions.onCopyFromGlobal?.()}
           className="flex-shrink-0 w-5 h-5 rounded hover:bg-[var(--glass-tone-info-bg)] flex items-center justify-center transition-colors"
           title={t('character.copyFromGlobal')}
         >
@@ -348,14 +364,14 @@ export default function LocationCard({
         </button>
       )}
         <button
-          onClick={onEdit}
+          onClick={() => cardAdapter.actions.onEdit?.()}
         className="flex-shrink-0 w-5 h-5 rounded hover:bg-[var(--glass-bg-muted)] flex items-center justify-center transition-colors"
           title={t(`${assetKey}.edit`)}
       >
         <AppIcon name="edit" className="w-3.5 h-3.5 text-[var(--glass-text-secondary)]" />
       </button>
         <button
-          onClick={onDelete}
+          onClick={() => cardAdapter.actions.onDelete?.()}
         className="flex-shrink-0 w-5 h-5 rounded hover:bg-[var(--glass-tone-danger-bg)] flex items-center justify-center transition-colors"
           title={t(`${assetKey}.delete`)}
       >
@@ -406,7 +422,7 @@ export default function LocationCard({
         canGenerate={canGenerate}
         generationCount={generationCount}
         onGenerationCountChange={setGenerationCount}
-        onGenerate={onGenerate}
+        onGenerate={cardAdapter.actions.onGenerate ?? (() => undefined)}
       />
     </div>
   )

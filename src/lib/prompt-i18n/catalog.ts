@@ -155,6 +155,22 @@ export const PROMPT_CATALOG: Record<PromptId, PromptCatalogEntry> = {
     variableKeys: ['input', 'characters_lib_name', 'characters_introduction', 'storyboard_json'],
   },
   // LXT 剧本模式
+  [PROMPT_IDS.LXT_VOICE_PROMPT_INFER]: {
+    pathStem: 'lxt/lxt_voice_prompt_infer',
+    variableKeys: [
+      'character_name',
+      'role_level',
+      'archetype',
+      'gender',
+      'age_range',
+      'personality_tags',
+      'era_period',
+      'social_class',
+      'character_description',
+      'story_summary',
+      'other_voices',
+    ],
+  },
   [PROMPT_IDS.LXT_NOVEL_TO_SCRIPT]: {
     pathStem: 'lxt-script/novel_to_script',
     variableKeys: ['novel_text', 'instruction'],

@@ -20,6 +20,7 @@ import CharacterCardGallery from './character-card/CharacterCardGallery'
 import CharacterCardActions from './character-card/CharacterCardActions'
 import { getImageGenerationCountOptions } from '@/lib/image-generation/count'
 import { useImageGenerationCount } from '@/lib/image-generation/use-image-generation-count'
+import type { SharedAssetCardAdapter } from '@/components/shared/assets/asset-card-adapter'
 import { AppIcon } from '@/components/ui/icons'
 import { AI_EDIT_BUTTON_CLASS, AI_EDIT_ICON_CLASS } from '@/components/ui/ai-edit-style'
 import AISparklesIcon from '@/components/ui/icons/AISparklesIcon'
@@ -85,6 +86,20 @@ export default function CharacterCard({
   const [pendingUploadIndex, setPendingUploadIndex] = useState<number | undefined>(undefined)
   const [showDeleteMenu, setShowDeleteMenu] = useState(false)
   const [isConfirmingSelection, setIsConfirmingSelection] = useState(false)
+
+  const cardAdapter: SharedAssetCardAdapter = {
+    id: character.id,
+    kind: 'character',
+    name: character.name,
+    summary: character.introduction,
+    actions: {
+      onEdit,
+      onDelete,
+      onGenerate,
+      onRegenerate,
+      onUndo,
+    },
+  }
 
   // 处理删除按钮点击
   const handleDeleteClick = () => {
@@ -236,7 +251,7 @@ export default function CharacterCard({
           value={generationCount}
           options={getImageGenerationCountOptions('character')}
           onValueChange={setGenerationCount}
-          onClick={() => onRegenerate(generatedImageCount)}
+          onClick={() => cardAdapter.actions.onRegenerate?.(generatedImageCount)}
           disabled={isAppearanceTaskRunning || isAnyTaskRunning || uploadImage.isPending}
           showCountControl={false}
           ariaLabel={t('image.regenCountPrefix')}
@@ -244,7 +259,7 @@ export default function CharacterCard({
         />
         {onUndo && (appearance.previousImageUrl || appearance.previousImageUrls.length > 0) && (
           <button
-            onClick={onUndo}
+            onClick={() => cardAdapter.actions.onUndo?.()}
             disabled={isAppearanceTaskRunning || isAnyTaskRunning}
             className="w-6 h-6 rounded hover:bg-[var(--glass-tone-warning-bg)] flex items-center justify-center transition-colors disabled:opacity-50"
             title={t('image.undo')}
@@ -254,7 +269,7 @@ export default function CharacterCard({
         )}
         {showDeleteButton && (
           <button
-            onClick={onDelete}
+            onClick={() => cardAdapter.actions.onDelete?.()}
             className="w-6 h-6 rounded hover:bg-[var(--glass-tone-danger-bg)] flex items-center justify-center transition-colors"
             title={t('character.delete')}
           >
@@ -354,7 +369,7 @@ export default function CharacterCard({
         </button>
       )}
       <button
-        onClick={() => onRegenerate()}
+        onClick={() => cardAdapter.actions.onRegenerate?.()}
         disabled={uploadImage.isPending || isAppearanceTaskRunning}
         className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-90 ${(isAppearanceTaskRunning || isAnyTaskRunning)
           ? 'bg-[var(--glass-tone-success-fg)] hover:bg-[var(--glass-tone-success-fg)]'
@@ -370,7 +385,7 @@ export default function CharacterCard({
       </button>
       {!isAppearanceTaskRunning && !isAnyTaskRunning && currentImageUrl && onUndo && (appearance.previousImageUrl || appearance.previousImageUrls.length > 0) && (
         <button
-          onClick={onUndo}
+          onClick={() => cardAdapter.actions.onUndo?.()}
           disabled={isAppearanceTaskRunning || isAnyTaskRunning}
           className="w-7 h-7 rounded-full bg-[var(--glass-bg-surface-strong)] hover:bg-[var(--glass-tone-warning-fg)] hover:text-white flex items-center justify-center transition-all shadow-sm disabled:opacity-50"
           title={t('image.undo')}
@@ -400,7 +415,7 @@ export default function CharacterCard({
   const compactHeaderActions = (
     <>
       <button
-        onClick={onEdit}
+        onClick={() => cardAdapter.actions.onEdit?.()}
         className="flex-shrink-0 w-5 h-5 rounded hover:bg-[var(--glass-bg-muted)] flex items-center justify-center transition-colors"
         title={t('video.panelCard.editPrompt')}
       >

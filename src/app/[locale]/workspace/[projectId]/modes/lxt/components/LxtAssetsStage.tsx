@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
+import AssetLibraryShell from '@/components/shared/assets/AssetLibraryShell'
+import UnifiedAssetToolbar from '@/components/shared/assets/UnifiedAssetToolbar'
 import GlobalAssetPicker from '@/components/shared/assets/GlobalAssetPicker'
+import { AppIcon } from '@/components/ui/icons'
+import { apiFetch } from '@/lib/api-fetch'
+import { downloadAssetArchive } from '@/lib/assets/downloadAssetArchive'
 import {
   type LxtProjectAsset,
   useBindGlobalLxtAsset,
@@ -10,19 +15,23 @@ import {
   useDeleteLxtAsset,
   useLxtAssets,
   useUpdateLxtAsset,
+  useUpdateLxtAssetProfile,
   useUpdateLxtAssetVoice,
+  useGenerateLxtAssetImage,
 } from '@/lib/query/hooks/useLxtAssets'
 import { useLxtAnalyzeAssetsRunStream } from '@/lib/query/hooks/useLxtAnalyzeAssetsRunStream'
-import { useLxtWorkspaceEpisodeStageData } from '../hooks/useLxtWorkspaceEpisodeStageData'
-import { useLxtWorkspaceProvider } from '../LxtWorkspaceProvider'
-import { useLxtWorkspaceStageRuntime } from '../LxtWorkspaceStageRuntimeContext'
 import { useActiveTasks } from '@/lib/query/hooks/useTaskStatus'
 import LLMStageStreamCard, { type LLMStageViewItem } from '@/components/llm-console/LLMStageStreamCard'
+import type { CharacterProfileData } from '@/types/character-profile'
+import CharacterProfileDialog from '../../novel-promotion/components/assets/CharacterProfileDialog'
 // ── Shared components from common mode ───────────────
 import AssetFilterBar, {
   type AssetKindFilter,
 } from '../../novel-promotion/components/assets/AssetFilterBar'
 import AssetsStageStatusOverlays from '../../novel-promotion/components/assets/AssetsStageStatusOverlays'
+import { useLxtWorkspaceEpisodeStageData } from '../hooks/useLxtWorkspaceEpisodeStageData'
+import { useLxtWorkspaceProvider } from '../LxtWorkspaceProvider'
+import { useLxtWorkspaceStageRuntime } from '../LxtWorkspaceStageRuntimeContext'
 import LxtAssetCard, { buildDraft, type AssetDraft } from './LxtAssetCard'
 
 type PickerState = {
@@ -49,6 +58,14 @@ export default function LxtAssetsStage() {
   const [drafts, setDrafts] = useState<Record<string, AssetDraft>>({})
   const [kindFilter, setKindFilter] = useState<AssetKindFilter>('all')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null)
+  const [isConsoleMinimized, setIsConsoleMinimized] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
+  // 档案编辑 & 确认生成
+  type EditingProfile = { assetId: string; kind: string; name: string } | null
+  const [editingProfile, setEditingProfile] = useState<EditingProfile>(null)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [confirmingAssetId, setConfirmingAssetId] = useState<string | null>(null)
+  const [confirmingStreamText, setConfirmingStreamText] = useState('')
 
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'error' = 'success') => {
     setToast({ message, type })
@@ -73,35 +90,38 @@ export default function LxtAssetsStage() {
     }
   }, [stream.status, assetsQuery])
 
-  // ―― AI 声音设计任务追踪（按资产级，targetType=LxtProjectAsset）――――――――
-  const voiceDesignTasks = useActiveTasks({
+  // ―― AI 图像生成任务追踪 ――――――――――――――――――――――――――――――――――――――――
+  const imageGenTasks = useActiveTasks({
     projectId: projectId || null,
     targetType: 'LxtProjectAsset',
-    type: ['lxt_asset_voice_design'],
+    type: ['lxt_asset_image'],
   })
-  // assetId 集合：正在进行 AI 声音设计的资产
-  const activeVoiceDesignIds = useMemo(() => {
+  const activeImageGenIds = useMemo(() => {
     const ids = new Set<string>()
-    for (const task of voiceDesignTasks.data ?? []) {
+    for (const task of imageGenTasks.data ?? []) {
       if (task.targetId) ids.add(task.targetId)
     }
     return ids
-  }, [voiceDesignTasks.data])
-  // 声音设计完成后自动刷新
-  const wasVoiceDesigningRef = useRef(false)
+  }, [imageGenTasks.data])
+  // 图像生成完成后自动刷新
+  const wasImageGenRef = useRef(false)
   useEffect(() => {
-    const hasActive = (voiceDesignTasks.data?.length ?? 0) > 0
-    if (wasVoiceDesigningRef.current && !hasActive) {
+    const hasActive = (imageGenTasks.data?.length ?? 0) > 0
+    if (wasImageGenRef.current && !hasActive) {
       void assetsQuery.refetch()
     }
-    wasVoiceDesigningRef.current = hasActive
-  }, [voiceDesignTasks.data, assetsQuery])
+    wasImageGenRef.current = hasActive
+  }, [imageGenTasks.data, assetsQuery])
+
+  // ―― AI 声音设计任务追踪已移至 useLxtVoiceOpsAdapter，此处不再需要 ――――
 
   const clearMutation = useClearLxtAssets(projectId || null)
   const updateMutation = useUpdateLxtAsset(projectId || null)
   const deleteMutation = useDeleteLxtAsset(projectId || null)
   const bindGlobalMutation = useBindGlobalLxtAsset(projectId || null)
   const updateVoiceMutation = useUpdateLxtAssetVoice(projectId || null)
+  const updateProfileMutation = useUpdateLxtAssetProfile(projectId || null)
+  const generateImageMutation = useGenerateLxtAssetImage(projectId || null)
 
   const assets = assetsQuery.data?.assets ?? []
   const counts = assetsQuery.data?.counts ?? { character: 0, location: 0, prop: 0 }
@@ -146,18 +166,27 @@ export default function LxtAssetsStage() {
     await stream.run({})
   }
 
-  const handleVoiceDesign = async (assetId: string, voicePrompt: string, previewText: string) => {
-    const res = await fetch(`/api/lxt/${projectId}/assets/${assetId}/voice-design`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ voicePrompt, previewText }),
+  const handleDownloadAll = async () => {
+    const imageEntries = assets.flatMap((asset) => {
+      const safeName = asset.name.replace(/[/\\:*?"<>|]/g, '_')
+      return asset.imageUrl
+        ? [{ filename: `${asset.kind}s/${safeName}.jpg`, url: asset.imageUrl }]
+        : []
     })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      showToast((data as { message?: string }).message ?? 'AI 声音设计提交失败', 'error')
+
+    if (imageEntries.length === 0) {
+      showToast('当前没有可下载的资产图片', 'warning')
       return
     }
-    showToast('AI 声音设计已提交，完成后自动更新…', 'success')
+
+    setIsDownloading(true)
+    try {
+      await downloadAssetArchive(imageEntries, `lxt_assets_${new Date().toISOString().slice(0, 10)}.zip`)
+    } catch {
+      showToast('资产打包下载失败', 'error')
+    } finally {
+      setIsDownloading(false)
+    }
   }
 
   const handleSave = async (asset: LxtProjectAsset) => {
@@ -167,14 +196,6 @@ export default function LxtAssetsStage() {
       name: draft.name,
       summary: draft.summary,
     })
-    if (asset.kind === 'character') {
-      await updateVoiceMutation.mutateAsync({
-        assetId: asset.id,
-        voiceId: draft.voiceId || null,
-        voiceType: draft.voiceType || null,
-        customVoiceUrl: draft.customVoiceUrl || null,
-      })
-    }
     await onRefresh({ scope: 'all' })
     showToast('已保存', 'success')
   }
@@ -183,6 +204,79 @@ export default function LxtAssetsStage() {
     await deleteMutation.mutateAsync(assetId)
     await onRefresh({ scope: 'all' })
     showToast('已删除', 'success')
+  }
+
+  const handleGenerateImage = async (assetId: string) => {
+    try {
+      await generateImageMutation.mutateAsync(assetId)
+      showToast('图像生成已提交，完成后自动更新…', 'success')
+    } catch {
+      showToast('图像生成提交失败', 'error')
+    }
+  }
+
+  const handleEditProfile = (asset: LxtProjectAsset) => {
+    setEditingProfile({ assetId: asset.id, kind: asset.kind, name: asset.name })
+  }
+
+  const handleSaveProfile = async (profileData: CharacterProfileData) => {
+    if (!editingProfile) return
+    setIsSavingProfile(true)
+    try {
+      await updateProfileMutation.mutateAsync({ assetId: editingProfile.assetId, profileData: JSON.stringify(profileData) })
+      setEditingProfile(null)
+      showToast('档案已保存', 'success')
+    } catch {
+      showToast('保存档案失败', 'error')
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
+  const handleConfirmProfile = async (asset: LxtProjectAsset) => {
+    if (confirmingAssetId) return
+    setConfirmingAssetId(asset.id)
+    setConfirmingStreamText('')
+    try {
+      const res = await apiFetch(`/api/lxt/${projectId}/assets/${asset.id}/confirm-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok || !res.body) {
+        showToast('生成描述失败', 'error')
+        return
+      }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const event = JSON.parse(line.slice(6)) as { kind: string; delta?: string; message?: string }
+            if (event.kind === 'text' && event.delta) {
+              setConfirmingStreamText((prev) => prev + event.delta)
+            } else if (event.kind === 'done') {
+              await assetsQuery.refetch()
+            } else if (event.kind === 'error') {
+              showToast(event.message ?? '生成失败', 'error')
+            }
+          } catch { continue }
+        }
+      }
+      showToast('形象描述已生成', 'success')
+    } catch {
+      showToast('生成描述失败', 'error')
+    } finally {
+      setConfirmingAssetId(null)
+      setConfirmingStreamText('')
+    }
   }
 
   const handlePickerSelect = async (globalAssetId: string) => {
@@ -208,189 +302,245 @@ export default function LxtAssetsStage() {
   const totalCount = counts.character + counts.location + counts.prop
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-[var(--glass-text-primary)]">LXT 资产库</h2>
-          <p className="text-sm text-[var(--glass-text-secondary)] mt-1">
-            先确认角色、场景、道具与音色，再进入制作脚本生成。
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {assets.length > 0 && (
+    <AssetLibraryShell
+      variant="inline"
+      title="资产库"
+      subtitle="先确认角色、场景、道具与音色，再进入制作脚本生成。"
+      iconName="folderCards"
+      shellClassName="min-h-[calc(100vh-14rem)]"
+      contentClassName="p-8"
+    >
+      <div className="flex flex-col gap-6">
+        <UnifiedAssetToolbar
+          title="资产管理"
+          countText={`共 ${totalCount} 项（角色 ${counts.character} / 场景 ${counts.location} / 道具 ${counts.prop}）`}
+          leftSlot={
             <button
               type="button"
-              onClick={() => void handleClearAssets()}
-              disabled={clearMutation.isPending || isAnalyzing}
-              className="glass-btn-base glass-btn-danger h-9 px-4 text-sm disabled:opacity-40"
+              onClick={() => void handleAnalyzeLlm()}
+              disabled={!hasStoryboard || isAnalyzing}
+              className="glass-btn-base glass-btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {clearMutation.isPending ? '清除中…' : '清除全部'}
+              <AppIcon name="idea" className="w-3.5 h-3.5" />
+              <span>{isAnalyzing ? 'LLM 分析中…' : '✨ LLM 分析增强'}</span>
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => void handleAnalyzeLlm()}
-            disabled={!hasStoryboard || isAnalyzing}
-            className="glass-btn-base glass-btn-primary h-9 px-4 text-sm disabled:opacity-40"
-          >
-            {isAnalyzing ? 'LLM 分析中…' : '✨ LLM 分析增强'}
-          </button>
-          <button
-            type="button"
-            onClick={() => runtime.onStageChange('lxt-final-script')}
-            className="glass-btn-base glass-btn-secondary h-9 px-4 text-sm"
-          >
-            下一步：制作脚本
-          </button>
-        </div>
-      </div>
-
-      {!hasStoryboard && (
-        <div className="glass-surface p-4 text-center">
-          <p className="text-sm text-[var(--glass-text-secondary)]">请先生成分镜脚本，再初始化 LXT 资产库。</p>
-          <button
-            type="button"
-            onClick={() => runtime.onStageChange('lxt-storyboard')}
-            className="glass-btn-base glass-btn-secondary h-8 px-4 text-xs mt-3"
-          >
-            前往分镜脚本
-          </button>
-        </div>
-      )}
-
-      {/* ── Count summary cards ───────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="glass-surface p-4">
-          <div className="text-xs text-[var(--glass-text-secondary)]">角色</div>
-          <div className="text-2xl font-bold mt-1">{counts.character}</div>
-        </div>
-        <div className="glass-surface p-4">
-          <div className="text-xs text-[var(--glass-text-secondary)]">场景</div>
-          <div className="text-2xl font-bold mt-1">{counts.location}</div>
-        </div>
-        <div className="glass-surface p-4">
-          <div className="text-xs text-[var(--glass-text-secondary)]">道具</div>
-          <div className="text-2xl font-bold mt-1">{counts.prop}</div>
-        </div>
-      </div>
-
-      {/* ── Kind filter bar (reused from common mode) ──────── */}
-      {assets.length > 0 && (
-        <AssetFilterBar
-          kindFilter={kindFilter}
-          onKindFilterChange={setKindFilter}
-          counts={{
-            all: totalCount,
-            character: counts.character,
-            location: counts.location,
-            prop: counts.prop,
-          }}
-        />
-      )}
-
-      {assetsQuery.isLoading ? (
-        <div className="glass-surface p-6 text-sm text-[var(--glass-text-secondary)]">正在加载资产…</div>
-      ) : assets.length === 0 ? (
-        <div className="glass-surface p-6 text-sm text-[var(--glass-text-secondary)]">
-          还没有提取到资产。点击 ✨ LLM 分析增强即可自动分析角色、场景和道具。
-        </div>
-      ) : (
-        <div className="flex flex-col gap-5">
-          {visibleKinds.map((kind) => {
-            const items = grouped[kind]
-            if (items.length === 0) return null
-            return (
-              <section key={kind} className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-[var(--glass-text-primary)]">
-                    {SECTION_LABELS[kind]}
-                  </h3>
-                  <span className="text-xs text-[var(--glass-text-secondary)]">{items.length} 项</span>
-                </div>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                  {items.map((asset) => (
-                    <LxtAssetCard
-                      key={asset.id}
-                      asset={asset}
-                      draft={getDraft(asset)}
-                      onDraftChange={(patch) => setDraftValue(asset, patch)}
-                      onSave={() => void handleSave(asset)}
-                      onDelete={() => void handleDelete(asset.id)}
-                      isSaving={updateMutation.isPending || updateVoiceMutation.isPending}
-                      isDeleting={deleteMutation.isPending}
-                      onBindGlobal={() => setPicker({ assetId: asset.id, type: asset.kind })}
-                      onBindVoice={() => setPicker({ assetId: asset.id, type: 'voice' })}
-                      isBindingGlobal={bindGlobalMutation.isPending}
-                      isBindingVoice={updateVoiceMutation.isPending}
-                      onVoiceDesign={(voicePrompt, previewText) =>
-                        void handleVoiceDesign(asset.id, voicePrompt, previewText)
-                      }
-                      isVoiceDesigning={activeVoiceDesignIds.has(asset.id)}
-                    />
-                  ))}
-                </div>
-              </section>
-            )
-          })}
-        </div>
-      )}
-
-      {/* ── Global asset picker ───────────────────────────── */}
-      <GlobalAssetPicker
-        isOpen={!!picker}
-        onClose={() => setPicker(null)}
-        onSelect={(globalAssetId) => void handlePickerSelect(globalAssetId)}
-        type={picker?.type ?? 'character'}
-        loading={bindGlobalMutation.isPending || updateVoiceMutation.isPending}
-      />
-
-      {/* ── Toast overlays ─────────────────────────────────── */}
-      <AssetsStageStatusOverlays
-        toast={toast}
-        onCloseToast={() => setToast(null)}
-        isGlobalAnalyzing={false}
-        globalAnalyzingState={null}
-        globalAnalyzingTitle=""
-        globalAnalyzingHint=""
-        globalAnalyzingTip=""
-      />
-
-      {/* ── LLM 分析流式推理卡片（全屏覆盖层） ────────────── */}
-      {isAnalyzing && (
-        <div className="fixed inset-0 z-50 glass-overlay backdrop-blur-sm">
-          <div className="mx-auto mt-4 h-[calc(100vh-2rem)] w-[min(96vw,1400px)]">
-            <LLMStageStreamCard
-              title="LLM 资产分析"
-              subtitle="角色 · 场景 · 道具"
-              stages={
-                stream.stages.length > 0
-                  ? (stream.stages as LLMStageViewItem[])
-                  : ([
-                      { id: 'analyze_characters', title: '角色分析', status: 'pending' },
-                      { id: 'analyze_locations', title: '场景分析', status: 'pending' },
-                      { id: 'analyze_props', title: '道具分析', status: 'pending' },
-                    ] satisfies LLMStageViewItem[])
-              }
-              activeStageId={stream.activeStepId ?? 'analyze_characters'}
-              outputText={stream.outputText}
-              activeMessage={stream.activeMessage}
-              overallProgress={stream.overallProgress}
-              showCursor={stream.isRunning}
-              smoothStreaming
-              errorMessage={stream.errorMessage || undefined}
-              topRightAction={
+          }
+          rightSlot={
+            <>
+              {assets.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => stream.reset()}
-                  className="glass-btn-base glass-btn-secondary rounded-lg px-3 py-1.5 text-xs"
+                  onClick={() => void handleClearAssets()}
+                  disabled={clearMutation.isPending || isAnalyzing}
+                  className="glass-btn-base glass-btn-danger h-8 px-3 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  关闭
+                  {clearMutation.isPending ? '清除中…' : '清除全部'}
                 </button>
-              }
-            />
+              )}
+              <button
+                type="button"
+                onClick={() => runtime.onStageChange('lxt-final-script')}
+                className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs"
+              >
+                下一步：制作脚本
+              </button>
+            </>
+          }
+          onDownloadAll={() => void handleDownloadAll()}
+          isDownloading={isDownloading}
+          disableDownload={assets.length === 0}
+          downloadTitle="下载全部"
+        />
+
+        {!hasStoryboard && (
+          <div className="glass-surface p-4 text-center">
+            <p className="text-sm text-[var(--glass-text-secondary)]">请先生成分镜脚本，再初始化 LXT 资产库。</p>
+            <button
+              type="button"
+              onClick={() => runtime.onStageChange('lxt-storyboard')}
+              className="glass-btn-base glass-btn-secondary h-8 px-4 text-xs mt-3"
+            >
+              前往分镜脚本
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="glass-surface p-4">
+            <div className="text-xs text-[var(--glass-text-secondary)]">角色</div>
+            <div className="text-2xl font-bold mt-1">{counts.character}</div>
+          </div>
+          <div className="glass-surface p-4">
+            <div className="text-xs text-[var(--glass-text-secondary)]">场景</div>
+            <div className="text-2xl font-bold mt-1">{counts.location}</div>
+          </div>
+          <div className="glass-surface p-4">
+            <div className="text-xs text-[var(--glass-text-secondary)]">道具</div>
+            <div className="text-2xl font-bold mt-1">{counts.prop}</div>
           </div>
         </div>
-      )}
-    </div>
+
+        {assets.length > 0 && (
+          <AssetFilterBar
+            kindFilter={kindFilter}
+            onKindFilterChange={setKindFilter}
+            counts={{
+              all: totalCount,
+              character: counts.character,
+              location: counts.location,
+              prop: counts.prop,
+            }}
+          />
+        )}
+
+        {assetsQuery.isLoading ? (
+          <div className="glass-surface p-6 text-sm text-[var(--glass-text-secondary)]">正在加载资产…</div>
+        ) : assets.length === 0 ? (
+          <div className="glass-surface p-6 text-sm text-[var(--glass-text-secondary)]">
+            还没有提取到资产。点击 ✨ LLM 分析增强即可自动分析角色、场景和道具。
+          </div>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {visibleKinds.map((kind) => {
+              const items = grouped[kind]
+              if (items.length === 0) return null
+              return (
+                <section key={kind} className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-[var(--glass-text-primary)]">
+                      {SECTION_LABELS[kind]}
+                    </h3>
+                    <span className="text-xs text-[var(--glass-text-secondary)]">{items.length} 项</span>
+                  </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                    {items.map((asset) => (
+                      <LxtAssetCard
+                        key={asset.id}
+                        projectId={projectId || ''}
+                        asset={asset}
+                        draft={getDraft(asset)}
+                        onDraftChange={(patch) => setDraftValue(asset, patch)}
+                        onSave={() => void handleSave(asset)}
+                        onDelete={() => void handleDelete(asset.id)}
+                        isSaving={updateMutation.isPending || updateVoiceMutation.isPending}
+                        isDeleting={deleteMutation.isPending}
+                        onBindGlobal={() => setPicker({ assetId: asset.id, type: asset.kind })}
+                        onBindVoice={() => setPicker({ assetId: asset.id, type: 'voice' })}
+                        onEditProfile={() => handleEditProfile(asset)}
+                        onConfirmProfile={() => void handleConfirmProfile(asset)}
+                        isConfirmingProfile={confirmingAssetId === asset.id}
+                        onGenerateImage={() => void handleGenerateImage(asset.id)}
+                        isGeneratingImage={activeImageGenIds.has(asset.id)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+        )}
+
+        {editingProfile?.kind === 'character' && (() => {
+          const asset = assets.find((a) => a.id === editingProfile.assetId)
+          const profileData: CharacterProfileData = asset?.profileData
+            ? (JSON.parse(asset.profileData) as CharacterProfileData)
+            : { role_level: 'C', archetype: '', personality_tags: [], era_period: '', social_class: '', occupation: '', costume_tier: 3, suggested_colors: [], primary_identifier: '', visual_keywords: [], gender: '', age_range: '' }
+          return (
+            <CharacterProfileDialog
+              isOpen
+              characterName={editingProfile.name}
+              profileData={profileData}
+              onClose={() => setEditingProfile(null)}
+              onSave={(data) => void handleSaveProfile(data)}
+              isSaving={isSavingProfile}
+            />
+          )
+        })()}
+
+        {confirmingAssetId && confirmingStreamText && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--glass-bg-surface)] border-t border-[var(--glass-stroke-base)] px-4 py-3 max-h-32 overflow-y-auto">
+            <p className="text-xs text-[var(--glass-text-secondary)] font-mono leading-relaxed whitespace-pre-wrap">
+              {confirmingStreamText}
+            </p>
+          </div>
+        )}
+
+        <GlobalAssetPicker
+          isOpen={!!picker}
+          onClose={() => setPicker(null)}
+          onSelect={(globalAssetId) => void handlePickerSelect(globalAssetId)}
+          type={picker?.type ?? 'character'}
+          loading={bindGlobalMutation.isPending || updateVoiceMutation.isPending}
+        />
+
+        <AssetsStageStatusOverlays
+          toast={toast}
+          onCloseToast={() => setToast(null)}
+          isGlobalAnalyzing={false}
+          globalAnalyzingState={null}
+          globalAnalyzingTitle=""
+          globalAnalyzingHint=""
+          globalAnalyzingTip=""
+        />
+
+        {isAnalyzing && isConsoleMinimized && (
+          <button
+            type="button"
+            onClick={() => setIsConsoleMinimized(false)}
+            className="fixed right-6 bottom-6 z-50 glass-surface-modal rounded-2xl px-4 py-3 text-sm font-medium text-(--glass-tone-info-fg)"
+          >
+            LLM 资产分析进行中…
+          </button>
+        )}
+
+        {isAnalyzing && !isConsoleMinimized && (
+          <div className="fixed inset-0 z-50 glass-overlay backdrop-blur-sm">
+            <div className="mx-auto mt-4 h-[calc(100vh-2rem)] w-[min(96vw,1400px)]">
+              <LLMStageStreamCard
+                title="LLM 资产分析"
+                subtitle="角色 · 场景 · 道具"
+                stages={
+                  stream.stages.length > 0
+                    ? (stream.stages as LLMStageViewItem[])
+                    : ([
+                        { id: 'analyze_characters', title: '角色分析', status: 'pending' },
+                        { id: 'analyze_locations', title: '场景分析', status: 'pending' },
+                        { id: 'analyze_props', title: '道具分析', status: 'pending' },
+                      ] satisfies LLMStageViewItem[])
+                }
+                activeStageId={stream.activeStepId ?? 'analyze_characters'}
+                selectedStageId={stream.selectedStep?.id || undefined}
+                onSelectStage={stream.selectStep}
+                outputText={stream.outputText}
+                activeMessage={stream.activeMessage}
+                overallProgress={stream.overallProgress}
+                showCursor={stream.isRunning}
+                autoScroll={stream.selectedStep?.id === stream.activeStepId}
+                smoothStreaming
+                errorMessage={stream.errorMessage || undefined}
+                topRightAction={
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => stream.reset()}
+                      className="glass-btn-base glass-btn-secondary rounded-lg px-3 py-1.5 text-xs"
+                    >
+                      关闭
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsConsoleMinimized(true)}
+                      className="glass-btn-base glass-btn-secondary rounded-lg px-3 py-1.5 text-xs"
+                    >
+                      最小化
+                    </button>
+                  </div>
+                }
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </AssetLibraryShell>
   )
 }

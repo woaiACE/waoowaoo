@@ -437,6 +437,9 @@ model LxtProjectAsset {
   kind              String
   name              String
   summary           String?     @db.Text
+  profileData       String?     @db.Text // JSON: CharacterProfileData (仅 character 类型)
+  description       String?     @db.Text // LLM 生成的视觉形象描述提示词
+  profileConfirmed  Boolean     @default(false) // 是否已确认档案并生成描述
   globalCharacterId String?
   globalLocationId  String?
   globalPropId      String?

@@ -3,8 +3,9 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useProjectAssets, useProjectData } from '@/lib/query/hooks'
+import UnifiedAssetToolbar from '@/components/shared/assets/UnifiedAssetToolbar'
 import { AppIcon } from '@/components/ui/icons'
-import JSZip from 'jszip'
+import { downloadAssetArchive } from '@/lib/assets/downloadAssetArchive'
 import { logError as _logError } from '@/lib/logging/core'
 
 /**
@@ -216,28 +217,8 @@ export default function AssetToolbar({
 
         setIsDownloading(true)
         try {
-            const zip = new JSZip()
-            await Promise.all(
-                imageEntries.map(async ({ filename, url }) => {
-                    try {
-                        const response = await fetch(url)
-                        if (!response.ok) return
-                        const blob = await response.blob()
-                        zip.file(filename, blob)
-                    } catch {
-                        // 单张失败不阻断其他
-                    }
-                })
-            )
-            const content = await zip.generateAsync({ type: 'blob' })
-            const link = document.createElement('a')
-            link.href = URL.createObjectURL(content)
             const safeName = projectName ? projectName.replace(/[/\\:*?"<>|]/g, '_') : 'assets'
-            link.download = `${safeName}_${new Date().toISOString().slice(0, 10)}.zip`
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-            URL.revokeObjectURL(link.href)
+            await downloadAssetArchive(imageEntries, `${safeName}_${new Date().toISOString().slice(0, 10)}.zip`)
         } catch (error) {
             _logError('打包下载失败:', error)
             alert(t('assetLibrary.downloadFailed'))
@@ -247,14 +228,16 @@ export default function AssetToolbar({
     }
 
     return (
-        <div className="glass-surface p-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <span className="text-sm font-semibold text-[var(--glass-text-secondary)] inline-flex items-center gap-2">
-                        <AppIcon name="diamond" className="w-4 h-4 text-[var(--glass-tone-info-fg)]" />
-                        {t("toolbar.assetManagement")}
-                    </span>
-                    {/* 剧集筛选 chip */}
+        <UnifiedAssetToolbar
+            title={t("toolbar.assetManagement")}
+            countText={t("toolbar.assetCount", {
+                total: totalAssets,
+                appearances: totalAppearances,
+                locations: totalLocations,
+                props: totalProps,
+            })}
+            leftSlot={
+                <>
                     {episodes.length > 0 && (
                         <EpisodeChip
                             episodeId={episodeId}
@@ -262,10 +245,6 @@ export default function AssetToolbar({
                             episodes={episodes}
                         />
                     )}
-                    <span className="text-sm text-[var(--glass-text-tertiary)]">
-                        {t("toolbar.assetCount", { total: totalAssets, appearances: totalAppearances, locations: totalLocations, props: totalProps })}
-                    </span>
-                    {/* 全局资产分析按钮 */}
                     {onGlobalAnalyze && (
                         <button
                             onClick={onGlobalAnalyze}
@@ -277,22 +256,12 @@ export default function AssetToolbar({
                             <span>{t("toolbar.globalAnalyze")}</span>
                         </button>
                     )}
-                </div>
-                <div className="flex items-center gap-2">
-                    {/* 打包下载按钮 */}
-                    <button
-                        onClick={handleDownloadAll}
-                        disabled={isDownloading || totalAssets === 0}
-                        title={t("toolbar.downloadAll")}
-                        className="glass-btn-base glass-btn-secondary flex items-center justify-center w-9 h-9 disabled:opacity-50 disabled:cursor-not-allowed border border-[var(--glass-stroke-base)]"
-                    >
-                        <AppIcon
-                            name={isDownloading ? 'refresh' : 'download'}
-                            className={`w-4 h-4 ${isDownloading ? 'animate-spin' : ''}`}
-                        />
-                    </button>
-                </div>
-            </div>
-        </div>
+                </>
+            }
+            onDownloadAll={() => void handleDownloadAll()}
+            isDownloading={isDownloading}
+            disableDownload={totalAssets === 0}
+            downloadTitle={t("toolbar.downloadAll")}
+        />
     )
 }
