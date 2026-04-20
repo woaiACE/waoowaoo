@@ -8,8 +8,10 @@ import ImagePreviewModal from '@/components/ui/ImagePreviewModal'
 import VoiceSettingsPanel from '@/components/voice/VoiceSettingsPanel'
 import { useLxtVoiceOpsAdapter } from '@/lib/query/hooks/useLxtVoiceOpsAdapter'
 import { useImageGenerationCount } from '@/lib/image-generation/use-image-generation-count'
+import { parseProfileData } from '@/types/character-profile'
 import CharacterCardGallery from '../../novel-promotion/components/assets/character-card/CharacterCardGallery'
 import CharacterCardActions from '../../novel-promotion/components/assets/character-card/CharacterCardActions'
+import CharacterProfileCard from '../../novel-promotion/components/assets/CharacterProfileCard'
 import LocationImageList from '../../novel-promotion/components/assets/location-card/LocationImageList'
 import LocationCardActions from '../../novel-promotion/components/assets/location-card/LocationCardActions'
 
@@ -106,6 +108,7 @@ export default function LxtAssetCard({
   const globalBound =
     asset.globalCharacterId || asset.globalLocationId || asset.globalPropId
   const isCharacter = asset.kind === 'character'
+  const parsedProfileData = isCharacter ? parseProfileData(asset.profileData ?? null) : null
   // 角色卡：只有 profileConfirmed=true（描述已生成）后才展示图像生成区
   const showImageArea = asset.profileConfirmed
 
@@ -208,23 +211,36 @@ export default function LxtAssetCard({
           ) : (
             /* 待确认状态 → 提示先确认档案 */
             <div className="px-4 pb-3 flex flex-col gap-3">
-              <div className="rounded-lg bg-[var(--glass-bg-muted)] border border-dashed border-[var(--glass-stroke-strong)] p-3 flex flex-col items-center gap-2 text-center">
-                <AppIcon name="userAlt" className="w-8 h-8 text-[var(--glass-text-tertiary)]" />
-                <p className="text-xs text-[var(--glass-text-tertiary)]">
-                  请先点击「确认并生成」生成角色形象描述，再进行图像生成
-                </p>
-              </div>
-              {/* 角色专属操作按钮 */}
-              <div className="flex gap-2 flex-wrap border-t border-[var(--glass-stroke-base)] pt-2">
-                <button type="button" onClick={onEditProfile} disabled={isConfirmingProfile}
-                  className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs disabled:opacity-40">
-                  编辑档案
-                </button>
-                <button type="button" onClick={() => onBindGlobal('character')} disabled={isConfirmingProfile}
-                  className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs disabled:opacity-40">
-                  使用已有形象
-                </button>
-              </div>
+              {parsedProfileData ? (
+                <CharacterProfileCard
+                  characterId={asset.id}
+                  name={displayName}
+                  profileData={parsedProfileData}
+                  onEdit={onEditProfile}
+                  onConfirm={onConfirmProfile}
+                  onUseExisting={() => onBindGlobal('character')}
+                  isConfirming={isConfirmingProfile}
+                />
+              ) : (
+                <>
+                  <div className="rounded-lg bg-[var(--glass-bg-muted)] border border-dashed border-[var(--glass-stroke-strong)] p-3 flex flex-col items-center gap-2 text-center">
+                    <AppIcon name="userAlt" className="w-8 h-8 text-[var(--glass-text-tertiary)]" />
+                    <p className="text-xs text-[var(--glass-text-tertiary)]">
+                      请先点击「确认并生成」生成角色形象描述，再进行图像生成
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap border-t border-[var(--glass-stroke-base)] pt-2">
+                    <button type="button" onClick={onEditProfile} disabled={isConfirmingProfile}
+                      className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs disabled:opacity-40">
+                      编辑档案
+                    </button>
+                    <button type="button" onClick={() => onBindGlobal('character')} disabled={isConfirmingProfile}
+                      className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs disabled:opacity-40">
+                      使用已有形象
+                    </button>
+                  </div>
+                </>
+              )}
               {/* 音色面板（角色，无论是否 profileConfirmed 都可操作） */}
               <div className="border-t border-[var(--glass-stroke-base)] pt-1">
                 <VoiceSettingsPanel adapter={voiceAdapter} />
