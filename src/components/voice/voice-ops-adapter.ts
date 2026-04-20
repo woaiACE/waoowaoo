@@ -16,6 +16,7 @@ export interface VoiceOpsAdapter {
   customVoiceUrl: string | null | undefined
   voiceId: string | null | undefined
   voiceType: string | null | undefined
+  voicePrompt?: string | null
   characterName: string
 
   // ── 上传音频 ────────────────────────────────────────

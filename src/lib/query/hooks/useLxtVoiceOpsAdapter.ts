@@ -16,6 +16,7 @@ import {
   useUploadLxtAssetVoice,
   useDesignLxtAssetVoice,
   useInferLxtAssetVoicePrompt,
+  useUpdateLxtAsset,
 } from '@/lib/query/hooks/useLxtAssets'
 import type { LxtProjectAsset } from '@/lib/query/hooks/useLxtAssets'
 import type { VoiceOpsAdapter } from '@/components/voice/voice-ops-adapter'
@@ -37,6 +38,7 @@ export function useLxtVoiceOpsAdapter({
   const uploadMutation = useUploadLxtAssetVoice(projectId)
   const designMutation = useDesignLxtAssetVoice(projectId)
   const inferMutation = useInferLxtAssetVoicePrompt(projectId)
+  const updateAssetMutation = useUpdateLxtAsset(projectId)
 
   const uploadVoice = useCallback(async (file: File) => {
     await uploadMutation.mutateAsync({ assetId, file })
@@ -52,14 +54,19 @@ export function useLxtVoiceOpsAdapter({
 
   const inferVoicePrompt = useCallback(async () => {
     const result = await inferMutation.mutateAsync(assetId)
+    // 推理完成后立即持久化到 DB，避免页面刷新后丢失
+    if (result.voicePrompt) {
+      await updateAssetMutation.mutateAsync({ assetId, voicePrompt: result.voicePrompt })
+    }
     return result.voicePrompt
-  }, [inferMutation, assetId])
+  }, [inferMutation, updateAssetMutation, assetId])
 
   return {
     // State
     customVoiceUrl: asset.customVoiceUrl,
     voiceId: asset.voiceId,
     voiceType: asset.voiceType,
+    voicePrompt: asset.voicePrompt,
     characterName: asset.name,
 
     // Ops

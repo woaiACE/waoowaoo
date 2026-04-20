@@ -22,6 +22,7 @@ export interface LxtProjectAsset {
   globalPropId?: string | null
   voiceId?: string | null
   voiceType?: string | null
+  voicePrompt?: string | null
   customVoiceUrl?: string | null
   imageUrl?: string | null
   imageMediaId?: string | null

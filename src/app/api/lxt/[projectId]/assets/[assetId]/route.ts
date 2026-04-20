@@ -29,6 +29,7 @@ export const PATCH = apiHandler(async (
   if (body.imageMediaId !== undefined) updateData.imageMediaId = body.imageMediaId
   if (body.voiceId !== undefined) updateData.voiceId = body.voiceId
   if (body.voiceType !== undefined) updateData.voiceType = body.voiceType
+  if (body.voicePrompt !== undefined) updateData.voicePrompt = body.voicePrompt
   if (body.customVoiceUrl !== undefined) updateData.customVoiceUrl = body.customVoiceUrl
 
   if (Object.keys(updateData).length === 0) throw new ApiError('INVALID_PARAMS')

@@ -43,7 +43,7 @@ export default function VoiceSettingsPanel({ adapter }: VoiceSettingsPanelProps)
   // ── Local state ──────────────────────────────────────
   const [expanded, setExpanded] = useState(false)
   const [designExpanded, setDesignExpanded] = useState(false)
-  const [voicePrompt, setVoicePrompt] = useState('')
+  const [voicePrompt, setVoicePrompt] = useState(() => adapter.voicePrompt ?? '')
   const [previewText, setPreviewText] = useState(DEFAULT_PREVIEW_TEXT)
   const [isPreviewingVoice, setIsPreviewingVoice] = useState(false)
 
