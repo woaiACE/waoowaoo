@@ -412,7 +412,7 @@ export default function LxtAssetsStage() {
                     </h3>
                     <span className="text-xs text-[var(--glass-text-secondary)]">{items.length} 项</span>
                   </div>
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {items.map((asset) => (
                       <LxtAssetCard
                         key={asset.id}
@@ -429,6 +429,7 @@ export default function LxtAssetsStage() {
                         onEditProfile={() => handleEditProfile(asset)}
                         onConfirmProfile={() => void handleConfirmProfile(asset)}
                         isConfirmingProfile={confirmingAssetId === asset.id}
+                        confirmingStreamText={confirmingAssetId === asset.id ? confirmingStreamText : ''}
                         onGenerateImage={() => void handleGenerateImage(asset.id)}
                         isGeneratingImage={activeImageGenIds.has(asset.id)}
                       />
@@ -456,14 +457,6 @@ export default function LxtAssetsStage() {
             />
           )
         })()}
-
-        {confirmingAssetId && confirmingStreamText && (
-          <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--glass-bg-surface)] border-t border-[var(--glass-stroke-base)] px-4 py-3 max-h-32 overflow-y-auto">
-            <p className="text-xs text-[var(--glass-text-secondary)] font-mono leading-relaxed whitespace-pre-wrap">
-              {confirmingStreamText}
-            </p>
-          </div>
-        )}
 
         <GlobalAssetPicker
           isOpen={!!picker}
