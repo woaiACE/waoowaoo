@@ -422,6 +422,7 @@ model LxtEpisode {
   srtContent      String?    @db.Text
   shotListContent String?    @db.Text
   scriptContent   String?    @db.Text
+  finalFilmContent String?   @db.Text // 成片阶段行数据（JSON 字符串，{ version, rows[] }）
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @default(now()) @updatedAt
   lxtProject      LxtProject @relation(fields: [lxtProjectId], references: [id], onDelete: Cascade)
@@ -448,6 +449,7 @@ model LxtProjectAsset {
   voicePrompt       String?     @db.Text // AI 推理后的声音描述提示词
   customVoiceUrl    String?     @db.Text
   imageUrl          String?     @db.Text
+  imageUrls         String?     @db.Text // JSON array of generated image URLs (for multi-image selection)
   imageMediaId      String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @default(now()) @updatedAt

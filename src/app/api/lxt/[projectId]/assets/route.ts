@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireProjectAuthLight, isErrorResponse } from '@/lib/api-auth'
 import { apiHandler, ApiError } from '@/lib/api-errors'
 import { extractLxtAssetsFromShotList } from '@/lib/lxt/project-assets'
+import { getSignedUrl } from '@/lib/storage'
 
 async function ensureLxtProject(projectId: string) {
   return prisma.lxtProject.upsert({
@@ -32,8 +33,14 @@ export const GET = apiHandler(async (
     orderBy: [{ kind: 'asc' }, { createdAt: 'asc' }],
   })
 
+  // Sign customVoiceUrl so the browser can play/download audio
+  const signedAssets = assets.map((asset) => ({
+    ...asset,
+    customVoiceUrl: asset.customVoiceUrl ? getSignedUrl(asset.customVoiceUrl, 7200) : null,
+  }))
+
   return NextResponse.json({
-    assets,
+    assets: signedAssets,
     counts: {
       character: assets.filter((item) => item.kind === 'character').length,
       location: assets.filter((item) => item.kind === 'location').length,
@@ -102,8 +109,13 @@ export const POST = apiHandler(async (
     orderBy: [{ kind: 'asc' }, { createdAt: 'asc' }],
   })
 
+  const signedAssets = assets.map((asset) => ({
+    ...asset,
+    customVoiceUrl: asset.customVoiceUrl ? getSignedUrl(asset.customVoiceUrl, 7200) : null,
+  }))
+
   return NextResponse.json({
-    assets,
+    assets: signedAssets,
     counts: {
       character: assets.filter((item) => item.kind === 'character').length,
       location: assets.filter((item) => item.kind === 'location').length,

@@ -17,8 +17,19 @@
  */
 
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AppIcon } from '@/components/ui/icons'
 import type { VoiceOpsAdapter } from './voice-ops-adapter'
+
+// 声音风格预设（与 VoiceDesignGeneratorSection 保持一致）
+const VOICE_PRESETS = [
+  { label: '男播音', prompt: '沉稳的中年男性播音员，音色低沉浑厚，语速平稳，吐字清晰' },
+  { label: '温柔女', prompt: '温柔甜美的年轻女性，声音清脆悦耳，语调轻柔' },
+  { label: '成熟男', prompt: '成熟稳重的男性，声音富有磁性和感染力' },
+  { label: '活泼女', prompt: '活泼开朗的少女，声音甜美可爱，充满活力' },
+  { label: '知性女', prompt: '知性优雅的女性，声音清晰悦耳，语调平和' },
+  { label: '旁白', prompt: '富有感情的叙述者，声音温暖有故事感' },
+] as const
 
 const DEFAULT_PREVIEW_TEXT =
   '你好，很高兴认识你。这是AI为你专属设计的声音，让我来为你展示它的特点。无论是温柔的对话，还是激动的讲述，我都能完美呈现。希望你喜欢这个声音，让我们一起创造精彩的内容吧。'
@@ -42,7 +53,7 @@ export default function VoiceSettingsPanel({ adapter }: VoiceSettingsPanelProps)
 
   // ── Local state ──────────────────────────────────────
   const [expanded, setExpanded] = useState(false)
-  const [designExpanded, setDesignExpanded] = useState(false)
+  const [voiceDesignModalOpen, setVoiceDesignModalOpen] = useState(false)
   const [voicePrompt, setVoicePrompt] = useState(() => adapter.voicePrompt ?? '')
   const [previewText, setPreviewText] = useState(DEFAULT_PREVIEW_TEXT)
   const [isPreviewingVoice, setIsPreviewingVoice] = useState(false)
@@ -90,7 +101,7 @@ export default function VoiceSettingsPanel({ adapter }: VoiceSettingsPanelProps)
     if (!voicePrompt.trim() || !previewText.trim()) return
     try {
       await designVoice(voicePrompt, previewText)
-      setDesignExpanded(false)
+      setVoiceDesignModalOpen(false)
     } catch (error) {
       const message = error instanceof Error ? error.message : '音色设计失败，请重试'
       window.alert(message)
@@ -163,19 +174,19 @@ export default function VoiceSettingsPanel({ adapter }: VoiceSettingsPanelProps)
             >
               <div className="flex items-center justify-center gap-1">
                 <AppIcon name="copy" className="w-3 h-3 shrink-0" />
-                <span>声音库</span>
+                <span>资产库</span>
               </div>
             </button>
 
-            {/* AI Design toggle */}
+            {/* AI Design — opens modal */}
             <button
               type="button"
-              onClick={() => setDesignExpanded((v) => !v)}
+              onClick={() => setVoiceDesignModalOpen(true)}
               className="flex-1 min-w-[72px] glass-btn-base glass-btn-primary px-2 py-1.5 text-xs font-medium whitespace-nowrap"
             >
               <div className="flex items-center justify-center gap-1">
                 <AppIcon name="sparkles" className="w-3 h-3 shrink-0" />
-                <span>AI 设计</span>
+                <span>AI智能设计</span>
               </div>
             </button>
           </div>
@@ -212,67 +223,106 @@ export default function VoiceSettingsPanel({ adapter }: VoiceSettingsPanelProps)
             </button>
           )}
 
-          {/* AI Design form */}
-          {designExpanded && (
-            <div className="flex flex-col gap-2 p-3 rounded-lg bg-[var(--glass-bg-muted)] border border-[var(--glass-stroke-base)]">
-              {/* Voice prompt */}
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs text-[var(--glass-text-secondary)]">声音描述（风格、音色特征）</label>
-                  {/* AI infer button — LXT only, shown when adapter provides it */}
+          {/* AI Voice Design Modal */}
+          {voiceDesignModalOpen && typeof document !== 'undefined' && createPortal(
+            <>
+              <div
+                className="fixed inset-0 z-[9999] glass-overlay"
+                onClick={() => setVoiceDesignModalOpen(false)}
+              />
+              <div
+                className="fixed z-[10000] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 glass-surface-modal w-full max-w-xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface-strong)]">
+                  <div className="flex items-center gap-2">
+                    <AppIcon name="mic" className="w-5 h-5 text-[var(--glass-tone-info-fg)]" />
+                    <h2 className="font-semibold text-[var(--glass-text-primary)]">为「{characterName}」设计AI声音</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVoiceDesignModalOpen(false)}
+                    className="glass-btn-base glass-btn-soft p-1 text-[var(--glass-text-tertiary)]"
+                  >
+                    <AppIcon name="close" className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-5 space-y-4">
+                  {/* Preset style tabs */}
+                  <div>
+                    <div className="text-sm text-[var(--glass-text-secondary)] mb-2">选择声音风格：</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {VOICE_PRESETS.map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => setVoicePrompt(preset.prompt)}
+                          className={`glass-btn-base px-2.5 py-1 text-xs rounded-md border transition-all ${
+                            voicePrompt === preset.prompt
+                              ? 'glass-btn-tone-info border-[var(--glass-stroke-focus)]'
+                              : 'glass-btn-soft text-[var(--glass-text-secondary)] border-[var(--glass-stroke-base)] hover:border-[var(--glass-stroke-focus)]'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Custom description */}
+                  <div>
+                    <div className="text-sm text-[var(--glass-text-secondary)] mb-1">或自定义描述：</div>
+                    <textarea
+                      value={voicePrompt}
+                      onChange={(e) => setVoicePrompt(e.target.value)}
+                      placeholder="描述声音特征：年龄、性别、音色、语调…"
+                      className="glass-textarea-base w-full px-3 py-2 text-sm resize-none"
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* Preview text (collapsible) */}
+                  <details className="text-sm">
+                    <summary className="text-[var(--glass-text-secondary)] cursor-pointer hover:text-[var(--glass-text-primary)]">修改预览文本</summary>
+                    <input
+                      type="text"
+                      value={previewText}
+                      onChange={(e) => setPreviewText(e.target.value)}
+                      className="glass-input-base w-full mt-2 px-3 py-2 text-sm"
+                    />
+                  </details>
+
+                  {/* AI infer (LXT only) */}
                   {inferVoicePrompt && (
                     <button
                       type="button"
                       onClick={() => void handleInfer()}
                       disabled={isInferringVoicePrompt}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--glass-tone-info-bg)] text-[var(--glass-tone-info-fg)] hover:opacity-80 transition-opacity disabled:opacity-40"
-                      title="根据角色档案 AI 推理声音描述"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-[var(--glass-tone-info-bg)] text-[var(--glass-tone-info-fg)] hover:opacity-80 transition-opacity disabled:opacity-40"
                     >
                       {isInferringVoicePrompt
-                        ? <span className="w-2.5 h-2.5 border-2 border-[var(--glass-tone-info-fg)]/40 border-t-[var(--glass-tone-info-fg)] rounded-full animate-spin" />
-                        : <AppIcon name="sparkles" className="w-2.5 h-2.5 shrink-0" />}
-                      <span>{isInferringVoicePrompt ? '推理中…' : 'AI推理'}</span>
+                        ? <span className="w-3 h-3 border-2 border-[var(--glass-tone-info-fg)]/40 border-t-[var(--glass-tone-info-fg)] rounded-full animate-spin" />
+                        : <AppIcon name="sparkles" className="w-3 h-3 shrink-0" />}
+                      <span>{isInferringVoicePrompt ? 'AI推理中…' : 'AI推理声音特征'}</span>
                     </button>
                   )}
+
+                  {/* Submit */}
+                  <button
+                    type="button"
+                    onClick={() => void handleDesign()}
+                    disabled={isDesigningVoice || !voicePrompt.trim()}
+                    className="glass-btn-base glass-btn-primary w-full py-2 rounded-lg text-sm disabled:opacity-40"
+                  >
+                    {isDesigningVoice ? '声音设计中…' : '生成声音方案'}
+                  </button>
                 </div>
-                <textarea
-                  value={voicePrompt}
-                  onChange={(e) => setVoicePrompt(e.target.value)}
-                  className="glass-field-input w-full min-h-[56px] px-2 py-1.5 text-xs resize-none"
-                  placeholder="例：年轻女性，声音温柔甘甜，带一丝活泼感…"
-                />
               </div>
-
-              {/* Preview text */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-[var(--glass-text-secondary)]">试听文本</label>
-                <input
-                  value={previewText}
-                  onChange={(e) => setPreviewText(e.target.value)}
-                  className="glass-field-input h-8 w-full px-2 text-xs"
-                  placeholder="试听时朗读的文字…"
-                />
-              </div>
-
-              {/* Submit */}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleDesign()}
-                  disabled={isDesigningVoice || !voicePrompt.trim() || !previewText.trim()}
-                  className="glass-btn-base glass-btn-primary h-7 px-3 text-xs disabled:opacity-40"
-                >
-                  {isDesigningVoice ? '设计中…' : '开始设计'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDesignExpanded(false)}
-                  className="glass-btn-base glass-btn-secondary h-7 px-3 text-xs"
-                >
-                  取消
-                </button>
-              </div>
-            </div>
+            </>,
+            document.body,
           )}
         </div>
       )}

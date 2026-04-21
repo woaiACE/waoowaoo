@@ -20,6 +20,7 @@ import { normalizeToBase64ForGeneration } from '@/lib/media/outbound-image'
 import { resolveBuiltinCapabilitiesByModelKey } from '@/lib/model-capabilities/lookup'
 import { parseModelKeyStrict } from '@/lib/model-config-contract'
 import { getProviderConfig } from '@/lib/api-config'
+import { handleLxtFinalFilmVideoTask } from './handlers/lxt-final-film-task-handlers'
 
 type AnyObj = Record<string, unknown>
 type VideoOptionValue = string | number | boolean
@@ -331,6 +332,8 @@ async function processVideoTask(job: Job<TaskJobData>) {
       return await handleVideoPanelTask(job)
     case TASK_TYPE.LIP_SYNC:
       return await handleLipSyncTask(job)
+    case TASK_TYPE.LXT_FINAL_FILM_VIDEO:
+      return await handleLxtFinalFilmVideoTask(job)
     default:
       throw new Error(`Unsupported video task type: ${job.data.type}`)
   }

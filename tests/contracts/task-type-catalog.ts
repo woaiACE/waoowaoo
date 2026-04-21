@@ -67,6 +67,8 @@ const TASK_TYPE_OWNER_MAP = {
   [TASK_TYPE.LXT_ASSET_VOICE_DESIGN]: 'tests/unit/worker/lxt-asset-voice-design.test.ts',
   [TASK_TYPE.LXT_ASSET_VOICE_PROMPT_INFER]: 'tests/unit/worker/lxt-asset-voice-prompt-infer.test.ts',
   [TASK_TYPE.LXT_ASSET_IMAGE]: 'tests/unit/worker/lxt-asset-image.test.ts',
+  [TASK_TYPE.LXT_FINAL_FILM_IMAGE]: 'tests/unit/worker/lxt-final-film-image.test.ts',
+  [TASK_TYPE.LXT_FINAL_FILM_VIDEO]: 'tests/unit/worker/lxt-final-film-video.test.ts',
 } as const satisfies Record<TaskType, string>
 
 export const TASK_TYPE_CATALOG: ReadonlyArray<TaskTypeCoverageEntry> = (Object.values(TASK_TYPE) as TaskType[])

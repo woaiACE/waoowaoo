@@ -43,6 +43,12 @@ export interface CharacterProfileData {
 
     /** 年龄段描述 */
     age_range: string
+
+    /** 体型比例描述（非人类或特殊体型时填写，如"头身比1:2，幼崽圆润比例，体长约0.7m"） */
+    body_proportion?: string
+
+    /** 物种形态特征关键词（非人类角色填写，如["耷拉软耳","灰白细绒毛","浅灰色蹄"]） */
+    species_traits?: string[]
 }
 
 /**

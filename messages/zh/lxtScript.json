@@ -99,6 +99,7 @@
     "noStoryboard": "当前集尚未生成分镜，请先完成「生成分镜」步骤",
     "goToStoryboardStage": "前往分镜阶段",
     "minimize": "最小化",
-    "streamBadge": "制作脚本 运行中"
+    "streamBadge": "制作脚本 运行中",
+    "nextStepBtn": "下一步：成片 →"
   }
 }

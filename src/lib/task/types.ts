@@ -99,6 +99,8 @@ export const TASK_TYPE = {
   LXT_ASSET_VOICE_DESIGN: 'lxt_asset_voice_design',
   LXT_ASSET_VOICE_PROMPT_INFER: 'lxt_asset_voice_prompt_infer',
   LXT_ASSET_IMAGE: 'lxt_asset_image',
+  LXT_FINAL_FILM_IMAGE: 'lxt_final_film_image',
+  LXT_FINAL_FILM_VIDEO: 'lxt_final_film_video',
 } as const
 
 export type TaskType = (typeof TASK_TYPE)[keyof typeof TASK_TYPE]

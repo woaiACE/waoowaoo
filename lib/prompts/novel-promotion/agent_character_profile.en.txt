@@ -44,6 +44,8 @@ Output format (JSON only):
       "suggested_colors": ["color1", "color2"],
       "primary_identifier": "signature visual marker",
       "visual_keywords": ["keyword1", "keyword2"],
+      "body_proportion": "(non-human only: e.g. '1:2 head-body ratio, juvenile round build, ~0.7m body length'; omit for typical humans)",
+      "species_traits": ["(non-human only: 3-8 species-specific visual keywords e.g. 'drooping soft ears', 'grey-white fine fur', 'light grey hooves'; omit for humans)"],
       "expected_appearances": [
         { "id": 1, "change_reason": "initial appearance" }
       ]
@@ -75,8 +77,16 @@ Relationships rules:
 - Only list relationships explicitly supported by the text, do not infer
 - Output empty array [] if no clear relationships are found
 
+Non-human character body_proportion & species_traits rules:
+- For non-human beings (animals, monsters, anthropomorphic creatures): MUST fill body_proportion and species_traits
+- body_proportion: body scale phrase (e.g. '1:2 head-body ratio, small juvenile, ~0.7m body length')
+- species_traits: 3-8 species-specific visual keywords only (e.g. 'drooping soft ears', 'upturned snout', 'grey hooves', 'eye whites visible')
+- Do NOT include behavior or personality in species_traits
+- Human characters: omit both fields
+
 Strict constraints:
 1. JSON only.
 2. If no valid character is found, return empty arrays.
+3. Non-human characters must include body_proportion and species_traits.
 3. Keep all strings in English.
 4. ⚠️ JSON SAFETY: All quotation marks in text (""''「」 etc.) MUST be converted to corner brackets「」in JSON string values. NEVER use raw ASCII double quotes " inside string values.

@@ -1,0 +1,545 @@
+'use client'
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { useQueryClient } from '@tanstack/react-query'
+import { useLxtWorkspaceProvider } from '../LxtWorkspaceProvider'
+import { useLxtWorkspaceEpisodeStageData } from '../hooks/useLxtWorkspaceEpisodeStageData'
+import {
+  parseFinalFilmContent,
+  reconcileRowsWithShotList,
+  FINAL_FILM_TARGET_TYPE,
+  buildFinalFilmTargetId,
+  type LxtFinalFilmRow,
+} from '@/lib/lxt/final-film'
+import { useLxtAssets, type LxtProjectAsset } from '@/lib/query/hooks/useLxtAssets'
+import {
+  usePatchLxtFinalFilmRow,
+  useReconcileLxtFinalFilm,
+  useGenerateLxtFinalFilmImage,
+  useGenerateLxtFinalFilmVideo,
+} from '@/lib/query/hooks/useLxtFinalFilm'
+import { useTaskTargetStateMap, type TaskTargetState } from '@/lib/query/hooks/useTaskTargetStateMap'
+
+/**
+ * LXT 成片 Stage
+ *
+ * 基础版交付：
+ *  - 每分镜一行卡片（copyText / imagePrompt / imageUrl / videoEndFrameUrl / videoPrompt / videoUrl）
+ *  - LXT 资产库出厂角色/场景绑定
+ *  - 行级任务状态覆盖（image / video 独立 targetId）
+ */
+export default function LxtFinalFilmStage() {
+  const t = useTranslations('lxtWorkspace.finalFilm')
+  const { projectId, episodeId } = useLxtWorkspaceProvider()
+  const { shotListContent, finalFilmContent } = useLxtWorkspaceEpisodeStageData()
+
+  const { data: assets } = useLxtAssets(projectId)
+  const characterAssets = useMemo(
+    () => (assets?.assets || []).filter((a) => a.kind === 'character'),
+    [assets],
+  )
+  const sceneAssets = useMemo(
+    () => (assets?.assets || []).filter((a) => a.kind === 'location'),
+    [assets],
+  )
+  const assetById = useMemo(() => {
+    const map = new Map<string, LxtProjectAsset>()
+    for (const a of assets?.assets || []) map.set(a.id, a)
+    return map
+  }, [assets])
+
+  // 解析后与分镜脚本做一次前端 reconcile，保证 UI 呈现所有分镜行（不写库）
+  const rows = useMemo(() => {
+    const parsed = parseFinalFilmContent(finalFilmContent)
+    return reconcileRowsWithShotList(parsed.rows, shotListContent)
+  }, [finalFilmContent, shotListContent])
+
+  const targets = useMemo(
+    () =>
+      rows.map((row) => ({
+        targetType: FINAL_FILM_TARGET_TYPE,
+        targetId: buildFinalFilmTargetId(episodeId || '', row.shotIndex),
+      })),
+    [rows, episodeId],
+  )
+  const { getState } = useTaskTargetStateMap(projectId, targets, { enabled: !!episodeId })
+
+  // 任务完成自动失效 episode 缓存：当任一行的 phase 从 queued/processing → 其它时，
+  // 认为 worker 已落库新的 imageUrl/videoUrl，触发一次 episode 数据刷新。
+  const qc = useQueryClient()
+  const prevPhaseRef = useRef<Map<string, TaskTargetState['phase']>>(new Map())
+  useEffect(() => {
+    if (!episodeId) return
+    const prev = prevPhaseRef.current
+    const next = new Map<string, TaskTargetState['phase']>()
+    let shouldInvalidate = false
+    for (const row of rows) {
+      const key = buildFinalFilmTargetId(episodeId, row.shotIndex)
+      const state = getState(FINAL_FILM_TARGET_TYPE, key)
+      const phase = state?.phase ?? 'idle'
+      next.set(key, phase)
+      const previous = prev.get(key)
+      if (
+        previous &&
+        (previous === 'queued' || previous === 'processing') &&
+        phase !== 'queued' &&
+        phase !== 'processing'
+      ) {
+        shouldInvalidate = true
+      }
+    }
+    prevPhaseRef.current = next
+    if (shouldInvalidate) {
+      void qc.invalidateQueries({ queryKey: ['lxtEpisodeData', projectId, episodeId] })
+    }
+  }, [rows, episodeId, projectId, getState, qc])
+
+  const reconcileMutation = useReconcileLxtFinalFilm(projectId, episodeId || null)
+
+  if (!episodeId) {
+    return (
+      <div className="glass-surface p-6 text-sm text-[var(--glass-text-secondary)]">
+        {t('noRows')}
+      </div>
+    )
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="glass-surface p-6 flex flex-col items-center gap-3">
+        <p className="text-sm text-[var(--glass-text-secondary)]">{t('noRows')}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-end">
+        <button
+          type="button"
+          onClick={() => reconcileMutation.mutate()}
+          disabled={reconcileMutation.isPending}
+          className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs disabled:opacity-40"
+        >
+          {reconcileMutation.isPending ? '…' : t('reconcile')}
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {rows.map((row) => (
+          <FinalFilmRow
+            key={row.shotIndex}
+            row={row}
+            projectId={projectId}
+            episodeId={episodeId}
+            assetById={assetById}
+            characters={characterAssets}
+            scenes={sceneAssets}
+            taskState={getState(
+              FINAL_FILM_TARGET_TYPE,
+              buildFinalFilmTargetId(episodeId, row.shotIndex),
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Row ───────────────────────────────────────────────────────────
+
+interface FinalFilmRowProps {
+  row: LxtFinalFilmRow
+  projectId: string
+  episodeId: string
+  assetById: Map<string, LxtProjectAsset>
+  characters: LxtProjectAsset[]
+  scenes: LxtProjectAsset[]
+  taskState: TaskTargetState | null
+}
+
+function FinalFilmRow({
+  row,
+  projectId,
+  episodeId,
+  assetById,
+  characters,
+  scenes,
+  taskState,
+}: FinalFilmRowProps) {
+  const t = useTranslations('lxtWorkspace.finalFilm')
+  const [copyText, setCopyText] = useState(row.copyText ?? '')
+  const [imagePrompt, setImagePrompt] = useState(row.imagePrompt ?? '')
+  const [videoPrompt, setVideoPrompt] = useState(row.videoPrompt ?? '')
+  const [bindingOpen, setBindingOpen] = useState(false)
+
+  useEffect(() => { setCopyText(row.copyText ?? '') }, [row.copyText])
+  useEffect(() => { setImagePrompt(row.imagePrompt ?? '') }, [row.imagePrompt])
+  useEffect(() => { setVideoPrompt(row.videoPrompt ?? '') }, [row.videoPrompt])
+
+  const patchRow = usePatchLxtFinalFilmRow(projectId, episodeId)
+  const genImage = useGenerateLxtFinalFilmImage(projectId, episodeId)
+  const genVideo = useGenerateLxtFinalFilmVideo(projectId, episodeId)
+
+  const savePatch = (patch: Partial<LxtFinalFilmRow>) => {
+    patchRow.mutate({ shotIndex: row.shotIndex, patch })
+  }
+
+  // 当前正在保存的字段名（patchRow 同一时间只处理一个 patch）
+  const savingField = patchRow.isPending
+    ? (Object.keys(patchRow.variables?.patch || {})[0] as keyof LxtFinalFilmRow | undefined)
+    : undefined
+
+  const boundCharacterIds = row.bindings?.characterAssetIds ?? []
+  const boundSceneId = row.bindings?.sceneAssetId ?? null
+
+  const taskBusy = taskState?.phase === 'queued' || taskState?.phase === 'processing'
+  const taskPhaseLabel =
+    taskState?.phase === 'queued' ? t('pending')
+    : taskState?.phase === 'processing' ? t('processing')
+    : taskState?.phase === 'failed' ? t('failed')
+    : null
+
+  return (
+    <div className="glass-surface p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <div className="shrink-0 w-10 h-10 rounded-lg bg-[var(--glass-bg-muted)] flex items-center justify-center text-sm font-bold text-[var(--glass-text-primary)]">
+          {row.shotIndex + 1}
+        </div>
+        <div className="flex-1 flex items-center justify-between gap-2">
+          <span className="text-sm font-semibold text-[var(--glass-text-primary)]">
+            {row.label || t('shotLabelFallback', { n: row.shotIndex + 1 })}
+          </span>
+          {taskPhaseLabel && (
+            <span
+              className={[
+                'text-[11px] px-2 py-0.5 rounded-full',
+                taskState?.phase === 'failed'
+                  ? 'bg-[var(--glass-tone-danger-bg)] text-[var(--glass-tone-danger-fg)]'
+                  : 'bg-[var(--glass-bg-muted)] text-[var(--glass-text-secondary)]',
+              ].join(' ')}
+            >
+              {taskPhaseLabel}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[1fr_minmax(0,160px)_minmax(0,160px)_minmax(0,160px)] gap-3 items-start">
+        {/* 文本列 */}
+        <div className="flex flex-col gap-2 min-w-0">
+          <FieldArea
+            label={t('copyText')}
+            value={copyText}
+            onChange={setCopyText}
+            onBlur={() => {
+              if (copyText !== (row.copyText ?? '')) savePatch({ copyText })
+            }}
+            savingLabel={savingField === 'copyText' ? t('saving') : null}
+          />
+          <FieldArea
+            label={t('imagePrompt')}
+            value={imagePrompt}
+            onChange={setImagePrompt}
+            onBlur={() => {
+              if (imagePrompt !== (row.imagePrompt ?? '')) savePatch({ imagePrompt })
+            }}
+            savingLabel={savingField === 'imagePrompt' ? t('saving') : null}
+          />
+          <FieldArea
+            label={t('videoPrompt')}
+            value={videoPrompt}
+            onChange={setVideoPrompt}
+            onBlur={() => {
+              if (videoPrompt !== (row.videoPrompt ?? '')) savePatch({ videoPrompt })
+            }}
+            savingLabel={savingField === 'videoPrompt' ? t('saving') : null}
+          />
+        </div>
+
+        {/* 首帧图 */}
+        <MediaSlot
+          label={t('imageSlot')}
+          imageUrl={row.imageUrl}
+        />
+
+        {/* 尾帧图 */}
+        <MediaSlot
+          label={t('endFrameSlot')}
+          imageUrl={row.videoEndFrameUrl}
+        />
+
+        {/* 视频 */}
+        <VideoSlot label={t('videoSlot')} videoUrl={row.videoUrl} />
+      </div>
+
+      {/* 绑定摘要 */}
+      <div className="flex items-center gap-2 flex-wrap text-xs">
+        <span className="text-[var(--glass-text-tertiary)]">{t('characters')}:</span>
+        {boundCharacterIds.length === 0 ? (
+          <span className="text-[var(--glass-text-tertiary)]">{t('noBindings')}</span>
+        ) : (
+          boundCharacterIds.map((id) => (
+            <AssetTag key={id} asset={assetById.get(id)} missingLabel={t('missingAsset')} />
+          ))
+        )}
+        <span className="ml-3 text-[var(--glass-text-tertiary)]">{t('scene')}:</span>
+        {boundSceneId ? (
+          <AssetTag asset={assetById.get(boundSceneId)} missingLabel={t('missingAsset')} />
+        ) : (
+          <span className="text-[var(--glass-text-tertiary)]">{t('noBindings')}</span>
+        )}
+      </div>
+
+      {/* 操作按钮组 */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setBindingOpen((v) => !v)}
+          className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs"
+        >
+          {t('bindAssets')}
+        </button>
+        <button
+          type="button"
+          onClick={() => genImage.mutate({ shotIndex: row.shotIndex })}
+          disabled={genImage.isPending || taskBusy || !imagePrompt.trim()}
+          className="glass-btn-base glass-btn-primary h-8 px-3 text-xs disabled:opacity-40"
+        >
+          {t('generateImage')}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!row.imageUrl) return
+            savePatch({ videoEndFrameUrl: row.imageUrl })
+          }}
+          disabled={patchRow.isPending || !row.imageUrl}
+          className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs disabled:opacity-40"
+        >
+          {t('setAsEndFrame')}
+        </button>
+        <button
+          type="button"
+          onClick={() => genVideo.mutate({ shotIndex: row.shotIndex })}
+          disabled={genVideo.isPending || taskBusy || !videoPrompt.trim() || !row.imageUrl}
+          className="glass-btn-base glass-btn-primary h-8 px-3 text-xs disabled:opacity-40"
+        >
+          {t('generateVideo')}
+        </button>
+      </div>
+
+      {bindingOpen && (
+        <BindingPanel
+          characters={characters}
+          scenes={scenes}
+          boundCharacterIds={boundCharacterIds}
+          boundSceneId={boundSceneId}
+          labels={{
+            characters: t('bindingTitle.characters'),
+            scene: t('bindingTitle.scene'),
+            empty: t('emptyLibrary'),
+            cancel: t('cancel'),
+            save: t('save'),
+          }}
+          onChange={(bindings) => {
+            savePatch({ bindings })
+          }}
+          onClose={() => setBindingOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Subcomponents ─────────────────────────────────────────────────
+
+function FieldArea(props: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  onBlur: () => void
+  savingLabel?: string | null
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[11px] font-semibold text-[var(--glass-text-tertiary)] uppercase tracking-wider flex items-center justify-between gap-2">
+        <span>{props.label}</span>
+        {props.savingLabel && (
+          <span className="text-[10px] font-normal normal-case tracking-normal text-[var(--glass-text-tertiary)] animate-pulse">
+            {props.savingLabel}
+          </span>
+        )}
+      </span>
+      <textarea
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value)}
+        onBlur={props.onBlur}
+        className="glass-field-input text-xs p-2 min-h-[52px] resize-y"
+      />
+    </label>
+  )
+}
+
+function MediaSlot(props: { label: string; imageUrl?: string | null }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[11px] font-semibold text-[var(--glass-text-tertiary)] uppercase tracking-wider">
+        {props.label}
+      </span>
+      <div className="aspect-square w-full rounded-lg overflow-hidden bg-[var(--glass-bg-muted)] border border-[var(--glass-stroke-base)] flex items-center justify-center">
+        {props.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={props.imageUrl} alt={props.label} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-xs text-[var(--glass-text-tertiary)]">—</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function VideoSlot(props: { label: string; videoUrl?: string | null }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[11px] font-semibold text-[var(--glass-text-tertiary)] uppercase tracking-wider">
+        {props.label}
+      </span>
+      <div className="aspect-square w-full rounded-lg overflow-hidden bg-[var(--glass-bg-muted)] border border-[var(--glass-stroke-base)] flex items-center justify-center">
+        {props.videoUrl ? (
+          <video src={props.videoUrl} controls className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-xs text-[var(--glass-text-tertiary)]">—</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AssetTag(props: { asset?: LxtProjectAsset; missingLabel: string }) {
+  if (!props.asset) {
+    return (
+      <span className="px-2 py-0.5 rounded-full bg-[var(--glass-tone-danger-bg)] text-[var(--glass-tone-danger-fg)]">
+        {props.missingLabel}
+      </span>
+    )
+  }
+  return (
+    <span className="px-2 py-0.5 rounded-full bg-[var(--glass-bg-muted)] text-[var(--glass-text-primary)] inline-flex items-center gap-1">
+      {props.asset.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={props.asset.imageUrl}
+          alt=""
+          className="w-4 h-4 rounded-full object-cover"
+        />
+      )}
+      {props.asset.name}
+    </span>
+  )
+}
+
+function BindingPanel(props: {
+  characters: LxtProjectAsset[]
+  scenes: LxtProjectAsset[]
+  boundCharacterIds: string[]
+  boundSceneId: string | null
+  labels: {
+    characters: string
+    scene: string
+    empty: string
+    cancel: string
+    save: string
+  }
+  onChange: (bindings: { characterAssetIds: string[]; sceneAssetId: string | null }) => void
+  onClose: () => void
+}) {
+  const [selectedCharacters, setSelectedCharacters] = useState<string[]>(props.boundCharacterIds)
+  const [selectedScene, setSelectedScene] = useState<string | null>(props.boundSceneId)
+
+  const toggleChar = (id: string) => {
+    setSelectedCharacters((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
+  }
+
+  return (
+    <div className="rounded-lg border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] p-3 flex flex-col gap-3">
+      <div>
+        <div className="text-xs font-semibold mb-1 text-[var(--glass-text-secondary)]">{props.labels.characters}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {props.characters.length === 0 && (
+            <span className="text-xs text-[var(--glass-text-tertiary)]">{props.labels.empty}</span>
+          )}
+          {props.characters.map((c) => {
+            const active = selectedCharacters.includes(c.id)
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => toggleChar(c.id)}
+                className={[
+                  'text-xs px-2 py-1 rounded-full border transition-all',
+                  active
+                    ? 'bg-[var(--glass-accent-from)] text-white border-transparent'
+                    : 'bg-transparent text-[var(--glass-text-secondary)] border-[var(--glass-stroke-base)] hover:bg-[var(--glass-bg-hover)]',
+                ].join(' ')}
+              >
+                {c.name}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div>
+        <div className="text-xs font-semibold mb-1 text-[var(--glass-text-secondary)]">{props.labels.scene}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {props.scenes.length === 0 && (
+            <span className="text-xs text-[var(--glass-text-tertiary)]">{props.labels.empty}</span>
+          )}
+          {props.scenes.map((s) => {
+            const active = selectedScene === s.id
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setSelectedScene(active ? null : s.id)}
+                className={[
+                  'text-xs px-2 py-1 rounded-full border transition-all',
+                  active
+                    ? 'bg-[var(--glass-accent-from)] text-white border-transparent'
+                    : 'bg-transparent text-[var(--glass-text-secondary)] border-[var(--glass-stroke-base)] hover:bg-[var(--glass-bg-hover)]',
+                ].join(' ')}
+              >
+                {s.name}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={props.onClose}
+          className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs"
+        >
+          {props.labels.cancel}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            props.onChange({
+              characterAssetIds: selectedCharacters,
+              sceneAssetId: selectedScene,
+            })
+            props.onClose()
+          }}
+          className="glass-btn-base glass-btn-primary h-8 px-3 text-xs"
+        >
+          {props.labels.save}
+        </button>
+      </div>
+    </div>
+  )
+}

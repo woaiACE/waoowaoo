@@ -8,9 +8,10 @@ import LxtScriptStage from './components/LxtScriptStage'
 import LxtStoryboardStage from './components/LxtStoryboardStage'
 import LxtAssetsStage from './components/LxtAssetsStage'
 import LxtFinalScriptStage from './components/LxtFinalScriptStage'
+import LxtFinalFilmStage from './components/LxtFinalFilmStage'
 
 // LXT 支持的 stages
-const LXT_STAGES = ['lxt-script', 'lxt-storyboard', 'lxt-assets', 'lxt-final-script'] as const
+const LXT_STAGES = ['lxt-script', 'lxt-storyboard', 'lxt-assets', 'lxt-final-script', 'lxt-final-film'] as const
 type LxtStage = typeof LXT_STAGES[number]
 
 export interface LxtEpisodeItem {
@@ -84,12 +85,13 @@ export default function LxtWorkspace({
     { key: 'lxt-storyboard', label: t('tabs.storyboard') },
     { key: 'lxt-assets', label: t('tabs.assets') },
     { key: 'lxt-final-script', label: t('tabs.finalScript') },
+    { key: 'lxt-final-film', label: t('tabs.finalFilm') },
   ]
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Stage 导航 */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--glass-bg-muted)] w-fit">
+      {/* Stage 导航 — 居中对齐，与通用版保持一致 */}
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--glass-bg-muted)] w-fit self-center">
         {stageTabs.map(tab => (
           <button
             key={tab.key}
@@ -199,6 +201,7 @@ export default function LxtWorkspace({
                 <div className={effectiveStage !== 'lxt-storyboard' ? 'hidden' : ''}><LxtStoryboardStage /></div>
                 <div className={effectiveStage !== 'lxt-assets' ? 'hidden' : ''}><LxtAssetsStage /></div>
                 <div className={effectiveStage !== 'lxt-final-script' ? 'hidden' : ''}><LxtFinalScriptStage /></div>
+                <div className={effectiveStage !== 'lxt-final-film' ? 'hidden' : ''}><LxtFinalFilmStage /></div>
               </LxtWorkspaceStageRuntimeProvider>
             </LxtWorkspaceProvider>
           ) : (

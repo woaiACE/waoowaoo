@@ -175,6 +175,7 @@ export async function handleLxtAssetVoicePromptInferTask(job: Job<TaskJobData>) 
     emotion_intensity: typeof parsed.emotion_intensity === 'string' ? parsed.emotion_intensity : undefined,
     identity_lock: typeof parsed.identity_lock === 'string' ? parsed.identity_lock : undefined,
     seed: typeof parsed.seed === 'string' ? parsed.seed : undefined,
+    body_scale: typeof parsed.body_scale === 'string' && parsed.body_scale.trim() ? parsed.body_scale.trim() : undefined,
   }
 
   // 9. 序列化为 voicePrompt 字符串

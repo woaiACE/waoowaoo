@@ -203,6 +203,14 @@ export default function LxtFinalScriptStage() {
           >
             {isGenerating ? t('finalScript.generating') : t('finalScript.generateButton')}
           </button>
+          <button
+            type="button"
+            disabled={isGenerating}
+            onClick={() => runtime.onStageChange('lxt-final-film')}
+            className="glass-btn-base glass-btn-secondary h-9 px-5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {t('finalScript.nextStepBtn')}
+          </button>
         </div>
       </div>
 

@@ -16,6 +16,7 @@ const eslintConfig = [
       "node_modules/**",
       ".agent/**",
       ".next/**",
+      ".mcp/**",
       "out/**",
       "build/**",
       "coverage/**",

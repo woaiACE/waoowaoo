@@ -81,6 +81,8 @@ const TASK_INTENT_BY_TYPE: Record<TaskType, TaskIntent> = {
   [TASK_TYPE.LXT_ASSET_VOICE_DESIGN]: 'generate',
   [TASK_TYPE.LXT_ASSET_VOICE_PROMPT_INFER]: 'process',
   [TASK_TYPE.LXT_ASSET_IMAGE]: 'generate',
+  [TASK_TYPE.LXT_FINAL_FILM_IMAGE]: 'generate',
+  [TASK_TYPE.LXT_FINAL_FILM_VIDEO]: 'generate',
 }
 
 export function resolveTaskIntent(taskType: string | null | undefined): TaskIntent {

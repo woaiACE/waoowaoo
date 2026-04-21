@@ -43,24 +43,56 @@ export const POST = apiHandler(async (
 
   const locale = resolveRequiredTaskLocale(request, body)
 
-  const payload = {
-    assetId,
-    kind: asset.kind,
-    displayMode: 'detail' as const,
+  const count = typeof body.count === 'number' ? Math.min(Math.max(1, Math.round(body.count)), 4) : 1
+
+  if (count === 1) {
+    const payload = {
+      assetId,
+      kind: asset.kind,
+      displayMode: 'detail' as const,
+    }
+
+    const result = await submitTask({
+      userId: session.user.id,
+      locale,
+      requestId: getRequestId(request),
+      projectId,
+      type: TASK_TYPE.LXT_ASSET_IMAGE,
+      targetType: 'LxtProjectAsset',
+      targetId: assetId,
+      payload,
+      dedupeKey: `${TASK_TYPE.LXT_ASSET_IMAGE}:${assetId}`,
+      billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.LXT_ASSET_IMAGE, payload),
+    })
+
+    return NextResponse.json({ ...result, count: 1 })
   }
 
-  const result = await submitTask({
-    userId: session.user.id,
-    locale,
-    requestId: getRequestId(request),
-    projectId,
-    type: TASK_TYPE.LXT_ASSET_IMAGE,
-    targetType: 'LxtProjectAsset',
-    targetId: assetId,
-    payload,
-    dedupeKey: `${TASK_TYPE.LXT_ASSET_IMAGE}:${assetId}`,
-    billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.LXT_ASSET_IMAGE, payload),
-  })
+  // Multi-image: submit count tasks with different slot indices
+  const taskResults = await Promise.all(
+    Array.from({ length: count }, async (_, slotIndex) => {
+      const payload = {
+        assetId,
+        kind: asset.kind,
+        displayMode: 'detail' as const,
+        slotIndex,
+        totalSlots: count,
+      }
+      return submitTask({
+        userId: session.user.id,
+        locale,
+        requestId: getRequestId(request),
+        projectId,
+        type: TASK_TYPE.LXT_ASSET_IMAGE,
+        targetType: 'LxtProjectAsset',
+        targetId: assetId,
+        payload,
+        // Use timestamp to prevent deduplication between slots
+        dedupeKey: `${TASK_TYPE.LXT_ASSET_IMAGE}:${assetId}:s${slotIndex}:${Date.now()}`,
+        billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.LXT_ASSET_IMAGE, payload),
+      })
+    })
+  )
 
-  return NextResponse.json(result)
+  return NextResponse.json({ tasks: taskResults, count })
 })

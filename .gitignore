@@ -42,6 +42,9 @@ yarn-error.log*
 .artifacts/
 .agent/
 .shared/
+.mcp/
+.cursor_mcp_setup_check.txt
+build-output.txt
 
 # typescript
 *.tsbuildinfo

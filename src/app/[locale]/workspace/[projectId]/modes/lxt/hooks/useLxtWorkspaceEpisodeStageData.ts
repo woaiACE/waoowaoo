@@ -13,5 +13,6 @@ export function useLxtWorkspaceEpisodeStageData() {
     srtContent: episode?.srtContent || '',
     shotListContent: episode?.shotListContent || '',
     scriptContent: episode?.scriptContent || '',
+    finalFilmContent: episode?.finalFilmContent || '',
   }
 }

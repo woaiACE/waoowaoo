@@ -40,6 +40,7 @@ export interface VoiceDesignStructuredParams {
   emotion_intensity?: string
   identity_lock?: string
   seed?: string
+  body_scale?: string  // 体型规模提示词（从音调推导，用于图像生成前缀）
 }
 
 /**

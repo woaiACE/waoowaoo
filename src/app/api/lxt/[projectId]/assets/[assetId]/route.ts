@@ -26,6 +26,7 @@ export const PATCH = apiHandler(async (
   if (body.description !== undefined) updateData.description = body.description
   if (typeof body.profileConfirmed === 'boolean') updateData.profileConfirmed = body.profileConfirmed
   if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl
+  if (body.imageUrls !== undefined) updateData.imageUrls = body.imageUrls
   if (body.imageMediaId !== undefined) updateData.imageMediaId = body.imageMediaId
   if (body.voiceId !== undefined) updateData.voiceId = body.voiceId
   if (body.voiceType !== undefined) updateData.voiceType = body.voiceType

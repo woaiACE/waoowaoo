@@ -3,7 +3,8 @@
     "script": "Script",
     "storyboard": "Storyboard",
     "assets": "Assets",
-    "finalScript": "Final Script"
+    "finalScript": "Final Script",
+    "finalFilm": "Final Film"
   },
   "episodeList": "Episodes",
   "newEpisodePlaceholder": "Episode name",
@@ -11,5 +12,37 @@
   "novelTextPlaceholder": "Paste or type the source novel text...",
   "noNovelText": "No source text yet. Click Edit to add.",
   "noEpisodesHint": "No episodes yet. Create your first episode below.",
-  "createFirstEpisode": "Create First Episode"
+  "createFirstEpisode": "Create First Episode",
+  "finalFilm": {
+    "noRows": "No storyboard rows yet. Generate the production script first.",
+    "reconcile": "Sync shots",
+    "copyText": "Copy",
+    "imagePrompt": "Image prompt",
+    "videoPrompt": "Video prompt",
+    "imageSlot": "First frame",
+    "endFrameSlot": "End frame",
+    "videoSlot": "Video",
+    "generateImage": "Generate image",
+    "generateVideo": "Generate video",
+    "setAsEndFrame": "Set as end frame",
+    "bindAssets": "Bind assets",
+    "characters": "Characters",
+    "scene": "Scene",
+    "noBindings": "None",
+    "missingAsset": "Asset removed",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "pending": "Queued",
+    "processing": "Processing…",
+    "failed": "Failed",
+    "shotLabelFallback": "Shot {n}",
+    "bindingTitle": {
+      "characters": "Characters",
+      "scene": "Scene"
+    },
+    "emptyLibrary": "Asset library is empty",
+    "videoNotImplemented": "Video generation provider not wired up yet"
+  }
 }

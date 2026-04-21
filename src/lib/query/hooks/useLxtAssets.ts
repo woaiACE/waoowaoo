@@ -25,6 +25,7 @@ export interface LxtProjectAsset {
   voicePrompt?: string | null
   customVoiceUrl?: string | null
   imageUrl?: string | null
+  imageUrls?: string | null  // JSON array of generated image URLs
   imageMediaId?: string | null
   createdAt: string
   updatedAt: string
@@ -178,14 +179,32 @@ export function useUpdateLxtAssetProfile(projectId: string | null) {
 export function useGenerateLxtAssetImage(projectId: string | null) {
   const invalidate = useInvalidate(projectId)
   return useMutation({
-    mutationFn: async (assetId: string) => {
+    mutationFn: async ({ assetId, count = 1 }: { assetId: string; count?: number }) => {
       if (!projectId) throw new Error('Project ID is required')
       const res = await apiFetch(`/api/lxt/${projectId}/assets/${assetId}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ count }),
       })
       if (!res.ok) await readError(res, 'Failed to submit image generation')
+      return await res.json()
+    },
+    onSuccess: invalidate,
+  })
+}
+
+/** 选择主图（从多图生成结果中选一张设为 imageUrl）*/
+export function useSelectLxtAssetImage(projectId: string | null) {
+  const invalidate = useInvalidate(projectId)
+  return useMutation({
+    mutationFn: async ({ assetId, imageUrl }: { assetId: string; imageUrl: string }) => {
+      if (!projectId) throw new Error('Project ID is required')
+      const res = await apiFetch(`/api/lxt/${projectId}/assets/${assetId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl }),
+      })
+      if (!res.ok) await readError(res, 'Failed to select image')
       return await res.json()
     },
     onSuccess: invalidate,

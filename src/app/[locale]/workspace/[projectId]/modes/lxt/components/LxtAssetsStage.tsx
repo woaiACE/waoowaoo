@@ -18,12 +18,14 @@ import {
   useUpdateLxtAssetProfile,
   useUpdateLxtAssetVoice,
   useGenerateLxtAssetImage,
+  useSelectLxtAssetImage,
 } from '@/lib/query/hooks/useLxtAssets'
 import { useLxtAnalyzeAssetsRunStream } from '@/lib/query/hooks/useLxtAnalyzeAssetsRunStream'
 import { useActiveTasks } from '@/lib/query/hooks/useTaskStatus'
 import LLMStageStreamCard, { type LLMStageViewItem } from '@/components/llm-console/LLMStageStreamCard'
 import type { CharacterProfileData } from '@/types/character-profile'
 import CharacterProfileDialog from '../../novel-promotion/components/assets/CharacterProfileDialog'
+import { LxtCharacterEditModal } from './LxtCharacterEditModal'
 // ── Shared components from common mode ───────────────
 import AssetFilterBar, {
   type AssetKindFilter,
@@ -66,6 +68,16 @@ export default function LxtAssetsStage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [confirmingAssetId, setConfirmingAssetId] = useState<string | null>(null)
   const [confirmingStreamText, setConfirmingStreamText] = useState('')
+
+  // 形象描述提示词编辑弹框
+  type EditingDescription = {
+    assetId: string
+    kind: 'character' | 'location' | 'prop'
+    name: string
+    introduction: string | null
+    description: string
+  } | null
+  const [editingDescription, setEditingDescription] = useState<EditingDescription>(null)
 
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'error' = 'success') => {
     setToast({ message, type })
@@ -122,6 +134,7 @@ export default function LxtAssetsStage() {
   const updateVoiceMutation = useUpdateLxtAssetVoice(projectId || null)
   const updateProfileMutation = useUpdateLxtAssetProfile(projectId || null)
   const generateImageMutation = useGenerateLxtAssetImage(projectId || null)
+  const selectImageMutation = useSelectLxtAssetImage(projectId || null)
 
   const assets = assetsQuery.data?.assets ?? []
   const counts = assetsQuery.data?.counts ?? { character: 0, location: 0, prop: 0 }
@@ -206,17 +219,35 @@ export default function LxtAssetsStage() {
     showToast('已删除', 'success')
   }
 
-  const handleGenerateImage = async (assetId: string) => {
+  const handleGenerateImage = async (assetId: string, count?: number) => {
     try {
-      await generateImageMutation.mutateAsync(assetId)
+      await generateImageMutation.mutateAsync({ assetId, count })
       showToast('图像生成已提交，完成后自动更新…', 'success')
     } catch {
       showToast('图像生成提交失败', 'error')
     }
   }
 
+  const handleSelectImage = async (assetId: string, imageUrl: string) => {
+    try {
+      await selectImageMutation.mutateAsync({ assetId, imageUrl })
+    } catch {
+      showToast('选择图片失败', 'error')
+    }
+  }
+
   const handleEditProfile = (asset: LxtProjectAsset) => {
     setEditingProfile({ assetId: asset.id, kind: asset.kind, name: asset.name })
+  }
+
+  const handleEditDescription = (asset: LxtProjectAsset) => {
+    setEditingDescription({
+      assetId: asset.id,
+      kind: asset.kind as 'character' | 'location' | 'prop',
+      name: asset.name,
+      introduction: asset.summary ?? null,
+      description: asset.description ?? '',
+    })
   }
 
   const handleSaveProfile = async (profileData: CharacterProfileData) => {
@@ -308,7 +339,7 @@ export default function LxtAssetsStage() {
       subtitle="先确认角色、场景、道具与音色，再进入制作脚本生成。"
       iconName="folderCards"
       shellClassName="min-h-[calc(100vh-14rem)]"
-      contentClassName="p-8"
+      contentClassName="p-4 md:p-6"
     >
       <div className="flex flex-col gap-6">
         <UnifiedAssetToolbar
@@ -365,21 +396,6 @@ export default function LxtAssetsStage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="glass-surface p-4">
-            <div className="text-xs text-[var(--glass-text-secondary)]">角色</div>
-            <div className="text-2xl font-bold mt-1">{counts.character}</div>
-          </div>
-          <div className="glass-surface p-4">
-            <div className="text-xs text-[var(--glass-text-secondary)]">场景</div>
-            <div className="text-2xl font-bold mt-1">{counts.location}</div>
-          </div>
-          <div className="glass-surface p-4">
-            <div className="text-xs text-[var(--glass-text-secondary)]">道具</div>
-            <div className="text-2xl font-bold mt-1">{counts.prop}</div>
-          </div>
-        </div>
-
         {assets.length > 0 && (
           <AssetFilterBar
             kindFilter={kindFilter}
@@ -412,7 +428,7 @@ export default function LxtAssetsStage() {
                     </h3>
                     <span className="text-xs text-[var(--glass-text-secondary)]">{items.length} 项</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                     {items.map((asset) => (
                       <LxtAssetCard
                         key={asset.id}
@@ -430,8 +446,10 @@ export default function LxtAssetsStage() {
                         onConfirmProfile={() => void handleConfirmProfile(asset)}
                         isConfirmingProfile={confirmingAssetId === asset.id}
                         confirmingStreamText={confirmingAssetId === asset.id ? confirmingStreamText : ''}
-                        onGenerateImage={() => void handleGenerateImage(asset.id)}
+                        onGenerateImage={(count) => void handleGenerateImage(asset.id, count)}
                         isGeneratingImage={activeImageGenIds.has(asset.id)}
+                        onSelectImage={(imageUrl) => void handleSelectImage(asset.id, imageUrl)}
+                        onEditDescription={() => handleEditDescription(asset)}
                       />
                     ))}
                   </div>
@@ -439,6 +457,24 @@ export default function LxtAssetsStage() {
               )
             })}
           </div>
+        )}
+
+        {editingDescription && (
+          <LxtCharacterEditModal
+            projectId={projectId}
+            assetId={editingDescription.assetId}
+            assetKind={editingDescription.kind}
+            characterName={editingDescription.name}
+            introduction={editingDescription.introduction}
+            description={editingDescription.description}
+            isGeneratingImage={activeImageGenIds.has(editingDescription.assetId)}
+            onClose={() => setEditingDescription(null)}
+            onSave={async () => {
+              setEditingDescription(null)
+              await assetsQuery.refetch()
+              showToast('已保存', 'success')
+            }}
+          />
         )}
 
         {editingProfile?.kind === 'character' && (() => {
@@ -457,6 +493,8 @@ export default function LxtAssetsStage() {
             />
           )
         })()}
+
+
 
         <GlobalAssetPicker
           isOpen={!!picker}

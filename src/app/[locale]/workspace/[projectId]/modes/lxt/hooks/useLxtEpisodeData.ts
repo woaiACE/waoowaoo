@@ -13,6 +13,7 @@ export interface LxtEpisode {
   srtContent?: string | null
   shotListContent?: string | null
   scriptContent?: string | null
+  finalFilmContent?: string | null
   createdAt: string
   updatedAt: string
 }

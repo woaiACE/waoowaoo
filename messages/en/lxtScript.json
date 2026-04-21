@@ -99,6 +99,7 @@
     "noStoryboard": "No storyboard has been generated for this episode yet. Please complete the \"Generate Storyboard\" step first.",
     "goToStoryboardStage": "Go to Storyboard Stage",
     "minimize": "Minimize",
-    "streamBadge": "Production Script running"
+    "streamBadge": "Production Script running",
+    "nextStepBtn": "Next: Final Film →"
   }
 }

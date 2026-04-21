@@ -21,6 +21,7 @@ import {
   handleIpImageCharacter,
 } from '@/lib/ip-mode/handlers/ip-task-handlers'
 import { handleLxtAssetImageTask } from './handlers/lxt-asset-image-task-handler'
+import { handleLxtFinalFilmImageTask } from './handlers/lxt-final-film-task-handlers'
 
 type AnyObj = Record<string, unknown>
 
@@ -61,6 +62,8 @@ async function processImageTask(job: Job<TaskJobData>) {
     // LXT 剧本模式
     case TASK_TYPE.LXT_ASSET_IMAGE:
       return await handleLxtAssetImageTask(job)
+    case TASK_TYPE.LXT_FINAL_FILM_IMAGE:
+      return await handleLxtFinalFilmImageTask(job)
     default:
       throw new Error(`Unsupported image task type: ${job.data.type}`)
   }
