@@ -93,3 +93,30 @@ export function useGenerateLxtFinalFilmVideo(projectId: string | null, episodeId
     },
   })
 }
+
+/**
+ * 从制作脚本自动填充文案/提示词 + 资产库自动绑定角色/场景
+ *
+ * 服务端策略：
+ *  - 已有手动填写的字段不会被覆盖（只填空字段）
+ *  - 角色/场景按名称精确匹配资产库
+ *  - 同时执行骨架 reconcile（确保行数与分镜一致）
+ */
+export function useAutoFillLxtFinalFilm(projectId: string | null, episodeId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      if (!projectId || !episodeId) throw new Error('projectId/episodeId required')
+      const res = await apiFetch(`/api/lxt/${projectId}/final-film/${episodeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ autoFillFromScript: true }),
+      })
+      if (!res.ok) await readError(res, 'Failed to auto-fill final-film rows')
+      return await res.json()
+    },
+    onSuccess: () => {
+      if (projectId && episodeId) void invalidateEpisode(qc, projectId, episodeId)
+    },
+  })
+}

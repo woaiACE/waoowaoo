@@ -43,6 +43,8 @@
       "scene": "Scene"
     },
     "emptyLibrary": "Asset library is empty",
-    "videoNotImplemented": "Video generation provider not wired up yet"
+    "videoNotImplemented": "Video generation provider not wired up yet",
+    "autoFill": "Auto-fill",
+    "autoFillTooltip": "Auto-fill copy and prompts from the production script, and auto-bind characters/scenes from the asset library (only fills empty fields)"
   }
 }

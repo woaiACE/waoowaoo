@@ -11,6 +11,8 @@ import {
   type LxtFinalFilmRow,
   type LxtFinalFilmRowBindings,
 } from '@/lib/lxt/final-film'
+import { parseLxtScript } from '@/lib/lxt/parse-script'
+import { autoBindAssetsFromShotList } from '@/lib/lxt/auto-bind'
 
 /**
  * PATCH /api/lxt/[projectId]/final-film/[episodeId]
@@ -23,6 +25,8 @@ import {
  *  - { rows: Array<{ shotIndex: number } & Partial<LxtFinalFilmRow>> }（批量）
  *  或
  *  - { reconcile: true }（与当前 shotListContent 做骨架对齐）
+ *  或
+ *  - { autoFillFromScript: true }（从制作脚本自动填充文案/提示词 + 资产库自动绑定角色/场景）
  */
 export const PATCH = apiHandler(async (
   request: NextRequest,
@@ -38,6 +42,7 @@ export const PATCH = apiHandler(async (
     patch?: Partial<LxtFinalFilmRow> & { bindings?: LxtFinalFilmRowBindings }
     rows?: Array<Partial<LxtFinalFilmRow> & { shotIndex: number }>
     reconcile?: boolean
+    autoFillFromScript?: boolean
   }
 
   const patches: Array<{ shotIndex: number; patch: Partial<LxtFinalFilmRow> }> = []
@@ -50,22 +55,61 @@ export const PATCH = apiHandler(async (
     }
   } else if (typeof body.shotIndex === 'number' && body.patch && typeof body.patch === 'object') {
     patches.push({ shotIndex: body.shotIndex, patch: body.patch })
-  } else if (!body.reconcile) {
-    throw new ApiError('INVALID_PARAMS', { message: 'shotIndex+patch | rows[] | reconcile=true required' })
+  } else if (!body.reconcile && !body.autoFillFromScript) {
+    throw new ApiError('INVALID_PARAMS', { message: 'shotIndex+patch | rows[] | reconcile=true | autoFillFromScript=true required' })
   }
 
   const updated = await prisma.$transaction(async (tx) => {
     const current = await tx.lxtEpisode.findUnique({
       where: { id: episodeId },
-      select: { id: true, finalFilmContent: true, shotListContent: true },
+      select: { id: true, finalFilmContent: true, shotListContent: true, scriptContent: true },
     })
     if (!current) throw new ApiError('NOT_FOUND')
 
     let content = parseFinalFilmContent(current.finalFilmContent)
 
-    if (body.reconcile) {
+    if (body.reconcile || body.autoFillFromScript) {
       const rows = reconcileRowsWithShotList(content.rows, current.shotListContent)
       content = { version: FINAL_FILM_CONTENT_VERSION, rows }
+    }
+
+    if (body.autoFillFromScript) {
+      // 1. 从制作脚本解析文案/提示词
+      const scriptShots = parseLxtScript(current.scriptContent)
+
+      // 2. 从资产库按名称匹配角色/场景
+      const assets = await tx.lxtProjectAsset.findMany({
+        where: { lxtProject: { projectId } },
+        select: { id: true, name: true, kind: true },
+      })
+      const bindings = autoBindAssetsFromShotList(current.shotListContent ?? '', assets)
+      const bindMap = new Map(bindings.map((b) => [b.shotIndex, b]))
+
+      // 3. merge 进成片行（只填空字段，已有手动编辑的不覆盖）
+      for (const s of scriptShots) {
+        const bind = bindMap.get(s.shotIndex)
+        const patch: Partial<LxtFinalFilmRow> = {}
+
+        const existingRow = content.rows.find((r) => r.shotIndex === s.shotIndex)
+        if (s.copyText    && !existingRow?.copyText)    patch.copyText    = s.copyText
+        if (s.imagePrompt && !existingRow?.imagePrompt) patch.imagePrompt = s.imagePrompt
+        if (s.videoPrompt && !existingRow?.videoPrompt) patch.videoPrompt = s.videoPrompt
+
+        if (bind) {
+          const existingBindings = existingRow?.bindings
+          const hasChars  = (existingBindings?.characterAssetIds?.length ?? 0) > 0
+          const hasScene  = !!existingBindings?.sceneAssetId
+
+          patch.bindings = {
+            characterAssetIds: hasChars  ? (existingBindings?.characterAssetIds ?? []) : bind.characterAssetIds,
+            sceneAssetId:      hasScene  ? (existingBindings?.sceneAssetId ?? null)     : bind.sceneAssetId,
+          }
+        }
+
+        if (Object.keys(patch).length > 0) {
+          content = applyRowPatch(content, s.shotIndex, patch)
+        }
+      }
     }
 
     for (const { shotIndex, patch } of patches) {

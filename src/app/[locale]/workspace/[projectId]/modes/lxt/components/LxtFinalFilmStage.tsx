@@ -1,5 +1,6 @@
 'use client'
 
+import { AppIcon } from '@/components/ui/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
@@ -18,6 +19,7 @@ import {
   useReconcileLxtFinalFilm,
   useGenerateLxtFinalFilmImage,
   useGenerateLxtFinalFilmVideo,
+  useAutoFillLxtFinalFilm,
 } from '@/lib/query/hooks/useLxtFinalFilm'
 import { useTaskTargetStateMap, type TaskTargetState } from '@/lib/query/hooks/useTaskTargetStateMap'
 
@@ -96,6 +98,7 @@ export default function LxtFinalFilmStage() {
   }, [rows, episodeId, projectId, getState, qc])
 
   const reconcileMutation = useReconcileLxtFinalFilm(projectId, episodeId || null)
+  const autoFillMutation = useAutoFillLxtFinalFilm(projectId, episodeId || null)
 
   if (!episodeId) {
     return (
@@ -115,7 +118,15 @@ export default function LxtFinalFilmStage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => autoFillMutation.mutate()}
+          disabled={autoFillMutation.isPending}
+          className="glass-btn-base glass-btn-primary h-8 px-3 text-xs disabled:opacity-40"
+        >
+          {autoFillMutation.isPending ? '…' : t('autoFill')}
+        </button>
         <button
           type="button"
           onClick={() => reconcileMutation.mutate()}
@@ -259,9 +270,21 @@ function FinalFilmRow({
         </div>
 
         {/* 首帧图 */}
-        <MediaSlot
+        <FirstFrameSlot
           label={t('imageSlot')}
           imageUrl={row.imageUrl}
+          imagePrompt={imagePrompt}
+          taskPhase={taskState?.phase ?? null}
+          boundCharacterIds={boundCharacterIds}
+          boundSceneId={boundSceneId}
+          assetById={assetById}
+          onGenerate={() => genImage.mutate({ shotIndex: row.shotIndex })}
+          isGenerating={genImage.isPending}
+          generateLabel={t('generateImage')}
+          pendingLabel={t('pending')}
+          processingLabel={t('processing')}
+          noBindingsLabel={t('noBindings')}
+          missingAssetLabel={t('missingAsset')}
         />
 
         {/* 尾帧图 */}
@@ -274,24 +297,6 @@ function FinalFilmRow({
         <VideoSlot label={t('videoSlot')} videoUrl={row.videoUrl} />
       </div>
 
-      {/* 绑定摘要 */}
-      <div className="flex items-center gap-2 flex-wrap text-xs">
-        <span className="text-[var(--glass-text-tertiary)]">{t('characters')}:</span>
-        {boundCharacterIds.length === 0 ? (
-          <span className="text-[var(--glass-text-tertiary)]">{t('noBindings')}</span>
-        ) : (
-          boundCharacterIds.map((id) => (
-            <AssetTag key={id} asset={assetById.get(id)} missingLabel={t('missingAsset')} />
-          ))
-        )}
-        <span className="ml-3 text-[var(--glass-text-tertiary)]">{t('scene')}:</span>
-        {boundSceneId ? (
-          <AssetTag asset={assetById.get(boundSceneId)} missingLabel={t('missingAsset')} />
-        ) : (
-          <span className="text-[var(--glass-text-tertiary)]">{t('noBindings')}</span>
-        )}
-      </div>
-
       {/* 操作按钮组 */}
       <div className="flex items-center gap-2 flex-wrap">
         <button
@@ -300,14 +305,6 @@ function FinalFilmRow({
           className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs"
         >
           {t('bindAssets')}
-        </button>
-        <button
-          type="button"
-          onClick={() => genImage.mutate({ shotIndex: row.shotIndex })}
-          disabled={genImage.isPending || taskBusy || !imagePrompt.trim()}
-          className="glass-btn-base glass-btn-primary h-8 px-3 text-xs disabled:opacity-40"
-        >
-          {t('generateImage')}
         </button>
         <button
           type="button"
@@ -379,6 +376,102 @@ function FieldArea(props: {
         className="glass-field-input text-xs p-2 min-h-[52px] resize-y"
       />
     </label>
+  )
+}
+
+function FirstFrameSlot(props: {
+  label: string
+  imageUrl?: string | null
+  imagePrompt?: string | null
+  taskPhase?: string | null
+  boundCharacterIds: string[]
+  boundSceneId: string | null
+  assetById: Map<string, LxtProjectAsset>
+  onGenerate: () => void
+  isGenerating: boolean
+  generateLabel: string
+  pendingLabel: string
+  processingLabel: string
+  noBindingsLabel: string
+  missingAssetLabel: string
+}) {
+  const {
+    imageUrl, imagePrompt, taskPhase, boundCharacterIds, boundSceneId, assetById,
+  } = props
+  const taskBusy = taskPhase === 'queued' || taskPhase === 'processing'
+  const canGenerate = !props.isGenerating && !taskBusy && !!imagePrompt?.trim()
+  const hasImage = !!imageUrl
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[11px] font-semibold text-[var(--glass-text-tertiary)] uppercase tracking-wider">
+        {props.label}
+      </span>
+
+      <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-[var(--glass-bg-muted)] border border-[var(--glass-stroke-base)]">
+        {hasImage && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl!} alt={props.label} className="w-full h-full object-cover" />
+        )}
+
+        {/* 任务进行中遮罩 */}
+        {taskBusy && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <span className="text-xs text-white">
+              {taskPhase === 'queued' ? props.pendingLabel : props.processingLabel}
+            </span>
+          </div>
+        )}
+
+        {/* 居中生成按钮：无图时醒目展示，有图时叠加半透明背景 */}
+        {!taskBusy && (
+          <button
+            type="button"
+            onClick={props.onGenerate}
+            disabled={!canGenerate}
+            className={[
+              'absolute inset-0 flex flex-col items-center justify-center gap-1 transition-colors',
+              hasImage
+                ? 'bg-black/30 hover:bg-black/50'
+                : 'hover:bg-[var(--glass-bg-hover)]',
+              !canGenerate ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
+            ].join(' ')}
+          >
+            {/* 图片生成图标 */}
+            <AppIcon
+              name="image"
+              className={['w-7 h-7', hasImage ? 'text-white' : 'text-[var(--glass-text-secondary)]'].join(' ')}
+            />
+            <span
+              className={[
+                'text-[11px] font-semibold',
+                hasImage ? 'text-white' : 'text-[var(--glass-text-secondary)]',
+              ].join(' ')}
+            >
+              {props.generateLabel}
+            </span>
+          </button>
+        )}
+      </div>
+
+      {/* 绑定标签 */}
+      <div className="flex flex-wrap gap-1 min-h-[20px]">
+        {boundCharacterIds.length === 0 && !boundSceneId ? (
+          <span className="text-[10px] text-[var(--glass-text-tertiary)]">
+            {props.noBindingsLabel}
+          </span>
+        ) : (
+          <>
+            {boundCharacterIds.map((id) => (
+              <AssetTag key={id} asset={assetById.get(id)} missingLabel={props.missingAssetLabel} />
+            ))}
+            {boundSceneId && (
+              <AssetTag asset={assetById.get(boundSceneId)} missingLabel={props.missingAssetLabel} />
+            )}
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 

@@ -43,6 +43,8 @@
       "scene": "场景"
     },
     "emptyLibrary": "资产库为空",
-    "videoNotImplemented": "视频生成尚未接入真实 provider，等待后续里程碑"
+    "videoNotImplemented": "视频生成尚未接入真实 provider，等待后续里程碑",
+    "autoFill": "自动填充",
+    "autoFillTooltip": "从制作脚本自动填充文案/提示词，并按角色场景名匹配资产库（只填空字段，不覆盖已有内容）"
   }
 }
