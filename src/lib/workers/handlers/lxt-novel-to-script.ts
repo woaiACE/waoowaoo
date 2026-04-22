@@ -7,6 +7,8 @@ import { logAIAnalysis } from '@/lib/logging/semantic'
 import { onProjectNameAvailable } from '@/lib/logging/file-writer'
 import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
 import { resolveAnalysisModel } from './resolve-analysis-model'
+import { createWorkerLLMStreamContext, createWorkerLLMStreamCallbacks } from './llm-stream'
+import { withInternalLLMStreamCallbacks } from '@/lib/llm-observe/internal-stream-context'
 import type { TaskJobData } from '@/lib/task/types'
 
 /**
@@ -31,12 +33,12 @@ export async function handleLxtNovelToScriptTask(job: Job<TaskJobData>) {
   })
   if (!project) throw new Error('Project not found')
 
-  const novelData = await prisma.novelPromotionProject.findUnique({
+  const lxtData = await prisma.lxtProject.findUnique({
     where: { projectId },
     select: { analysisModel: true },
   })
 
-  const episode = await prisma.novelPromotionEpisode.findUnique({
+  const episode = await prisma.lxtEpisode.findUnique({
     where: { id: episodeId },
     select: { id: true, novelText: true },
   })
@@ -47,7 +49,7 @@ export async function handleLxtNovelToScriptTask(job: Job<TaskJobData>) {
   const analysisModel = await resolveAnalysisModel({
     userId: job.data.userId,
     inputModel: payload.model,
-    projectAnalysisModel: novelData?.analysisModel,
+    projectAnalysisModel: lxtData?.analysisModel,
   })
 
   await reportTaskProgress(job, 10, {
@@ -82,20 +84,32 @@ export async function handleLxtNovelToScriptTask(job: Job<TaskJobData>) {
     stepTotal: 1,
   })
 
-  // 4. 调用 LLM
-  const result = await executeAiTextStep({
-    userId: job.data.userId,
-    model: analysisModel,
-    messages: [{ role: 'user', content: prompt }],
-    action: 'lxt_novel_to_script',
-    projectId,
-    meta: {
-      stepId: 'lxt_novel_to_script',
-      stepTitle: '小说转剧本',
-      stepIndex: 1,
-      stepTotal: 1,
-    },
-  })
+  // 4. 调用 LLM（流式回调，tokens 写入 DB 供前端轮询）
+  const streamContext = createWorkerLLMStreamContext(job, 'lxt_novel_to_script')
+  const streamCallbacks = createWorkerLLMStreamCallbacks(job, streamContext)
+  const result = await (async () => {
+    try {
+      return await withInternalLLMStreamCallbacks(
+        streamCallbacks,
+        async () =>
+          await executeAiTextStep({
+            userId: job.data.userId,
+            model: analysisModel,
+            messages: [{ role: 'user', content: prompt }],
+            action: 'lxt_novel_to_script',
+            projectId,
+            meta: {
+              stepId: 'lxt_novel_to_script',
+              stepTitle: '小说转剧本',
+              stepIndex: 1,
+              stepTotal: 1,
+            },
+          }),
+      )
+    } finally {
+      await streamCallbacks.flush()
+    }
+  })()
 
   await reportTaskProgress(job, 90, {
     stage: 'lxt_save',
@@ -104,7 +118,7 @@ export async function handleLxtNovelToScriptTask(job: Job<TaskJobData>) {
   })
 
   // 5. 保存结果到 episode.srtContent（复用现有字段）
-  await prisma.novelPromotionEpisode.update({
+  await prisma.lxtEpisode.update({
     where: { id: episodeId },
     data: { srtContent: result.text },
   })

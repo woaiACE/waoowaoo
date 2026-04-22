@@ -209,6 +209,11 @@ export {
 export {
     useLxtFinalScriptRunStream,
 } from './useLxtFinalScriptRunStream'
+export {
+    useLxtNovelToScriptRunStream,
+    type LxtNovelToScriptRunParams,
+    type LxtNovelToScriptRunResult,
+} from './useLxtNovelToScriptRunStream'
 
 export {
     useAssetTaskPresentation,

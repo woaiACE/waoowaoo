@@ -196,7 +196,7 @@ export const PROMPT_CATALOG: Record<PromptId, PromptCatalogEntry> = {
   },
   [PROMPT_IDS.LXT_SHOT_PHASE3_VIDEO_REFINE]: {
     pathStem: 'lxt-script/shot_phase3_video_refine',
-    variableKeys: ['acting_arc_json', 'spatial_context_json', 'scene_type'],
+    variableKeys: ['acting_arc_json', 'spatial_context_json', 'scene_type', 'image_prompt'],
   },
   // IP 角色模式
   [PROMPT_IDS.IP_FACE_DESCRIBE]: {

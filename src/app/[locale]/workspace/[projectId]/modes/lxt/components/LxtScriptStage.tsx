@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { apiFetch } from '@/lib/api-fetch'
-import { readApiErrorMessage } from '@/lib/api/read-error-message'
 import { useQueryClient } from '@tanstack/react-query'
 import GlassTextarea from '@/components/ui/primitives/GlassTextarea'
+import { useLxtNovelToScriptRunStream } from '@/lib/query/hooks/useLxtNovelToScriptRunStream'
+import { apiFetch } from '@/lib/api-fetch'
+import { readApiErrorMessage } from '@/lib/api/read-error-message'
 import { useLxtWorkspaceEpisodeStageData } from '../hooks/useLxtWorkspaceEpisodeStageData'
 import { useLxtWorkspaceProvider } from '../LxtWorkspaceProvider'
 import { useLxtWorkspaceStageRuntime } from '../LxtWorkspaceStageRuntimeContext'
@@ -48,32 +49,50 @@ export default function LxtScriptStage() {
   const novelTextDirty = novelTextDraft !== (novelText || '')
 
   const [instruction, setInstruction] = useState('')
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // 流式输出状态
-  const [reasoning, setReasoning] = useState('')
-  const [scriptText, setScriptText] = useState(srtContent || '')
   // 用户手动编辑标记
   const [editedScript, setEditedScript] = useState<string | null>(null)
 
   // 自动滚动 refs
   const reasoningRef = useRef<HTMLTextAreaElement>(null)
   const scriptRef = useRef<HTMLTextAreaElement>(null)
-  // AbortController for SSE stream cleanup
-  const abortRef = useRef<AbortController | null>(null)
 
-  // 组件卸载时取消进行中的流式请求
-  useEffect(() => {
-    return () => { abortRef.current?.abort() }
-  }, [])
+  const stream = useLxtNovelToScriptRunStream({ projectId, episodeId: episodeId ?? null })
 
-  // SSE 刷新后同步 srtContent
+  // 任务完成时刷新数据
+  const prevStatusRef = useRef<string>('idle')
   useEffect(() => {
-    if (srtContent && editedScript === null && !isGenerating) {
-      setScriptText(srtContent)
+    const status = stream.status
+    if (prevStatusRef.current !== status) {
+      prevStatusRef.current = status
+      if (status === 'completed') {
+        setEditedScript(null)
+        void onRefresh({ scope: 'all' })
+      }
     }
-  }, [srtContent, editedScript, isGenerating])
+  }, [stream.status, onRefresh])
+
+  // 从 stream step 读取实时文本
+  const activeStep = stream.orderedSteps.find((s) => s.id === 'lxt_novel_to_script') ?? stream.orderedSteps[0]
+  const streamReasoning = activeStep?.reasoningOutput ?? ''
+  const streamScriptText = activeStep?.textOutput ?? ''
+
+  // 自动滚动 reasoning
+  useEffect(() => {
+    const el = reasoningRef.current
+    if (el && streamReasoning) el.scrollTop = el.scrollHeight
+  }, [streamReasoning])
+
+  // 自动滚动 script
+  useEffect(() => {
+    const el = scriptRef.current
+    if (el && streamScriptText) el.scrollTop = el.scrollHeight
+  }, [streamScriptText])
+
+  const isGenerating = stream.isRunning || stream.isRecoveredRunning || stream.status === 'running'
+
+  // 展示文本：运行时用流式输出，否则用 DB 中的 srtContent（或用户编辑）
+  const reasoning = isGenerating ? streamReasoning : ''
+  const scriptText = isGenerating ? streamScriptText : (editedScript ?? srtContent ?? '')
 
   const handleSaveNovelText = useCallback(async () => {
     if (!projectId || !episodeId) return
@@ -97,89 +116,10 @@ export default function LxtScriptStage() {
 
   const handleGenerate = useCallback(async () => {
     if (!projectId || !episodeId || !novelText?.trim() || isGenerating) return
-
-    // 取消任何进行中的流请求
-    abortRef.current?.abort()
-    const ctrl = new AbortController()
-    abortRef.current = ctrl
-
-    setIsGenerating(true)
-    setError(null)
-    setReasoning('')
-    setScriptText('')
     setEditedScript(null)
-
-    try {
-      const res = await apiFetch('/api/lxt-script/generate-script', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, episodeId, instruction, locale }),
-        signal: ctrl.signal,
-      })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data?.error?.message || `HTTP ${res.status}`)
-      }
-
-      if (!res.body) throw new Error('No response body')
-
-      // 流式消费 SSE
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        // 保留最后一个可能不完整的行
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const jsonStr = line.slice(6)
-          try {
-            const event = JSON.parse(jsonStr) as {
-              kind: 'reasoning' | 'text' | 'done' | 'error'
-              delta?: string
-              message?: string
-            }
-            if (event.kind === 'reasoning' && event.delta) {
-              setReasoning((prev) => prev + event.delta)
-              // 自动滚动
-              requestAnimationFrame(() => {
-                const el = reasoningRef.current
-                if (el) el.scrollTop = el.scrollHeight
-              })
-            } else if (event.kind === 'text' && event.delta) {
-              setScriptText((prev) => prev + event.delta)
-              requestAnimationFrame(() => {
-                const el = scriptRef.current
-                if (el) el.scrollTop = el.scrollHeight
-              })
-            } else if (event.kind === 'error') {
-              throw new Error(event.message || 'Unknown error')
-            }
-            // 'done' — 流结束，不做特殊处理
-          } catch (parseErr) {
-            if (parseErr instanceof SyntaxError) continue
-            throw parseErr
-          }
-        }
-      }
-
-      // 刷新 episode 数据
-      await onRefresh({ scope: 'all' })
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setIsGenerating(false)
-    }
-  }, [projectId, episodeId, novelText, instruction, locale, isGenerating, onRefresh])
+    stream.reset()
+    await stream.run({ episodeId, instruction: instruction || undefined, locale })
+  }, [projectId, episodeId, novelText, isGenerating, instruction, locale, stream])
 
   const hasNovelText = !!novelText?.trim()
 
@@ -205,9 +145,9 @@ export default function LxtScriptStage() {
         </button>
       </div>
 
-      {error && (
+      {stream.status === 'failed' && stream.errorMessage && (
         <div className="glass-surface p-3 text-sm text-[var(--glass-tone-danger-fg)] border border-[var(--glass-tone-danger-stroke)]">
-          {error}
+          {stream.errorMessage}
         </div>
       )}
 
@@ -269,7 +209,7 @@ export default function LxtScriptStage() {
             <div className="rounded-xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] overflow-hidden ring-1 ring-[var(--glass-accent)]/20">
               <GlassTextarea
                 ref={scriptRef}
-                value={editedScript ?? scriptText}
+                value={scriptText}
                 onChange={(e) => setEditedScript(e.target.value)}
                 placeholder={t('stage.scriptPlaceholder')}
                 readOnly={isGenerating}
@@ -310,7 +250,7 @@ export default function LxtScriptStage() {
       )}
 
       {/* 下一步按鈕 */}
-      {!isGenerating && !!(editedScript ?? scriptText) && (
+      {!isGenerating && !!scriptText && (
         <div className="flex justify-end">
           <button
             type="button"

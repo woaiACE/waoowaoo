@@ -100,6 +100,7 @@ export const PATCH = apiHandler(async (
         if (s.copyText    && !existingRow?.copyText)    patch.copyText    = s.copyText
         if (s.imagePrompt && !existingRow?.imagePrompt) patch.imagePrompt = s.imagePrompt
         if (s.videoPrompt && !existingRow?.videoPrompt) patch.videoPrompt = s.videoPrompt
+        if (s.shotType    && !existingRow?.shotType)    patch.shotType    = s.shotType
 
         const existingBindings = existingRow?.bindings
         const hasChars = (existingBindings?.characterAssetIds?.length ?? 0) > 0

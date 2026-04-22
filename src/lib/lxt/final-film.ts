@@ -27,6 +27,7 @@ export interface LxtFinalFilmRow {
   videoEndFrameUrl?: string | null // 视频尾帧图
   videoPrompt?: string          // 视频提示词
   videoUrl?: string | null      // 视频
+  shotType?: string             // 景别（全景/中景/近景/特写等）
   bindings?: LxtFinalFilmRowBindings // 资产绑定关系（引用）
 }
 
@@ -76,6 +77,7 @@ function normalizeRow(row: unknown): LxtFinalFilmRow | null {
     videoEndFrameUrl: typeof r.videoEndFrameUrl === 'string' ? r.videoEndFrameUrl : null,
     videoPrompt: typeof r.videoPrompt === 'string' ? r.videoPrompt : undefined,
     videoUrl: typeof r.videoUrl === 'string' ? r.videoUrl : null,
+    shotType: typeof r.shotType === 'string' ? r.shotType : undefined,
     bindings: normalizeBindings(r.bindings),
   }
 }

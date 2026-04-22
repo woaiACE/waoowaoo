@@ -27,6 +27,7 @@ export interface LxtParsedScriptShot {
   copyText: string
   imagePrompt: string
   videoPrompt: string
+  shotType: string
   assetBindings?: LxtAssetBindings
 }
 
@@ -78,6 +79,7 @@ export function parseLxtScript(scriptContent: string | null | undefined): LxtPar
     copyText:      readField(shot.raw, ['镜头文案', '文案']),
     imagePrompt:   readField(shot.raw, ['图片提示词', '提示词']),
     videoPrompt:   readField(shot.raw, ['视频提示词']),
+    shotType:      readField(shot.raw, ['景别']),
     assetBindings: readAssetBindings(shot.raw),
   }))
 }

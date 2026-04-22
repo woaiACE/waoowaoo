@@ -56,6 +56,12 @@ The role fields in acting_arc_json should preserve the original character title,
 - If the role is an animal, anthropomorphic character, fantasy creature, or robot, explicitly preserve that identity instead of rewriting it as an ordinary human label
 - If extra clarification is needed, use forms like "Pig Mom (adult sow)" or "Pig Brother (young pig)", but never drop the original identity
 
+[Image Consistency Rule (Highest Priority)]
+The video prompt must be grounded in what is actually shown in the image prompt. The video's job is to animate this reference image — not to invent new content:
+- If the image prompt says "no characters" or describes a purely environmental scene, the video prompt must NOT include any character actions. Instead, describe environmental motion (shifting light, swaying plants, gentle camera move, etc.)
+- Every element (character, prop, scene detail) appearing in the video prompt must have a clear basis in the image prompt. Do not add elements that are absent from the image
+- If character actions in acting_arc_json contradict the image prompt (e.g., the image has no characters but the arc describes character movement), follow the image prompt and omit the contradicting character content
+
 [⚠️ Mandatory Rules]
 1. **Preserve original character identity and species information** — never flatten "Pig Mom / Fox Boss / Robot Assistant" into generic labels such as "middle-aged woman" or "young man"
 2. Avoid purely static descriptions; however, establishing shots may rely on environmental micro-movements instead of forcing complex character actions
@@ -75,6 +81,9 @@ First shot, {compact description}. Second shot, {compact description}. Third sho
 Keep the overall language tight, executable, and free of repeated modifiers.
 
 [Input Data]
+
+Current shot image prompt (Phase 2A output — visual reference for the video):
+{image_prompt}
 
 4-Frame Performance Arc (Phase 2B output):
 {acting_arc_json}

@@ -227,9 +227,16 @@ function FinalFilmRow({
           {row.shotIndex + 1}
         </div>
         <div className="flex-1 flex items-center justify-between gap-2">
-          <span className="text-sm font-semibold text-[var(--glass-text-primary)]">
-            {row.label || t('shotLabelFallback', { n: row.shotIndex + 1 })}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-[var(--glass-text-primary)]">
+              {row.label || t('shotLabelFallback', { n: row.shotIndex + 1 })}
+            </span>
+            {row.shotType && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/25">
+                {row.shotType}
+              </span>
+            )}
+          </div>
           {taskPhaseLabel && (
             <span
               className={[
@@ -285,6 +292,7 @@ function FinalFilmRow({
           taskPhase={taskState?.phase ?? null}
           boundCharacterIds={boundCharacterIds}
           boundSceneId={boundSceneId}
+          boundPropIds={boundPropIds}
           assetById={assetById}
           onGenerate={() => genImage.mutate({ shotIndex: row.shotIndex })}
           isGenerating={genImage.isPending}
@@ -397,6 +405,7 @@ function FirstFrameSlot(props: {
   taskPhase?: string | null
   boundCharacterIds: string[]
   boundSceneId: string | null
+  boundPropIds: string[]
   assetById: Map<string, LxtProjectAsset>
   onGenerate: () => void
   isGenerating: boolean
@@ -407,7 +416,7 @@ function FirstFrameSlot(props: {
   missingAssetLabel: string
 }) {
   const {
-    imageUrl, imagePrompt, taskPhase, boundCharacterIds, boundSceneId, assetById,
+    imageUrl, imagePrompt, taskPhase, boundCharacterIds, boundSceneId, boundPropIds, assetById,
   } = props
   const taskBusy = taskPhase === 'queued' || taskPhase === 'processing'
   const canGenerate = !props.isGenerating && !taskBusy && !!imagePrompt?.trim()
@@ -467,7 +476,7 @@ function FirstFrameSlot(props: {
 
       {/* 绑定标签 */}
       <div className="flex flex-wrap gap-1 min-h-[20px]">
-        {boundCharacterIds.length === 0 && !boundSceneId ? (
+        {boundCharacterIds.length === 0 && !boundSceneId && boundPropIds.length === 0 ? (
           <span className="text-[10px] text-[var(--glass-text-tertiary)]">
             {props.noBindingsLabel}
           </span>
@@ -479,6 +488,9 @@ function FirstFrameSlot(props: {
             {boundSceneId && (
               <AssetTag asset={assetById.get(boundSceneId)} missingLabel={props.missingAssetLabel} />
             )}
+            {boundPropIds.map((id) => (
+              <AssetTag key={id} asset={assetById.get(id)} missingLabel={props.missingAssetLabel} />
+            ))}
           </>
         )}
       </div>
@@ -521,6 +533,12 @@ function VideoSlot(props: { label: string; videoUrl?: string | null }) {
   )
 }
 
+const ASSET_KIND_COLOR: Record<string, string> = {
+  character: 'bg-blue-500/20 text-blue-300 border border-blue-500/25',
+  location:  'bg-emerald-500/20 text-emerald-300 border border-emerald-500/25',
+  prop:      'bg-orange-500/20 text-orange-300 border border-orange-500/25',
+}
+
 function AssetTag(props: { asset?: LxtProjectAsset; missingLabel: string }) {
   if (!props.asset) {
     return (
@@ -529,8 +547,9 @@ function AssetTag(props: { asset?: LxtProjectAsset; missingLabel: string }) {
       </span>
     )
   }
+  const colorClass = ASSET_KIND_COLOR[props.asset.kind] ?? 'bg-[var(--glass-bg-muted)] text-[var(--glass-text-primary)]'
   return (
-    <span className="px-2 py-0.5 rounded-full bg-[var(--glass-bg-muted)] text-[var(--glass-text-primary)] inline-flex items-center gap-1">
+    <span className={`px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${colorClass}`}>
       {props.asset.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img

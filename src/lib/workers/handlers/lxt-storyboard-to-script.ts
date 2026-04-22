@@ -26,11 +26,21 @@ function parseJsonResponse(text: string): JsonRecord {
   return parsed as JsonRecord
 }
 
+function extractShotType(raw: string): string {
+  // First try: standalone "景别：中景" line
+  const m1 = raw.match(/^景别\s*[：:]\s*(.+)$/m)
+  if (m1?.[1]?.trim()) return m1[1].trim()
+  // Second try: embedded in "画面内容：中景，..." from storyboard format
+  const m2 = raw.match(/画面内容\s*[：:][^\n]*(全景|大远景|远景|中景|近景|特写|半身像|全身像)/)
+  return m2 ? m2[1] : ''
+}
+
 function assembleShotOutput(
   label: string,
   phase1: JsonRecord,
   imagePropmt: string,
   videoPrompt: string,
+  shotType: string,
 ): string {
   const assetBindingsRaw = phase1['asset_bindings']
   const assetBindingsStr = assetBindingsRaw ? JSON.stringify(assetBindingsRaw) : null
@@ -39,7 +49,7 @@ function assembleShotOutput(
     `镜头文案:${String(phase1['镜头文案'] ?? '')}`,
     `图片提示词:${imagePropmt.trim()}`,
     `视频提示词:${videoPrompt.trim()}`,
-    `景别:`,
+    `景别:${shotType}`,
     `语音分镜:${String(phase1['语音分镜'] ?? '')}`,
     `音效:${String(phase1['音效'] ?? '')}`,
     ...(assetBindingsStr ? [`资产绑定:${assetBindingsStr}`] : []),
@@ -280,7 +290,8 @@ export async function handleLxtStoryboardToScriptTask(job: Job<TaskJobData>) {
       tpl.phase3
         .replace('{acting_arc_json}', actingArcJson)
         .replace('{spatial_context_json}', spatialContextJson)
-        .replace('{scene_type}', sceneType),
+        .replace('{scene_type}', sceneType)
+        .replace('{image_prompt}', imagePrompt),
       assetPromptContext ? `\n\n已确认的项目资产参考：\n${assetPromptContext}` : '',
     ].join('')
 
@@ -307,8 +318,9 @@ export async function handleLxtStoryboardToScriptTask(job: Job<TaskJobData>) {
     }))
 
     const videoPrompt = res3.text?.trim() ?? ''
+    const shotType = extractShotType(shot.raw)
 
-    const assembledOutput = assembleShotOutput(shot.label, phase1Json, imagePrompt, videoPrompt)
+    const assembledOutput = assembleShotOutput(shot.label, phase1Json, imagePrompt, videoPrompt, shotType)
 
     // 推送完整制作脚本作为该镜头步骤的最终文本，触发前端 step.complete
     completedShots += 1
