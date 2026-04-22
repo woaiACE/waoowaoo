@@ -46,8 +46,21 @@ Output JSON only, no markdown code block markers:
     "characters": [],
     "framing": "Left and center of frame show dense tree trunks and shrubs, right side opens to forest clearing, sky faintly visible above",
     "scene_type": "epic"
+  },
+  "asset_bindings": {
+    "characters": [],
+    "scenes": [],
+    "props": []
   }
 }
+
+[asset_bindings Rules]
+- Only select asset names from the "Confirmed Project Asset Reference" section below that actually appear in this shot — copy the names exactly as listed
+- characters: list of character names appearing in this shot (max 3-4)
+- scenes: list of scene names involved in this shot (can be multiple, e.g. starts indoors, ends outdoors)
+- props: list of prop names used in this shot
+- If a category has no assets in this shot, leave it as an empty array []
+- Do NOT invent or infer names; only use names that already exist in the "Confirmed Project Asset Reference"
 
 [Input Data]
 

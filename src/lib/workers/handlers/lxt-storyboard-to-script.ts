@@ -32,6 +32,8 @@ function assembleShotOutput(
   imagePropmt: string,
   videoPrompt: string,
 ): string {
+  const assetBindingsRaw = phase1['asset_bindings']
+  const assetBindingsStr = assetBindingsRaw ? JSON.stringify(assetBindingsRaw) : null
   return [
     label,
     `镜头文案:${String(phase1['镜头文案'] ?? '')}`,
@@ -40,6 +42,7 @@ function assembleShotOutput(
     `景别:`,
     `语音分镜:${String(phase1['语音分镜'] ?? '')}`,
     `音效:${String(phase1['音效'] ?? '')}`,
+    ...(assetBindingsStr ? [`资产绑定:${assetBindingsStr}`] : []),
   ].join('\n')
 }
 

@@ -40,7 +40,8 @@
     "shotLabelFallback": "Shot {n}",
     "bindingTitle": {
       "characters": "Characters",
-      "scene": "Scene"
+      "scene": "Scene",
+      "props": "Props"
     },
     "emptyLibrary": "Asset library is empty",
     "videoNotImplemented": "Video generation provider not wired up yet",

@@ -25,6 +25,7 @@ export interface AutoBindResult {
   shotIndex: number
   characterAssetIds: string[]
   sceneAssetId: string | null
+  propAssetIds: string[]
 }
 
 const IGNORE_NAMES = new Set([
@@ -72,24 +73,48 @@ export function autoBindAssetsFromShotList(
   // 构建名称 → id 映射（忽略大小写 + 空格）
   const charMap = new Map<string, string>()
   const sceneMap = new Map<string, string>()
+  const propMap = new Map<string, string>()
   for (const a of assets) {
     const key = normalizeName(a.name)
     if (!key) continue
     if (a.kind === 'character') charMap.set(key, a.id)
     if (a.kind === 'location') sceneMap.set(key, a.id)
+    if (a.kind === 'prop') propMap.set(key, a.id)
   }
 
   const shots = parseLxtShots(shotListContent)
   return shots.map((shot) => {
     const charNames = readLineValue(shot.raw, ['出场角色', '角色', '人物', '主角'])
     const sceneNames = readLineValue(shot.raw, ['场景', '地点', '环境'])
+    const propNames = readLineValue(shot.raw, ['道具', '关键道具', '物件', '主要道具'])
 
     const characterAssetIds = charNames
       .map((n) => charMap.get(n))
       .filter((id): id is string => !!id)
 
-    const sceneAssetId = sceneNames.map((n) => sceneMap.get(n)).find((id): id is string => !!id) ?? null
+    // 场景匹配：优先精确，miss 后降级为包含匹配
+    const sceneAssetId = findSceneId(sceneNames, sceneMap)
 
-    return { shotIndex: shot.index, characterAssetIds, sceneAssetId }
+    const propAssetIds = propNames
+      .map((n) => propMap.get(n))
+      .filter((id): id is string => !!id)
+
+    return { shotIndex: shot.index, characterAssetIds, sceneAssetId, propAssetIds }
   })
+}
+
+/** 精确匹配优先，miss 后降级为包含关系匹配 */
+function findSceneId(sceneNames: string[], sceneMap: Map<string, string>): string | null {
+  // 1. 精确匹配
+  for (const n of sceneNames) {
+    const id = sceneMap.get(n)
+    if (id) return id
+  }
+  // 2. 包含关系降级匹配（资产名包含查询词，或查询词包含资产名）
+  for (const n of sceneNames) {
+    for (const [key, id] of sceneMap) {
+      if (key.includes(n) || n.includes(key)) return id
+    }
+  }
+  return null
 }

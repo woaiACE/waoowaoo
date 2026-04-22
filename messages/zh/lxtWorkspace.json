@@ -40,7 +40,8 @@
     "shotLabelFallback": "分镜{n}",
     "bindingTitle": {
       "characters": "角色",
-      "scene": "场景"
+      "scene": "场景",
+      "props": "道具"
     },
     "emptyLibrary": "资产库为空",
     "videoNotImplemented": "视频生成尚未接入真实 provider，等待后续里程碑",

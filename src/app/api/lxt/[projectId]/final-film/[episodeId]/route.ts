@@ -74,18 +74,24 @@ export const PATCH = apiHandler(async (
     }
 
     if (body.autoFillFromScript) {
-      // 1. 从制作脚本解析文案/提示词
+      // 1. 从制作脚本解析文案/提示词（含 LLM 输出的 assetBindings）
       const scriptShots = parseLxtScript(current.scriptContent)
 
-      // 2. 从资产库按名称匹配角色/场景
+      // 2. 从资产库加载所有资产
       const assets = await tx.lxtProjectAsset.findMany({
         where: { lxtProject: { projectId } },
         select: { id: true, name: true, kind: true },
       })
+
+      // 3. 构建 名称→id 映射（用于 LLM 绑定名字 → ID 查找）
+      const assetNameMap = new Map<string, string>()
+      for (const a of assets) assetNameMap.set(a.name, a.id)
+
+      // 4. 正则绑定兜底（LLM 绑定缺失时使用）
       const bindings = autoBindAssetsFromShotList(current.shotListContent ?? '', assets)
       const bindMap = new Map(bindings.map((b) => [b.shotIndex, b]))
 
-      // 3. merge 进成片行（只填空字段，已有手动编辑的不覆盖）
+      // 5. merge 进成片行（只填空字段，已有手动编辑的不覆盖）
       for (const s of scriptShots) {
         const bind = bindMap.get(s.shotIndex)
         const patch: Partial<LxtFinalFilmRow> = {}
@@ -95,14 +101,37 @@ export const PATCH = apiHandler(async (
         if (s.imagePrompt && !existingRow?.imagePrompt) patch.imagePrompt = s.imagePrompt
         if (s.videoPrompt && !existingRow?.videoPrompt) patch.videoPrompt = s.videoPrompt
 
-        if (bind) {
-          const existingBindings = existingRow?.bindings
-          const hasChars  = (existingBindings?.characterAssetIds?.length ?? 0) > 0
-          const hasScene  = !!existingBindings?.sceneAssetId
+        const existingBindings = existingRow?.bindings
+        const hasChars = (existingBindings?.characterAssetIds?.length ?? 0) > 0
+        const hasScene = !!existingBindings?.sceneAssetId
+        const hasProps = (existingBindings?.propAssetIds?.length ?? 0) > 0
 
+        // 优先使用 Phase1 LLM 的 asset_bindings（精确名字查表），fallback 到正则绑定
+        let newCharIds: string[] = []
+        let newSceneId: string | null = null
+        let newPropIds: string[] = []
+
+        if (s.assetBindings) {
+          newCharIds = s.assetBindings.characters
+            .map((n) => assetNameMap.get(n))
+            .filter((id): id is string => !!id)
+          newSceneId = s.assetBindings.scenes
+            .map((n) => assetNameMap.get(n))
+            .find((id): id is string => !!id) ?? null
+          newPropIds = s.assetBindings.props
+            .map((n) => assetNameMap.get(n))
+            .filter((id): id is string => !!id)
+        } else if (bind) {
+          newCharIds = bind.characterAssetIds
+          newSceneId = bind.sceneAssetId
+          newPropIds = bind.propAssetIds
+        }
+
+        if (newCharIds.length > 0 || newSceneId || newPropIds.length > 0) {
           patch.bindings = {
-            characterAssetIds: hasChars  ? (existingBindings?.characterAssetIds ?? []) : bind.characterAssetIds,
-            sceneAssetId:      hasScene  ? (existingBindings?.sceneAssetId ?? null)     : bind.sceneAssetId,
+            characterAssetIds: hasChars ? (existingBindings?.characterAssetIds ?? []) : newCharIds,
+            sceneAssetId:      hasScene ? (existingBindings?.sceneAssetId ?? null)    : newSceneId,
+            propAssetIds:      hasProps ? (existingBindings?.propAssetIds ?? [])      : newPropIds,
           }
         }
 

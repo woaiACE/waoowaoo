@@ -45,6 +45,10 @@ export default function LxtFinalFilmStage() {
     () => (assets?.assets || []).filter((a) => a.kind === 'location'),
     [assets],
   )
+  const propAssets = useMemo(
+    () => (assets?.assets || []).filter((a) => a.kind === 'prop'),
+    [assets],
+  )
   const assetById = useMemo(() => {
     const map = new Map<string, LxtProjectAsset>()
     for (const a of assets?.assets || []) map.set(a.id, a)
@@ -147,6 +151,7 @@ export default function LxtFinalFilmStage() {
             assetById={assetById}
             characters={characterAssets}
             scenes={sceneAssets}
+            props={propAssets}
             taskState={getState(
               FINAL_FILM_TARGET_TYPE,
               buildFinalFilmTargetId(episodeId, row.shotIndex),
@@ -167,6 +172,7 @@ interface FinalFilmRowProps {
   assetById: Map<string, LxtProjectAsset>
   characters: LxtProjectAsset[]
   scenes: LxtProjectAsset[]
+  props: LxtProjectAsset[]
   taskState: TaskTargetState | null
 }
 
@@ -177,6 +183,7 @@ function FinalFilmRow({
   assetById,
   characters,
   scenes,
+  props,
   taskState,
 }: FinalFilmRowProps) {
   const t = useTranslations('lxtWorkspace.finalFilm')
@@ -204,6 +211,7 @@ function FinalFilmRow({
 
   const boundCharacterIds = row.bindings?.characterAssetIds ?? []
   const boundSceneId = row.bindings?.sceneAssetId ?? null
+  const boundPropIds = row.bindings?.propAssetIds ?? []
 
   const taskBusy = taskState?.phase === 'queued' || taskState?.phase === 'processing'
   const taskPhaseLabel =
@@ -331,11 +339,14 @@ function FinalFilmRow({
         <BindingPanel
           characters={characters}
           scenes={scenes}
+          props={props}
           boundCharacterIds={boundCharacterIds}
           boundSceneId={boundSceneId}
+          boundPropIds={boundPropIds}
           labels={{
             characters: t('bindingTitle.characters'),
             scene: t('bindingTitle.scene'),
+            props: t('bindingTitle.props'),
             empty: t('emptyLibrary'),
             cancel: t('cancel'),
             save: t('save'),
@@ -536,23 +547,33 @@ function AssetTag(props: { asset?: LxtProjectAsset; missingLabel: string }) {
 function BindingPanel(props: {
   characters: LxtProjectAsset[]
   scenes: LxtProjectAsset[]
+  props: LxtProjectAsset[]
   boundCharacterIds: string[]
   boundSceneId: string | null
+  boundPropIds: string[]
   labels: {
     characters: string
     scene: string
+    props: string
     empty: string
     cancel: string
     save: string
   }
-  onChange: (bindings: { characterAssetIds: string[]; sceneAssetId: string | null }) => void
+  onChange: (bindings: { characterAssetIds: string[]; sceneAssetId: string | null; propAssetIds: string[] }) => void
   onClose: () => void
 }) {
   const [selectedCharacters, setSelectedCharacters] = useState<string[]>(props.boundCharacterIds)
   const [selectedScene, setSelectedScene] = useState<string | null>(props.boundSceneId)
+  const [selectedProps, setSelectedProps] = useState<string[]>(props.boundPropIds)
 
   const toggleChar = (id: string) => {
     setSelectedCharacters((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
+  }
+
+  const toggleProp = (id: string) => {
+    setSelectedProps((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
   }
@@ -611,6 +632,32 @@ function BindingPanel(props: {
           })}
         </div>
       </div>
+      <div>
+        <div className="text-xs font-semibold mb-1 text-[var(--glass-text-secondary)]">{props.labels.props}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {props.props.length === 0 && (
+            <span className="text-xs text-[var(--glass-text-tertiary)]">{props.labels.empty}</span>
+          )}
+          {props.props.map((p) => {
+            const active = selectedProps.includes(p.id)
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => toggleProp(p.id)}
+                className={[
+                  'text-xs px-2 py-1 rounded-full border transition-all',
+                  active
+                    ? 'bg-[var(--glass-accent-from)] text-white border-transparent'
+                    : 'bg-transparent text-[var(--glass-text-secondary)] border-[var(--glass-stroke-base)] hover:bg-[var(--glass-bg-hover)]',
+                ].join(' ')}
+              >
+                {p.name}
+              </button>
+            )
+          })}
+        </div>
+      </div>
       <div className="flex items-center justify-end gap-2">
         <button
           type="button"
@@ -625,6 +672,7 @@ function BindingPanel(props: {
             props.onChange({
               characterAssetIds: selectedCharacters,
               sceneAssetId: selectedScene,
+              propAssetIds: selectedProps,
             })
             props.onClose()
           }}

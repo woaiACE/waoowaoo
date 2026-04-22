@@ -15,6 +15,7 @@ export const FINAL_FILM_CONTENT_VERSION = 1
 export interface LxtFinalFilmRowBindings {
   characterAssetIds: string[]
   sceneAssetId?: string | null
+  propAssetIds?: string[]
 }
 
 export interface LxtFinalFilmRow {
@@ -86,7 +87,10 @@ function normalizeBindings(raw: unknown): LxtFinalFilmRowBindings | undefined {
     ? b.characterAssetIds.filter((x): x is string => typeof x === 'string')
     : []
   const sceneAssetId = typeof b.sceneAssetId === 'string' ? b.sceneAssetId : null
-  return { characterAssetIds, sceneAssetId }
+  const propAssetIds = Array.isArray(b.propAssetIds)
+    ? b.propAssetIds.filter((x): x is string => typeof x === 'string')
+    : []
+  return { characterAssetIds, sceneAssetId, propAssetIds }
 }
 
 /**
@@ -105,7 +109,7 @@ export function deriveRowsFromShotList(shotListContent: string | null | undefine
     videoEndFrameUrl: null,
     videoPrompt: '',
     videoUrl: null,
-    bindings: { characterAssetIds: [], sceneAssetId: null },
+    bindings: { characterAssetIds: [], sceneAssetId: null, propAssetIds: [] },
   }))
 }
 
@@ -158,6 +162,10 @@ function mergeRow(base: LxtFinalFilmRow, patch: Partial<LxtFinalFilmRow>): LxtFi
         patch.bindings.sceneAssetId !== undefined
           ? patch.bindings.sceneAssetId
           : base.bindings?.sceneAssetId ?? null,
+      propAssetIds:
+        patch.bindings.propAssetIds !== undefined
+          ? patch.bindings.propAssetIds
+          : base.bindings?.propAssetIds ?? [],
     }
   }
   return next
