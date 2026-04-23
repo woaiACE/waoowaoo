@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import GlassTextarea from '@/components/ui/primitives/GlassTextarea'
 import LLMStageStreamCard, { type LLMStageViewItem } from '@/components/llm-console/LLMStageStreamCard'
+import { apiFetch } from '@/lib/api-fetch'
 import { useLxtFinalScriptRunStream } from '@/lib/query/hooks/useLxtFinalScriptRunStream'
 import { parseLxtShots } from '@/lib/lxt/parse-shots'
 import { useLxtWorkspaceEpisodeStageData } from '../hooks/useLxtWorkspaceEpisodeStageData'
@@ -127,14 +128,26 @@ export default function LxtFinalScriptStage() {
 
   const hasStoryboard = !!shotListContent?.trim()
 
+  const isGenerating = stream.isRunning || stream.isRecoveredRunning || stream.status === 'running'
+
+  const handleReanalyze = useCallback(async () => {
+    if (!window.confirm(t('finalScript.reanalyzeConfirm'))) return
+    if (!projectId || !episodeId || isGenerating) return
+    await apiFetch(`/api/lxt/${projectId}/episodes/${episodeId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scriptContent: null }),
+    })
+    setEditedScript(null)
+    await handleGenerate()
+  }, [projectId, episodeId, isGenerating, handleGenerate, t])
+
   // 是否展示流式卡片（运行中 / 失败时保留显示以展示错误）
   const showStreamCard =
     stream.isRunning ||
     stream.isRecoveredRunning ||
     stream.status === 'running' ||
     stream.status === 'failed'
-
-  const isGenerating = stream.isRunning || stream.isRecoveredRunning || stream.status === 'running'
 
   // 构建四阶段分组展示
   const shots = parseLxtShots(shotListContent ?? '')
@@ -195,6 +208,15 @@ export default function LxtFinalScriptStage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {!!scriptContent?.trim() && !isGenerating && (
+            <button
+              type="button"
+              onClick={() => void handleReanalyze()}
+              className="glass-btn-base glass-btn-secondary h-9 px-4 text-sm font-medium"
+            >
+              {t('finalScript.reanalyzeBtn')}
+            </button>
+          )}
           <button
             type="button"
             disabled={!hasStoryboard || isGenerating}

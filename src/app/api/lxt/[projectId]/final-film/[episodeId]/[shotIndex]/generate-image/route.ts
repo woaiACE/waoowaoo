@@ -53,6 +53,9 @@ export const POST = apiHandler(async (
     shotIndex,
     imagePrompt,
     bindings: row?.bindings || null,
+    gridPromptPrefix: content.gridPromptPrefix,
+    videoRatio: content.videoRatio,
+    artStyle: content.artStyle,
     displayMode: 'detail' as const,
   }
 

@@ -2,16 +2,16 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-echo.
+echo(
 echo ========================================================
-echo   MCP 开发工具 - 一键安装 ^& 配置脚本
-echo   安装内容：
-echo     1. code-index-mcp  (代码智能索引)
-echo     2. @playwright/mcp (浏览器自动化)
-echo     3. chrome-debug-mcp(Chrome 调试)
-echo   生成文件：.vscode\mcp.json  .vscode\settings.json
+echo   MCP setup script
+echo   Components:
+echo     1. code-index-mcp - code index service
+echo     2. @playwright/mcp - browser automation
+echo     3. chrome-debug-mcp - Chrome debug bridge
+echo   Output files: .vscode\mcp.json  .vscode\settings.json
 echo ========================================================
-echo.
+echo(
 
 cd /d "%~dp0"
 
@@ -20,7 +20,7 @@ REM  Step 0: 检测 Node.js / npm
 REM ─────────────────────────────────────────────────────────
 where node >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] 未检测到 Node.js，请先安装 https://nodejs.org/  (推荐 LTS)
+    echo [ERROR] 未检测到 Node.js，请先安装 https://nodejs.org/ ，推荐 LTS
     pause
     exit /b 1
 )

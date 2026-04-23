@@ -1,9 +1,12 @@
 'use client'
 
 import { AppIcon } from '@/components/ui/icons'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import ImagePreviewModal from '@/components/ui/ImagePreviewModal'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api-fetch'
+import { parseProfileData } from '@/types/character-profile'
 import { useLxtWorkspaceProvider } from '../LxtWorkspaceProvider'
 import { useLxtWorkspaceEpisodeStageData } from '../hooks/useLxtWorkspaceEpisodeStageData'
 import {
@@ -11,6 +14,7 @@ import {
   reconcileRowsWithShotList,
   FINAL_FILM_TARGET_TYPE,
   buildFinalFilmTargetId,
+  DEFAULT_GRID_PROMPT_PREFIX,
   type LxtFinalFilmRow,
 } from '@/lib/lxt/final-film'
 import { useLxtAssets, type LxtProjectAsset } from '@/lib/query/hooks/useLxtAssets'
@@ -104,6 +108,38 @@ export default function LxtFinalFilmStage() {
   const reconcileMutation = useReconcileLxtFinalFilm(projectId, episodeId || null)
   const autoFillMutation = useAutoFillLxtFinalFilm(projectId, episodeId || null)
 
+  // 四宫格提示前缀（从 finalFilmContent 顶层读取，可配置）
+  const parsedContent = useMemo(() => parseFinalFilmContent(finalFilmContent), [finalFilmContent])
+  const [gridPromptPrefix, setGridPromptPrefix] = useState(
+    parsedContent.gridPromptPrefix ?? DEFAULT_GRID_PROMPT_PREFIX,
+  )
+  useEffect(() => {
+    setGridPromptPrefix(parsedContent.gridPromptPrefix ?? DEFAULT_GRID_PROMPT_PREFIX)
+  }, [parsedContent.gridPromptPrefix])
+
+  const saveGridPromptPrefix = useCallback(
+    async (prefix: string) => {
+      if (!projectId || !episodeId) return
+      await apiFetch(`/api/lxt/${projectId}/final-film/${episodeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setGridPromptPrefix: prefix }),
+      })
+    },
+    [projectId, episodeId],
+  )
+
+  const handleReanalyze = useCallback(async () => {
+    if (!window.confirm(t('reanalyzeConfirm'))) return
+    if (!projectId || !episodeId) return
+    await apiFetch(`/api/lxt/${projectId}/episodes/${episodeId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ finalFilmContent: null }),
+    })
+    qc.invalidateQueries({ queryKey: ['lxtEpisodeData', projectId, episodeId] })
+  }, [projectId, episodeId, qc, t])
+
   if (!episodeId) {
     return (
       <div className="glass-surface p-6 text-sm text-[var(--glass-text-secondary)]">
@@ -122,7 +158,28 @@ export default function LxtFinalFilmStage() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* 四宫格提示前缀配置栏 */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-semibold text-[var(--glass-text-tertiary)] shrink-0 whitespace-nowrap">
+          {t('gridPromptPrefixLabel')}
+        </span>
+        <input
+          type="text"
+          value={gridPromptPrefix}
+          onChange={(e) => setGridPromptPrefix(e.target.value)}
+          onBlur={(e) => void saveGridPromptPrefix(e.target.value)}
+          className="glass-field-input text-xs px-2 h-7 flex-1"
+          placeholder={DEFAULT_GRID_PROMPT_PREFIX}
+        />
+      </div>
       <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => void handleReanalyze()}
+          className="glass-btn-base glass-btn-secondary h-8 px-3 text-xs"
+        >
+          {t('reanalyzeBtn')}
+        </button>
         <button
           type="button"
           onClick={() => autoFillMutation.mutate()}
@@ -288,6 +345,8 @@ function FinalFilmRow({
         <FirstFrameSlot
           label={t('imageSlot')}
           imageUrl={row.imageUrl}
+          gridImageUrl={row.gridImageUrl}
+          splitImageUrls={row.splitImageUrls}
           imagePrompt={imagePrompt}
           taskPhase={taskState?.phase ?? null}
           boundCharacterIds={boundCharacterIds}
@@ -301,6 +360,8 @@ function FinalFilmRow({
           processingLabel={t('processing')}
           noBindingsLabel={t('noBindings')}
           missingAssetLabel={t('missingAsset')}
+          splitPanelsLabel={t('splitPanels')}
+          endFrameAutoLabel={t('endFrameAuto')}
         />
 
         {/* 尾帧图 */}
@@ -401,6 +462,8 @@ function FieldArea(props: {
 function FirstFrameSlot(props: {
   label: string
   imageUrl?: string | null
+  gridImageUrl?: string | null
+  splitImageUrls?: string[] | null
   imagePrompt?: string | null
   taskPhase?: string | null
   boundCharacterIds: string[]
@@ -414,13 +477,22 @@ function FirstFrameSlot(props: {
   processingLabel: string
   noBindingsLabel: string
   missingAssetLabel: string
+  splitPanelsLabel: string
+  endFrameAutoLabel: string
 }) {
   const {
-    imageUrl, imagePrompt, taskPhase, boundCharacterIds, boundSceneId, boundPropIds, assetById,
+    imageUrl, gridImageUrl, splitImageUrls, imagePrompt, taskPhase,
+    boundCharacterIds, boundSceneId, boundPropIds, assetById,
   } = props
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const taskBusy = taskPhase === 'queued' || taskPhase === 'processing'
   const canGenerate = !props.isGenerating && !taskBusy && !!imagePrompt?.trim()
-  const hasImage = !!imageUrl
+
+  // 四宫格模式：有 splitImageUrls 时启用
+  const hasSplits = Array.isArray(splitImageUrls) && splitImageUrls.length > 0
+  // 主展示图：四宫格原图优先，fallback 到 imageUrl
+  const displayUrl = gridImageUrl ?? imageUrl
+  const hasImage = !!displayUrl
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -428,53 +500,86 @@ function FirstFrameSlot(props: {
         {props.label}
       </span>
 
-      <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-[var(--glass-bg-muted)] border border-[var(--glass-stroke-base)]">
+      {/* ── 主图区域 ────────────────────────────────────────── */}
+      <div className="group relative aspect-square w-full rounded-lg overflow-hidden bg-[var(--glass-bg-muted)] border border-[var(--glass-stroke-base)]">
         {hasImage && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl!} alt={props.label} className="w-full h-full object-cover" />
+          <img
+            src={displayUrl!}
+            alt={props.label}
+            className="w-full h-full object-cover cursor-pointer"
+            onClick={() => setPreviewUrl(displayUrl!)}
+          />
         )}
 
-        {/* 任务进行中遮罩 */}
-        {taskBusy && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+        {/* 任务进行中遮罩（含 mutation pending 状态） */}
+        {(taskBusy || props.isGenerating) && (
+          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1.5">
+            <svg className="w-5 h-5 text-white animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
             <span className="text-xs text-white">
-              {taskPhase === 'queued' ? props.pendingLabel : props.processingLabel}
+              {props.isGenerating && !taskBusy
+                ? props.pendingLabel
+                : taskPhase === 'queued'
+                  ? props.pendingLabel
+                  : props.processingLabel}
             </span>
           </div>
         )}
 
-        {/* 居中生成按钮：无图时醒目展示，有图时叠加半透明背景 */}
-        {!taskBusy && (
+        {/* 居中生成按钮：无图时始终可见；有图时仅 hover 显示 */}
+        {!taskBusy && !props.isGenerating && (
           <button
             type="button"
             onClick={props.onGenerate}
             disabled={!canGenerate}
             className={[
-              'absolute inset-0 flex flex-col items-center justify-center gap-1 transition-colors',
+              'absolute inset-0 flex flex-col items-center justify-center gap-1 transition-all',
               hasImage
-                ? 'bg-black/30 hover:bg-black/50'
+                ? 'opacity-0 group-hover:opacity-100 bg-black/40 hover:bg-black/55'
                 : 'hover:bg-[var(--glass-bg-hover)]',
               !canGenerate ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
             ].join(' ')}
           >
-            {/* 图片生成图标 */}
             <AppIcon
               name="image"
               className={['w-7 h-7', hasImage ? 'text-white' : 'text-[var(--glass-text-secondary)]'].join(' ')}
             />
-            <span
-              className={[
-                'text-[11px] font-semibold',
-                hasImage ? 'text-white' : 'text-[var(--glass-text-secondary)]',
-              ].join(' ')}
-            >
+            <span className={['text-[11px] font-semibold', hasImage ? 'text-white' : 'text-[var(--glass-text-secondary)]'].join(' ')}>
               {props.generateLabel}
             </span>
           </button>
         )}
       </div>
 
-      {/* 绑定标签 */}
+      {/* ── 四宫格分图缩略图 ────────────────────────────────── */}
+      {hasSplits && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] text-[var(--glass-text-tertiary)]">{props.splitPanelsLabel}</span>
+          <div className="grid grid-cols-2 gap-0.5">
+            {splitImageUrls!.slice(0, 4).map((url, i) => (
+              <div
+                key={i}
+                className="relative aspect-square rounded overflow-hidden bg-[var(--glass-bg-muted)] cursor-pointer"
+                onClick={() => setPreviewUrl(url)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={`分镜${i + 1}`} className="w-full h-full object-cover" />
+                {/* 右下角图（index 3）显示"尾帧"角标 */}
+                {i === 3 && (
+                  <span className="absolute bottom-0.5 right-0.5 text-[8px] font-bold bg-black/70 text-yellow-300 px-1 rounded leading-4">
+                    {props.endFrameAutoLabel}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 绑定标签 ────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-1 min-h-[20px]">
         {boundCharacterIds.length === 0 && !boundSceneId && boundPropIds.length === 0 ? (
           <span className="text-[10px] text-[var(--glass-text-tertiary)]">
@@ -494,6 +599,11 @@ function FirstFrameSlot(props: {
           </>
         )}
       </div>
+
+      {/* ── 图片预览弹窗 ────────────────────────────────────── */}
+      {previewUrl && (
+        <ImagePreviewModal imageUrl={previewUrl} onClose={() => setPreviewUrl(null)} />
+      )}
     </div>
   )
 }
@@ -533,32 +643,74 @@ function VideoSlot(props: { label: string; videoUrl?: string | null }) {
   )
 }
 
-const ASSET_KIND_COLOR: Record<string, string> = {
-  character: 'bg-blue-500/20 text-blue-300 border border-blue-500/25',
-  location:  'bg-emerald-500/20 text-emerald-300 border border-emerald-500/25',
-  prop:      'bg-orange-500/20 text-orange-300 border border-orange-500/25',
+/**
+ * 游戏品质分级颜色系统（与 CharacterProfileCard 保持一致）
+ * S金橙 / A史诗紫 / B稀有蓝 / C精良绿 / D普通灰
+ */
+const CHAR_TIER_STYLES: Record<string, { gradient: string; glow: string }> = {
+  S: { gradient: 'linear-gradient(135deg, #f59e0b, #ef4444)', glow: '0 2px 8px rgba(245,158,11,0.35)' },
+  A: { gradient: 'linear-gradient(135deg, #a855f7, #6366f1)', glow: '0 2px 8px rgba(168,85,247,0.3)' },
+  B: { gradient: 'linear-gradient(135deg, #3b82f6, #06b6d4)', glow: '0 2px 8px rgba(59,130,246,0.3)' },
+  C: { gradient: 'linear-gradient(135deg, #22c55e, #10b981)', glow: '0 2px 8px rgba(34,197,94,0.25)' },
+  D: { gradient: 'linear-gradient(135deg, #9ca3af, #6b7280)', glow: '0 2px 6px rgba(156,163,175,0.2)' },
 }
 
 function AssetTag(props: { asset?: LxtProjectAsset; missingLabel: string }) {
   if (!props.asset) {
     return (
-      <span className="px-2 py-0.5 rounded-full bg-[var(--glass-tone-danger-bg)] text-[var(--glass-tone-danger-fg)]">
+      <span className="px-2 py-0.5 rounded-full text-[10px] bg-[var(--glass-tone-danger-bg)] text-[var(--glass-tone-danger-fg)]">
         {props.missingLabel}
       </span>
     )
   }
-  const colorClass = ASSET_KIND_COLOR[props.asset.kind] ?? 'bg-[var(--glass-bg-muted)] text-[var(--glass-text-primary)]'
+
+  const { asset } = props
+
+  // ── 角色标签：复用 S/A/B/C/D 等级渐变 badge（rounded-full）──────
+  if (asset.kind === 'character') {
+    const profile = parseProfileData(asset.profileData ?? null)
+    const roleLevel = profile?.role_level
+    const tierStyle = roleLevel ? (CHAR_TIER_STYLES[roleLevel] ?? null) : null
+    const gradientStyle = tierStyle
+      ? { background: tierStyle.gradient, boxShadow: tierStyle.glow }
+      : { background: 'linear-gradient(135deg, #3b82f6, #06b6d4)', boxShadow: '0 2px 8px rgba(59,130,246,0.3)' }
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+        style={gradientStyle}
+      >
+        {asset.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={asset.imageUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover flex-shrink-0" />
+        )}
+        {roleLevel && <span className="opacity-80">{roleLevel}级</span>}
+        {roleLevel && <span className="opacity-50">·</span>}
+        <span>{asset.name}</span>
+      </span>
+    )
+  }
+
+  // ── 场景标签：参考角色风格，但用 rounded-md（方角）区分 ───────────
+  if (asset.kind === 'location') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border bg-emerald-600/40 text-white border-emerald-500/50">
+        {asset.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={asset.imageUrl} alt="" className="w-3.5 h-3.5 rounded object-cover flex-shrink-0" />
+        )}
+        <span>{asset.name}</span>
+      </span>
+    )
+  }
+
+  // ── 道具标签：rounded-sm ──────────────────────────────────────────
   return (
-    <span className={`px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${colorClass}`}>
-      {props.asset.imageUrl && (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[10px] font-medium border bg-orange-500/20 text-orange-300 border-orange-500/25">
+      {asset.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={props.asset.imageUrl}
-          alt=""
-          className="w-4 h-4 rounded-full object-cover"
-        />
+        <img src={asset.imageUrl} alt="" className="w-3.5 h-3.5 rounded object-cover flex-shrink-0" />
       )}
-      {props.asset.name}
+      <span>{asset.name}</span>
     </span>
   )
 }

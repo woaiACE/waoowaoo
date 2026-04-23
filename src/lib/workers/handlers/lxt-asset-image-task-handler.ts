@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive, getUserModels, toSignedUrlIfCos } from '@/lib/workers/utils'
 import { generateCleanImageToStorage } from './image-task-handler-shared'
-import { addCharacterPromptSuffix, addLocationPromptSuffix, addPropPromptSuffix, CHARACTER_ASSET_IMAGE_RATIO, LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO } from '@/lib/constants'
+import { addCharacterPromptSuffix, addLocationPromptSuffix, addPropPromptSuffix, CHARACTER_ASSET_IMAGE_RATIO, LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO, getArtStylePrompt } from '@/lib/constants'
 import type { TaskJobData } from '@/lib/task/types'
 import type { CharacterProfileData } from '@/types/character-profile'
 
@@ -33,6 +33,8 @@ export async function handleLxtAssetImageTask(job: Job<TaskJobData>) {
 
   const assetId = typeof payload.assetId === 'string' ? payload.assetId.trim() : ''
   if (!assetId) throw new Error('lxt_asset_image: assetId is required')
+  const artStyle = typeof payload.artStyle === 'string' ? payload.artStyle.trim() : ''
+  const artStyleText = artStyle ? getArtStylePrompt(artStyle, 'en') : ''
 
   await reportTaskProgress(job, 10, {
     stage: 'lxt_asset_image_start',
@@ -70,18 +72,21 @@ export async function handleLxtAssetImageTask(job: Job<TaskJobData>) {
     // 不依赖 voicePrompt，避免音色推理尚未完成时体型信息缺失
     const bodyProportion = extractBodyProportionFromProfile(asset.profileData)
     rawPrompt = bodyProportion ? `${bodyProportion}，${baseDesc}` : baseDesc
-    finalPrompt = addCharacterPromptSuffix(rawPrompt)
+    const promptWithStyle = artStyleText ? `${rawPrompt}, ${artStyleText}` : rawPrompt
+    finalPrompt = addCharacterPromptSuffix(promptWithStyle)
   } else if (asset.kind === 'location') {
     modelId = userModels.locationModel ?? null
     aspectRatio = LOCATION_IMAGE_RATIO
     rawPrompt = asset.description?.trim() || asset.summary?.trim() || asset.name
-    finalPrompt = addLocationPromptSuffix(rawPrompt)
+    const promptWithStyle = artStyleText ? `${rawPrompt}, ${artStyleText}` : rawPrompt
+    finalPrompt = addLocationPromptSuffix(promptWithStyle)
   } else {
     // prop
     modelId = userModels.locationModel ?? null
     aspectRatio = PROP_IMAGE_RATIO
     rawPrompt = asset.description?.trim() || asset.summary?.trim() || asset.name
-    finalPrompt = addPropPromptSuffix(rawPrompt)
+    const promptWithStyle = artStyleText ? `${rawPrompt}, ${artStyleText}` : rawPrompt
+    finalPrompt = addPropPromptSuffix(promptWithStyle)
   }
 
   if (!modelId) {

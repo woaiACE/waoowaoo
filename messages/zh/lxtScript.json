@@ -66,7 +66,14 @@
     "noNovelText": "当前剧集无小说原文",
     "noNovelTextHint": "请先在「故事」阶段输入小说原文，才能进行剧本转换。",
     "goToStoryStage": "前往故事阶段",
-    "nextStepBtn": "下一步：生成分镜 →"
+    "nextStepBtn": "下一步：生成分镜 →",
+    "reanalyzeBtn": "重新分析",
+    "reanalyzeConfirm": "将删除当前剧本并重新生成，确定继续？",
+    "videoRatioLabel": "画面比例",
+    "videoRatioHint": "在「成片」阶段生成图片和视频时使用此比例",
+    "artStyleLabel": "画风",
+    "generationSettings": "生成设置",
+    "generationSettingsHint": "以上设置将在「成片」阶段生成图片和视频时全局生效"
   },
   "storyboard": {
     "title": "LXT 分镜生成",
@@ -81,7 +88,9 @@
     "outputPlaceholder": "点击「生成分镜」按鈕，AI 将在此输出分镜脚本...",
     "noScript": "当前集尚未生成剧本，请先完成「生成剧本」步骤",
     "goToScriptStage": "前往剧本阶段",
-    "nextStepBtn": "下一步：生成制作脚本 →"
+    "nextStepBtn": "下一步：生成制作脚本 →",
+    "reanalyzeBtn": "重新分析",
+    "reanalyzeConfirm": "将删除当前分镜并重新生成，确定继续？"
   },
   "finalScript": {
     "title": "生成脚本",
@@ -100,6 +109,8 @@
     "goToStoryboardStage": "前往分镜阶段",
     "minimize": "最小化",
     "streamBadge": "制作脚本 运行中",
-    "nextStepBtn": "下一步：成片 →"
+    "nextStepBtn": "下一步：成片 →",
+    "reanalyzeBtn": "重新分析",
+    "reanalyzeConfirm": "将删除当前制作脚本并重新生成，确定继续？"
   }
 }

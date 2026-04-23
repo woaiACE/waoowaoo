@@ -43,6 +43,9 @@ export const PATCH = apiHandler(async (
     rows?: Array<Partial<LxtFinalFilmRow> & { shotIndex: number }>
     reconcile?: boolean
     autoFillFromScript?: boolean
+    setGridPromptPrefix?: string
+    setVideoRatio?: string
+    setArtStyle?: string
   }
 
   const patches: Array<{ shotIndex: number; patch: Partial<LxtFinalFilmRow> }> = []
@@ -55,8 +58,8 @@ export const PATCH = apiHandler(async (
     }
   } else if (typeof body.shotIndex === 'number' && body.patch && typeof body.patch === 'object') {
     patches.push({ shotIndex: body.shotIndex, patch: body.patch })
-  } else if (!body.reconcile && !body.autoFillFromScript) {
-    throw new ApiError('INVALID_PARAMS', { message: 'shotIndex+patch | rows[] | reconcile=true | autoFillFromScript=true required' })
+  } else if (!body.reconcile && !body.autoFillFromScript && typeof body.setGridPromptPrefix !== 'string' && typeof body.setVideoRatio !== 'string' && typeof body.setArtStyle !== 'string') {
+    throw new ApiError('INVALID_PARAMS', { message: 'shotIndex+patch | rows[] | reconcile=true | autoFillFromScript=true | setGridPromptPrefix | setVideoRatio | setArtStyle required' })
   }
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -87,6 +90,9 @@ export const PATCH = apiHandler(async (
       const assetNameMap = new Map<string, string>()
       for (const a of assets) assetNameMap.set(a.name, a.id)
 
+      // 构建 id 集合：用于检测已有绑定中的资产是否仍然存在（防止资产删除后 auto-fill 失效）
+      const assetIdSet = new Set(assets.map((a) => a.id))
+
       // 4. 正则绑定兜底（LLM 绑定缺失时使用）
       const bindings = autoBindAssetsFromShotList(current.shotListContent ?? '', assets)
       const bindMap = new Map(bindings.map((b) => [b.shotIndex, b]))
@@ -103,9 +109,10 @@ export const PATCH = apiHandler(async (
         if (s.shotType    && !existingRow?.shotType)    patch.shotType    = s.shotType
 
         const existingBindings = existingRow?.bindings
-        const hasChars = (existingBindings?.characterAssetIds?.length ?? 0) > 0
-        const hasScene = !!existingBindings?.sceneAssetId
-        const hasProps = (existingBindings?.propAssetIds?.length ?? 0) > 0
+        // 仅当现有绑定中至少有一个资产 ID 仍然存在时才保留，避免资产删除后 auto-fill 失效
+        const hasChars = (existingBindings?.characterAssetIds ?? []).some((id) => assetIdSet.has(id))
+        const hasScene = !!existingBindings?.sceneAssetId && assetIdSet.has(existingBindings.sceneAssetId)
+        const hasProps = (existingBindings?.propAssetIds ?? []).some((id) => assetIdSet.has(id))
 
         // 优先使用 Phase1 LLM 的 asset_bindings（精确名字查表），fallback 到正则绑定
         let newCharIds: string[] = []
@@ -144,6 +151,18 @@ export const PATCH = apiHandler(async (
 
     for (const { shotIndex, patch } of patches) {
       content = applyRowPatch(content, shotIndex, patch)
+    }
+
+    if (typeof body.setGridPromptPrefix === 'string') {
+      content = { ...content, gridPromptPrefix: body.setGridPromptPrefix }
+    }
+
+    if (typeof body.setVideoRatio === 'string') {
+      content = { ...content, videoRatio: body.setVideoRatio }
+    }
+
+    if (typeof body.setArtStyle === 'string') {
+      content = { ...content, artStyle: body.setArtStyle }
     }
 
     return await tx.lxtEpisode.update({

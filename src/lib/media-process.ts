@@ -27,12 +27,21 @@ function resolveContentType(ext: string): string {
 }
 
 /**
+ * 将 targetId 中 S3/MinIO 不支持的字符（如冒号）替换为连字符，
+ * 保证生成的 object key 对所有存储后端合法。
+ */
+function sanitizeStorageId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9\-_.]/g, '-')
+}
+
+/**
  * 处理媒体结果：下载 -> 上传 COS，返回 COS key。
  */
 export async function processMediaResult(options: ProcessMediaOptions): Promise<string> {
   const { source, type, keyPrefix, targetId, downloadHeaders } = options
   const ext = type === 'video' ? 'mp4' : type === 'audio' ? 'mp3' : 'jpg'
-  const key = generateUniqueKey(`${keyPrefix}-${targetId}`, ext)
+  const safeId = sanitizeStorageId(targetId)
+  const key = generateUniqueKey(`${keyPrefix}-${safeId}`, ext)
   const contentType = resolveContentType(ext)
 
   if (typeof source === 'string') {

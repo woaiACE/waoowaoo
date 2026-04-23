@@ -4,6 +4,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-fetch'
 import { resolveTaskErrorMessage } from '@/lib/task/error-message'
 import type { LxtFinalFilmRow, LxtFinalFilmRowBindings } from '@/lib/lxt/final-film'
+import { FINAL_FILM_TARGET_TYPE, buildFinalFilmTargetId } from '@/lib/lxt/final-film'
+import { upsertTaskTargetOverlay, clearTaskTargetOverlay } from '../task-target-overlay'
+import { queryKeys } from '../keys'
 
 async function readError(res: Response, fallback: string): Promise<never> {
   const error = await res.json().catch(() => ({}))
@@ -66,6 +69,7 @@ export function useReconcileLxtFinalFilm(projectId: string | null, episodeId: st
 
 /** 提交行级图片生成 */
 export function useGenerateLxtFinalFilmImage(projectId: string | null, episodeId: string | null) {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ shotIndex }: { shotIndex: number }) => {
       if (!projectId || !episodeId) throw new Error('projectId/episodeId required')
@@ -75,6 +79,28 @@ export function useGenerateLxtFinalFilmImage(projectId: string | null, episodeId
       )
       if (!res.ok) await readError(res, 'Failed to submit image generation')
       return await res.json() as { taskId: string }
+    },
+    onMutate: async ({ shotIndex }) => {
+      if (!projectId || !episodeId) return
+      const targetId = buildFinalFilmTargetId(episodeId, shotIndex)
+      // Immediately reflect "queued" state in the overlay so the UI shows loading without waiting for polling
+      upsertTaskTargetOverlay(qc, {
+        projectId,
+        targetType: FINAL_FILM_TARGET_TYPE,
+        targetId,
+        phase: 'queued',
+        intent: 'generate',
+      })
+      // Invalidate task state so the polling activates right away
+      await qc.invalidateQueries({ queryKey: queryKeys.tasks.all(projectId), exact: false })
+    },
+    onError: (_err, { shotIndex }) => {
+      if (!projectId || !episodeId) return
+      clearTaskTargetOverlay(qc, {
+        projectId,
+        targetType: FINAL_FILM_TARGET_TYPE,
+        targetId: buildFinalFilmTargetId(episodeId, shotIndex),
+      })
     },
   })
 }
@@ -90,6 +116,46 @@ export function useGenerateLxtFinalFilmVideo(projectId: string | null, episodeId
       )
       if (!res.ok) await readError(res, 'Failed to submit video generation')
       return await res.json() as { taskId: string }
+    },
+  })
+}
+
+/** 设置成片画风风格 */
+export function useSetLxtArtStyle(projectId: string | null, episodeId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ artStyle }: { artStyle: string }) => {
+      if (!projectId || !episodeId) throw new Error('projectId/episodeId required')
+      const res = await apiFetch(`/api/lxt/${projectId}/final-film/${episodeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setArtStyle: artStyle }),
+      })
+      if (!res.ok) await readError(res, 'Failed to set art style')
+      return await res.json()
+    },
+    onSuccess: () => {
+      if (projectId && episodeId) void invalidateEpisode(qc, projectId, episodeId)
+    },
+  })
+}
+
+/** 设置成片图片/视频生成比例 */
+export function useSetLxtVideoRatio(projectId: string | null, episodeId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ videoRatio }: { videoRatio: string }) => {
+      if (!projectId || !episodeId) throw new Error('projectId/episodeId required')
+      const res = await apiFetch(`/api/lxt/${projectId}/final-film/${episodeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setVideoRatio: videoRatio }),
+      })
+      if (!res.ok) await readError(res, 'Failed to set video ratio')
+      return await res.json()
+    },
+    onSuccess: () => {
+      if (projectId && episodeId) void invalidateEpisode(qc, projectId, episodeId)
     },
   })
 }

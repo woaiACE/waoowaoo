@@ -12,6 +12,9 @@ import { parseLxtShots } from './parse-shots'
 
 export const FINAL_FILM_CONTENT_VERSION = 1
 
+/** 四宫格生图指令前缀默认值（可在 LxtFinalFilmContent.gridPromptPrefix 中覆盖） */
+export const DEFAULT_GRID_PROMPT_PREFIX = '四格漫画，2x2格局，连续分镜，'
+
 export interface LxtFinalFilmRowBindings {
   characterAssetIds: string[]
   sceneAssetId?: string | null
@@ -23,21 +26,38 @@ export interface LxtFinalFilmRow {
   label?: string                // 分镜名（"分镜1"等）
   copyText?: string             // 文案
   imagePrompt?: string          // 图片提示词
-  imageUrl?: string | null      // 主图
-  videoEndFrameUrl?: string | null // 视频尾帧图
+  imageUrl?: string | null      // 主图（四宫格模式下 = gridImageUrl 副本，向后兼容）
+  gridImageUrl?: string | null  // 四宫格原图（AI 一次调用返回的 2×2 格局组图）
+  splitImageUrls?: string[] | null // 切割后4张独立分镜图（顺序：左上/右上/左下/右下）
+  videoEndFrameUrl?: string | null // 视频尾帧图（四宫格模式下自动设为右下角分图）
   videoPrompt?: string          // 视频提示词
   videoUrl?: string | null      // 视频
   shotType?: string             // 景别（全景/中景/近景/特写等）
   bindings?: LxtFinalFilmRowBindings // 资产绑定关系（引用）
 }
 
+export const DEFAULT_VIDEO_RATIO = '9:16'
+export const DEFAULT_ART_STYLE = 'realistic'
+
 export interface LxtFinalFilmContent {
   version: number
   rows: LxtFinalFilmRow[]
+  /** 四宫格生图指令前缀（可配置，默认 DEFAULT_GRID_PROMPT_PREFIX） */
+  gridPromptPrefix?: string
+  /** 图片/视频生成比例（默认 9:16，短剧竖屏） */
+  videoRatio?: string
+  /** 画风风格 ID（默认 realistic 真人写实，短剧常用） */
+  artStyle?: string
 }
 
 export function createEmptyFinalFilmContent(): LxtFinalFilmContent {
-  return { version: FINAL_FILM_CONTENT_VERSION, rows: [] }
+  return {
+    version: FINAL_FILM_CONTENT_VERSION,
+    rows: [],
+    gridPromptPrefix: DEFAULT_GRID_PROMPT_PREFIX,
+    videoRatio: DEFAULT_VIDEO_RATIO,
+    artStyle: DEFAULT_ART_STYLE,
+  }
 }
 
 /**
@@ -53,7 +73,16 @@ export function parseFinalFilmContent(raw?: string | null): LxtFinalFilmContent 
     const rows = Array.isArray(parsed.rows)
       ? parsed.rows.map(normalizeRow).filter((r): r is LxtFinalFilmRow => r !== null)
       : []
-    return { version: FINAL_FILM_CONTENT_VERSION, rows }
+    const gridPromptPrefix = typeof parsed.gridPromptPrefix === 'string'
+      ? parsed.gridPromptPrefix
+      : DEFAULT_GRID_PROMPT_PREFIX
+    const videoRatio = typeof parsed.videoRatio === 'string' && parsed.videoRatio.trim()
+      ? parsed.videoRatio.trim()
+      : DEFAULT_VIDEO_RATIO
+    const artStyle = typeof parsed.artStyle === 'string' && parsed.artStyle.trim()
+      ? parsed.artStyle.trim()
+      : DEFAULT_ART_STYLE
+    return { version: FINAL_FILM_CONTENT_VERSION, rows, gridPromptPrefix, videoRatio, artStyle }
   } catch {
     return createEmptyFinalFilmContent()
   }
@@ -74,6 +103,10 @@ function normalizeRow(row: unknown): LxtFinalFilmRow | null {
     copyText: typeof r.copyText === 'string' ? r.copyText : undefined,
     imagePrompt: typeof r.imagePrompt === 'string' ? r.imagePrompt : undefined,
     imageUrl: typeof r.imageUrl === 'string' ? r.imageUrl : null,
+    gridImageUrl: typeof r.gridImageUrl === 'string' ? r.gridImageUrl : null,
+    splitImageUrls: Array.isArray(r.splitImageUrls)
+      ? r.splitImageUrls.filter((u): u is string => typeof u === 'string')
+      : null,
     videoEndFrameUrl: typeof r.videoEndFrameUrl === 'string' ? r.videoEndFrameUrl : null,
     videoPrompt: typeof r.videoPrompt === 'string' ? r.videoPrompt : undefined,
     videoUrl: typeof r.videoUrl === 'string' ? r.videoUrl : null,
@@ -108,6 +141,8 @@ export function deriveRowsFromShotList(shotListContent: string | null | undefine
     copyText: '',
     imagePrompt: '',
     imageUrl: null,
+    gridImageUrl: null,
+    splitImageUrls: null,
     videoEndFrameUrl: null,
     videoPrompt: '',
     videoUrl: null,
@@ -152,7 +187,7 @@ export function applyRowPatch(
     rows.push(mergeRow({ shotIndex }, patch))
     rows.sort((a, b) => a.shotIndex - b.shotIndex)
   }
-  return { version: FINAL_FILM_CONTENT_VERSION, rows }
+  return { ...content, rows }
 }
 
 function mergeRow(base: LxtFinalFilmRow, patch: Partial<LxtFinalFilmRow>): LxtFinalFilmRow {

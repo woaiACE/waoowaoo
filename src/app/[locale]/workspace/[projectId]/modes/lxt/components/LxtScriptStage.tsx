@@ -5,9 +5,16 @@ import { useParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import GlassTextarea from '@/components/ui/primitives/GlassTextarea'
+import { RatioSelector } from '@/components/selectors/RatioStyleSelectors'
+import StyleSelectorModal from '@/components/shared/assets/character-creation/StyleSelectorModal'
 import { useLxtNovelToScriptRunStream } from '@/lib/query/hooks/useLxtNovelToScriptRunStream'
+import { useSetLxtVideoRatio, useSetLxtArtStyle } from '@/lib/query/hooks/useLxtFinalFilm'
 import { apiFetch } from '@/lib/api-fetch'
 import { readApiErrorMessage } from '@/lib/api/read-error-message'
+import { parseFinalFilmContent, DEFAULT_VIDEO_RATIO, DEFAULT_ART_STYLE } from '@/lib/lxt/final-film'
+import { VIDEO_RATIOS } from '@/lib/constants'
+import { getStyleConfigById } from '@/lib/style-categories'
+import type { StyleItem } from '@/lib/style-categories'
 import { useLxtWorkspaceEpisodeStageData } from '../hooks/useLxtWorkspaceEpisodeStageData'
 import { useLxtWorkspaceProvider } from '../LxtWorkspaceProvider'
 import { useLxtWorkspaceStageRuntime } from '../LxtWorkspaceStageRuntimeContext'
@@ -29,8 +36,17 @@ export default function LxtScriptStage() {
 
   const { episodeId, onRefresh } = useLxtWorkspaceProvider()
   const runtime = useLxtWorkspaceStageRuntime()
-  const { novelText, episodeName, srtContent } = useLxtWorkspaceEpisodeStageData()
+  const { novelText, episodeName, srtContent, finalFilmContent } = useLxtWorkspaceEpisodeStageData()
   const queryClient = useQueryClient()
+
+  // 比例 & 画风（从 finalFilmContent 读取，fallback 到默认值）
+  const parsedFinalFilm = parseFinalFilmContent(finalFilmContent)
+  const currentVideoRatio = parsedFinalFilm.videoRatio ?? DEFAULT_VIDEO_RATIO
+  const currentArtStyle = parsedFinalFilm.artStyle ?? DEFAULT_ART_STYLE
+  const setVideoRatioMutation = useSetLxtVideoRatio(projectId, episodeId ?? null)
+  const setArtStyleMutation = useSetLxtArtStyle(projectId, episodeId ?? null)
+  const [isStyleModalOpen, setIsStyleModalOpen] = useState(false)
+  const currentStyleConfig = getStyleConfigById(currentArtStyle)
 
   // 原文内联编辑状态
   const [novelTextDraft, setNovelTextDraft] = useState(novelText || '')
@@ -121,6 +137,25 @@ export default function LxtScriptStage() {
     await stream.run({ episodeId, instruction: instruction || undefined, locale })
   }, [projectId, episodeId, novelText, isGenerating, instruction, locale, stream])
 
+  const handleReanalyze = useCallback(async () => {
+    if (!window.confirm(t('stage.reanalyzeConfirm'))) return
+    if (!projectId || !episodeId || isGenerating) return
+    try {
+      const res = await apiFetch(`/api/lxt/${projectId}/episodes/${episodeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ srtContent: null }),
+      })
+      if (!res.ok) throw new Error(await readApiErrorMessage(res, tc('saveFailed')))
+      queryClient.invalidateQueries({ queryKey: ['lxtEpisodeData', projectId, episodeId] })
+      setEditedScript(null)
+    } catch (err) {
+      setNovelTextError(err instanceof Error ? err.message : String(err))
+      return
+    }
+    await handleGenerate()
+  }, [projectId, episodeId, isGenerating, handleGenerate, queryClient, t, tc])
+
   const hasNovelText = !!novelText?.trim()
 
   return (
@@ -135,14 +170,25 @@ export default function LxtScriptStage() {
             {episodeName ? `${episodeName} — ` : ''}{t('stage.description')}
           </p>
         </div>
-        <button
-          type="button"
-          disabled={!hasNovelText || isGenerating}
-          onClick={handleGenerate}
-          className="glass-btn-base glass-btn-primary h-9 px-5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {isGenerating ? t('stage.generating') : t('stage.generateBtn')}
-        </button>
+        <div className="flex items-center gap-2">
+          {!!srtContent?.trim() && !isGenerating && (
+            <button
+              type="button"
+              onClick={() => void handleReanalyze()}
+              className="glass-btn-base glass-btn-secondary h-9 px-4 text-sm font-medium"
+            >
+              {t('stage.reanalyzeBtn')}
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={!hasNovelText || isGenerating}
+            onClick={handleGenerate}
+            className="glass-btn-base glass-btn-primary h-9 px-5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isGenerating ? t('stage.generating') : t('stage.generateBtn')}
+          </button>
+        </div>
       </div>
 
       {stream.status === 'failed' && stream.errorMessage && (
@@ -232,6 +278,68 @@ export default function LxtScriptStage() {
           className="w-full min-h-[60px]"
         />
       </div>
+
+      {/* 生成设置：比例 + 画风 */}
+      <div className="glass-surface p-4 flex flex-col gap-4">
+        <span className="text-xs font-semibold text-[var(--glass-text-secondary)] uppercase tracking-wide">
+          {t('stage.generationSettings')}
+        </span>
+
+        <div className="flex flex-wrap items-start gap-6">
+          {/* 图片/视频比例 */}
+          <div className="flex flex-col gap-1.5 min-w-[160px]">
+            <span className="text-xs text-[var(--glass-text-tertiary)]">
+              {t('stage.videoRatioLabel')}
+            </span>
+            <div className="w-[160px]">
+              <RatioSelector
+                value={currentVideoRatio}
+                onChange={(value) => {
+                  void setVideoRatioMutation.mutateAsync({ videoRatio: value })
+                }}
+                options={VIDEO_RATIOS.map((option) => ({
+                  ...option,
+                  recommended: option.value === '9:16',
+                }))}
+              />
+            </div>
+          </div>
+
+          {/* 画风选择 */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-[var(--glass-text-tertiary)]">
+              {t('stage.artStyleLabel')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsStyleModalOpen(true)}
+              className="glass-input-base flex h-10 items-center gap-2.5 px-3 transition-colors cursor-pointer hover:border-[var(--glass-stroke-strong)]"
+            >
+              <span className="w-5 h-5 rounded-md bg-[var(--glass-accent-from)]/10 flex items-center justify-center text-[11px] font-bold text-[var(--glass-accent-from)] flex-shrink-0">
+                {currentStyleConfig.name[0]}
+              </span>
+              <span className="text-[13px] font-medium text-[var(--glass-text-primary)] truncate max-w-[140px]">
+                {currentStyleConfig.name}
+              </span>
+              <span className="ml-auto text-[var(--glass-text-tertiary)]">▾</span>
+            </button>
+          </div>
+        </div>
+
+        <p className="text-xs text-[var(--glass-text-tertiary)]">
+          {t('stage.generationSettingsHint')}
+        </p>
+      </div>
+
+      <StyleSelectorModal
+        open={isStyleModalOpen}
+        currentStyleId={currentArtStyle}
+        onSelect={(style: StyleItem) => {
+          void setArtStyleMutation.mutateAsync({ artStyle: style.id })
+          setIsStyleModalOpen(false)
+        }}
+        onClose={() => setIsStyleModalOpen(false)}
+      />
 
       {/* 无原文提示 */}
       {!hasNovelText && (

@@ -179,12 +179,12 @@ export function useUpdateLxtAssetProfile(projectId: string | null) {
 export function useGenerateLxtAssetImage(projectId: string | null) {
   const invalidate = useInvalidate(projectId)
   return useMutation({
-    mutationFn: async ({ assetId, count = 1 }: { assetId: string; count?: number }) => {
+    mutationFn: async ({ assetId, count = 1, artStyle }: { assetId: string; count?: number; artStyle?: string }) => {
       if (!projectId) throw new Error('Project ID is required')
       const res = await apiFetch(`/api/lxt/${projectId}/assets/${assetId}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count }),
+        body: JSON.stringify({ count, artStyle }),
       })
       if (!res.ok) await readError(res, 'Failed to submit image generation')
       return await res.json()

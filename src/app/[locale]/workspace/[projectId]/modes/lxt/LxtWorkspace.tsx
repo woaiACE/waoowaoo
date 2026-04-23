@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { LxtWorkspaceProvider } from './LxtWorkspaceProvider'
 import { LxtWorkspaceStageRuntimeProvider } from './LxtWorkspaceStageRuntimeContext'
+import { useLxtEpisodeData } from './hooks/useLxtEpisodeData'
 import LxtScriptStage from './components/LxtScriptStage'
 import LxtStoryboardStage from './components/LxtStoryboardStage'
 import LxtAssetsStage from './components/LxtAssetsStage'
@@ -57,6 +58,16 @@ export default function LxtWorkspace({
 
   const selectedEpisode = episodes.find(ep => ep.id === selectedEpisodeId) || episodes[0] || null
 
+  // 从 React Query 缓存读取当前集的内容，用于判断哪些 stage 可用（与 LxtWorkspaceProvider 共享同一 query key，零额外请求）
+  const { data: episodeDetail } = useLxtEpisodeData(projectId, selectedEpisode?.id ?? null)
+  const stageEnabled: Record<LxtStage, boolean> = {
+    'lxt-script': true,
+    'lxt-storyboard': !!episodeDetail?.srtContent?.trim(),
+    'lxt-assets': !!episodeDetail?.shotListContent?.trim(),
+    'lxt-final-script': !!episodeDetail?.shotListContent?.trim(),
+    'lxt-final-film': !!episodeDetail?.scriptContent?.trim(),
+  }
+
   // Create episode
   const [newEpisodeName, setNewEpisodeName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
@@ -92,21 +103,28 @@ export default function LxtWorkspace({
     <div className="flex flex-col gap-6">
       {/* Stage 导航 — 居中对齐，与通用版保持一致 */}
       <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--glass-bg-muted)] w-fit self-center">
-        {stageTabs.map(tab => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onStageChange(tab.key)}
-            className={[
-              'h-8 px-4 text-sm rounded-lg transition-all font-medium',
-              effectiveStage === tab.key
-                ? 'bg-[var(--glass-accent-from)] text-white shadow-sm'
-                : 'text-[var(--glass-text-secondary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--glass-text-primary)]',
-            ].join(' ')}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {stageTabs.map(tab => {
+          const enabled = stageEnabled[tab.key]
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              disabled={!enabled}
+              onClick={() => enabled && onStageChange(tab.key)}
+              title={!enabled ? t('tabs.lockedHint') : undefined}
+              className={[
+                'h-8 px-4 text-sm rounded-lg transition-all font-medium',
+                effectiveStage === tab.key
+                  ? 'bg-[var(--glass-accent-from)] text-white shadow-sm'
+                  : enabled
+                    ? 'text-[var(--glass-text-secondary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--glass-text-primary)]'
+                    : 'text-[var(--glass-text-tertiary)] opacity-40 cursor-not-allowed',
+              ].join(' ')}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
 
       <div className="flex gap-4">

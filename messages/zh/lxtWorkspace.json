@@ -4,7 +4,8 @@
     "storyboard": "分镜脚本",
     "assets": "资产库",
     "finalScript": "制作脚本",
-    "finalFilm": "成片"
+    "finalFilm": "成片",
+    "lockedHint": "请先完成上一步"
   },
   "episodeList": "集数列表",
   "newEpisodePlaceholder": "集名称",
@@ -46,6 +47,11 @@
     "emptyLibrary": "资产库为空",
     "videoNotImplemented": "视频生成尚未接入真实 provider，等待后续里程碑",
     "autoFill": "自动填充",
-    "autoFillTooltip": "从制作脚本自动填充文案/提示词，并按角色场景名匹配资产库（只填空字段，不覆盖已有内容）"
+    "autoFillTooltip": "从制作脚本自动填充文案/提示词，并按角色场景名匹配资产库（只填空字段，不覆盖已有内容）",
+    "reanalyzeBtn": "重新分析",
+    "reanalyzeConfirm": "将清空成片数据并重新初始化，确定继续？",
+    "gridPromptPrefixLabel": "四宫格前缀",
+    "splitPanels": "分镜切图",
+    "endFrameAuto": "尾帧"
   }
 }

@@ -659,6 +659,43 @@ export async function withLabelBar(imageSource: string, labelText: string): Prom
     .toBuffer()
 }
 
+/**
+ * 将四宫格（2×2）组图切割为4张独立图片。
+ * 返回顺序：左上 / 右上 / 左下 / 右下
+ */
+export async function splitGridImage(source: string | Buffer): Promise<Buffer[]> {
+  let inputBuffer: Buffer
+  if (Buffer.isBuffer(source)) {
+    inputBuffer = source
+  } else if (source.startsWith('data:')) {
+    const base64 = source.split(',')[1] ?? ''
+    inputBuffer = Buffer.from(base64, 'base64')
+  } else {
+    const response = await fetch(toFetchableUrl(source))
+    if (!response.ok) throw new Error(`splitGridImage: failed to fetch image (${response.status})`)
+    inputBuffer = Buffer.from(await response.arrayBuffer())
+  }
+
+  const meta = await sharp(inputBuffer).metadata()
+  const width = meta.width ?? 0
+  const height = meta.height ?? 0
+  if (width === 0 || height === 0) {
+    throw new Error('splitGridImage: image has zero width or height')
+  }
+
+  const halfW = Math.floor(width / 2)
+  const halfH = Math.floor(height / 2)
+
+  const [topLeft, topRight, bottomLeft, bottomRight] = await Promise.all([
+    sharp(inputBuffer).extract({ left: 0,     top: 0,     width: halfW,         height: halfH          }).jpeg({ quality: 90, mozjpeg: true }).toBuffer(),
+    sharp(inputBuffer).extract({ left: halfW, top: 0,     width: width - halfW, height: halfH          }).jpeg({ quality: 90, mozjpeg: true }).toBuffer(),
+    sharp(inputBuffer).extract({ left: 0,     top: halfH, width: halfW,         height: height - halfH }).jpeg({ quality: 90, mozjpeg: true }).toBuffer(),
+    sharp(inputBuffer).extract({ left: halfW, top: halfH, width: width - halfW, height: height - halfH }).jpeg({ quality: 90, mozjpeg: true }).toBuffer(),
+  ])
+
+  return [topLeft, topRight, bottomLeft, bottomRight]
+}
+
 export async function uploadImageSourceToCos(source: string | Buffer, keyPrefix: string, targetId: string) {
   return await processMediaResult({
     source,

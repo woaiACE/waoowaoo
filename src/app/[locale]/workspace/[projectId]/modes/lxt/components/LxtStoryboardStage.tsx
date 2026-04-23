@@ -137,6 +137,19 @@ export default function LxtStoryboardStage() {
 
   const hasScript = !!srtContent?.trim()
 
+  const handleReanalyze = useCallback(async () => {
+    if (!window.confirm(t('storyboard.reanalyzeConfirm'))) return
+    if (!projectId || !episodeId || isGenerating) return
+    await apiFetch(`/api/lxt/${projectId}/episodes/${episodeId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shotListContent: null }),
+    })
+    setEditedStoryboard(null)
+    setStoryboardText('')
+    await handleGenerate()
+  }, [projectId, episodeId, isGenerating, handleGenerate, t])
+
   return (
     <div className="flex flex-col gap-6">
       {/* 标题 & 状态 */}
@@ -149,14 +162,25 @@ export default function LxtStoryboardStage() {
             {episodeName ? `${episodeName} — ` : ''}{t('storyboard.description')}
           </p>
         </div>
-        <button
-          type="button"
-          disabled={!hasScript || isGenerating}
-          onClick={handleGenerate}
-          className="glass-btn-base glass-btn-primary h-9 px-5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {isGenerating ? t('storyboard.generating') : t('storyboard.generateButton')}
-        </button>
+        <div className="flex items-center gap-2">
+          {!!shotListContent?.trim() && !isGenerating && (
+            <button
+              type="button"
+              onClick={() => void handleReanalyze()}
+              className="glass-btn-base glass-btn-secondary h-9 px-4 text-sm font-medium"
+            >
+              {t('storyboard.reanalyzeBtn')}
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={!hasScript || isGenerating}
+            onClick={handleGenerate}
+            className="glass-btn-base glass-btn-primary h-9 px-5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isGenerating ? t('storyboard.generating') : t('storyboard.generateButton')}
+          </button>
+        </div>
       </div>
 
       {error && (

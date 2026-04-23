@@ -44,12 +44,14 @@ export const POST = apiHandler(async (
   const locale = resolveRequiredTaskLocale(request, body)
 
   const count = typeof body.count === 'number' ? Math.min(Math.max(1, Math.round(body.count)), 4) : 1
+  const artStyle = typeof body.artStyle === 'string' && body.artStyle.trim() ? body.artStyle.trim() : undefined
 
   if (count === 1) {
     const payload = {
       assetId,
       kind: asset.kind,
       displayMode: 'detail' as const,
+      ...(artStyle ? { artStyle } : {}),
     }
 
     const result = await submitTask({
@@ -77,6 +79,7 @@ export const POST = apiHandler(async (
         displayMode: 'detail' as const,
         slotIndex,
         totalSlots: count,
+        ...(artStyle ? { artStyle } : {}),
       }
       return submitTask({
         userId: session.user.id,

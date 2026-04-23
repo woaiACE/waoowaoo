@@ -4,7 +4,8 @@
     "storyboard": "Storyboard",
     "assets": "Assets",
     "finalScript": "Final Script",
-    "finalFilm": "Final Film"
+    "finalFilm": "Final Film",
+    "lockedHint": "Complete the previous step first"
   },
   "episodeList": "Episodes",
   "newEpisodePlaceholder": "Episode name",
@@ -46,6 +47,11 @@
     "emptyLibrary": "Asset library is empty",
     "videoNotImplemented": "Video generation provider not wired up yet",
     "autoFill": "Auto-fill",
-    "autoFillTooltip": "Auto-fill copy and prompts from the production script, and auto-bind characters/scenes from the asset library (only fills empty fields)"
+    "autoFillTooltip": "Auto-fill copy and prompts from the production script, and auto-bind characters/scenes from the asset library (only fills empty fields)",
+    "reanalyzeBtn": "Re-analyze",
+    "reanalyzeConfirm": "This will clear the final film data and reinitialize. Continue?",
+    "gridPromptPrefixLabel": "Grid prefix",
+    "splitPanels": "Split panels",
+    "endFrameAuto": "End frame"
   }
 }

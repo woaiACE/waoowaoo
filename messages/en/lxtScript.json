@@ -66,7 +66,14 @@
     "noNovelText": "This episode has no novel text",
     "noNovelTextHint": "Please enter novel text in the Story stage first before converting to script.",
     "goToStoryStage": "Go to Story Stage",
-    "nextStepBtn": "Next: Generate Storyboard →"
+    "nextStepBtn": "Next: Generate Storyboard →",
+    "reanalyzeBtn": "Re-analyze",
+    "reanalyzeConfirm": "This will delete the current script and regenerate. Continue?",
+    "videoRatioLabel": "Aspect Ratio",
+    "videoRatioHint": "Applied when generating images and videos in the Final Film stage",
+    "artStyleLabel": "Art Style",
+    "generationSettings": "Generation Settings",
+    "generationSettingsHint": "These settings apply globally when generating images and videos in the Final Film stage"
   },
   "storyboard": {
     "title": "LXT Storyboard",
@@ -81,7 +88,9 @@
     "outputPlaceholder": "Click \"Generate Storyboard\" and AI will output the storyboard script here...",
     "noScript": "No script has been generated for this episode yet. Please complete the \"Generate Script\" step first.",
     "goToScriptStage": "Go to Script Stage",
-    "nextStepBtn": "Next: Generate Final Script →"
+    "nextStepBtn": "Next: Generate Final Script →",
+    "reanalyzeBtn": "Re-analyze",
+    "reanalyzeConfirm": "This will delete the current storyboard and regenerate. Continue?"
   },
   "finalScript": {
     "title": "Generate Production Script",
@@ -100,6 +109,8 @@
     "goToStoryboardStage": "Go to Storyboard Stage",
     "minimize": "Minimize",
     "streamBadge": "Production Script running",
-    "nextStepBtn": "Next: Final Film →"
+    "nextStepBtn": "Next: Final Film →",
+    "reanalyzeBtn": "Re-analyze",
+    "reanalyzeConfirm": "This will delete the current production script and regenerate. Continue?"
   }
 }

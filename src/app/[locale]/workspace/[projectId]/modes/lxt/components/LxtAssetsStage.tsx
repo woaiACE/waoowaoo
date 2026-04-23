@@ -35,6 +35,7 @@ import { useLxtWorkspaceEpisodeStageData } from '../hooks/useLxtWorkspaceEpisode
 import { useLxtWorkspaceProvider } from '../LxtWorkspaceProvider'
 import { useLxtWorkspaceStageRuntime } from '../LxtWorkspaceStageRuntimeContext'
 import LxtAssetCard, { buildDraft, type AssetDraft } from './LxtAssetCard'
+import { parseFinalFilmContent } from '@/lib/lxt/final-film'
 
 type PickerState = {
   assetId: string
@@ -54,7 +55,11 @@ export default function LxtAssetsStage() {
   const projectId = params?.projectId ?? ''
   const { episodeId, onRefresh } = useLxtWorkspaceProvider()
   const runtime = useLxtWorkspaceStageRuntime()
-  const { shotListContent } = useLxtWorkspaceEpisodeStageData()
+  const { shotListContent, finalFilmContent } = useLxtWorkspaceEpisodeStageData()
+  const currentArtStyle = useMemo(
+    () => parseFinalFilmContent(finalFilmContent).artStyle,
+    [finalFilmContent],
+  )
 
   const [picker, setPicker] = useState<PickerState>(null)
   const [drafts, setDrafts] = useState<Record<string, AssetDraft>>({})
@@ -66,8 +71,11 @@ export default function LxtAssetsStage() {
   type EditingProfile = { assetId: string; kind: string; name: string } | null
   const [editingProfile, setEditingProfile] = useState<EditingProfile>(null)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
-  const [confirmingAssetId, setConfirmingAssetId] = useState<string | null>(null)
-  const [confirmingStreamText, setConfirmingStreamText] = useState('')
+  // 支持多资产并发确认：Set 记录所有进行中的 assetId，Map 记录各自的流式文本
+  const [confirmingAssetIds, setConfirmingAssetIds] = useState<Set<string>>(new Set())
+  const [confirmingStreamTexts, setConfirmingStreamTexts] = useState<Map<string, string>>(new Map())
+  const [isBatchConfirming, setIsBatchConfirming] = useState(false)
+  const [isBatchGenerating, setIsBatchGenerating] = useState(false)
 
   // 形象描述提示词编辑弹框
   type EditingDescription = {
@@ -179,6 +187,14 @@ export default function LxtAssetsStage() {
     await stream.run({})
   }
 
+  const handleReanalyze = async () => {
+    if (!window.confirm('确定要清除全部资产并重新 LLM 分析吗？此操作不可撤销。')) return
+    if (isAnalyzing) return
+    await clearMutation.mutateAsync()
+    await onRefresh({ scope: 'all' })
+    await handleAnalyzeLlm()
+  }
+
   const handleDownloadAll = async () => {
     const imageEntries = assets.flatMap((asset) => {
       const safeName = asset.name.replace(/[/\\:*?"<>|]/g, '_')
@@ -219,14 +235,14 @@ export default function LxtAssetsStage() {
     showToast('已删除', 'success')
   }
 
-  const handleGenerateImage = async (assetId: string, count?: number) => {
+  const handleGenerateImage = useCallback(async (assetId: string, count?: number) => {
     try {
-      await generateImageMutation.mutateAsync({ assetId, count })
+      await generateImageMutation.mutateAsync({ assetId, count, artStyle: currentArtStyle })
       showToast('图像生成已提交，完成后自动更新…', 'success')
     } catch {
       showToast('图像生成提交失败', 'error')
     }
-  }
+  }, [generateImageMutation, showToast, currentArtStyle])
 
   const handleSelectImage = async (assetId: string, imageUrl: string) => {
     try {
@@ -264,10 +280,11 @@ export default function LxtAssetsStage() {
     }
   }
 
-  const handleConfirmProfile = async (asset: LxtProjectAsset) => {
-    if (confirmingAssetId) return
-    setConfirmingAssetId(asset.id)
-    setConfirmingStreamText('')
+  const handleConfirmProfile = useCallback(async (asset: LxtProjectAsset) => {
+    // 每个资产独立锁：同一资产不重复提交，不同资产可并发
+    if (confirmingAssetIds.has(asset.id)) return
+    setConfirmingAssetIds((prev) => new Set([...prev, asset.id]))
+    setConfirmingStreamTexts((prev) => new Map([...prev, [asset.id, '']]))
     try {
       const res = await apiFetch(`/api/lxt/${projectId}/assets/${asset.id}/confirm-profile`, {
         method: 'POST',
@@ -292,23 +309,55 @@ export default function LxtAssetsStage() {
           try {
             const event = JSON.parse(line.slice(6)) as { kind: string; delta?: string; message?: string }
             if (event.kind === 'text' && event.delta) {
-              setConfirmingStreamText((prev) => prev + event.delta)
+              setConfirmingStreamTexts((prev) => {
+                const next = new Map(prev)
+                next.set(asset.id, (next.get(asset.id) ?? '') + event.delta)
+                return next
+              })
             } else if (event.kind === 'done') {
-              await assetsQuery.refetch()
+              void assetsQuery.refetch()
             } else if (event.kind === 'error') {
               showToast(event.message ?? '生成失败', 'error')
             }
           } catch { continue }
         }
       }
-      showToast('形象描述已生成', 'success')
     } catch {
-      showToast('生成描述失败', 'error')
+      showToast(`${asset.name} 生成描述失败`, 'error')
     } finally {
-      setConfirmingAssetId(null)
-      setConfirmingStreamText('')
+      setConfirmingAssetIds((prev) => {
+        const next = new Set(prev)
+        next.delete(asset.id)
+        return next
+      })
+      setConfirmingStreamTexts((prev) => {
+        const next = new Map(prev)
+        next.delete(asset.id)
+        return next
+      })
     }
-  }
+  }, [confirmingAssetIds, projectId, showToast, assetsQuery])
+
+  const handleBatchConfirmProfiles = useCallback(async () => {
+    const unconfirmed = assets.filter((a) => !a.profileConfirmed)
+    if (unconfirmed.length === 0) {
+      showToast('所有资产已完成确认', 'success')
+      return
+    }
+    setIsBatchConfirming(true)
+    await Promise.allSettled(unconfirmed.map((a) => handleConfirmProfile(a)))
+    setIsBatchConfirming(false)
+    showToast(`已完成 ${unconfirmed.length} 项档案确认`, 'success')
+    void assetsQuery.refetch()
+  }, [assets, handleConfirmProfile, showToast, assetsQuery])
+
+  const handleGenerateAllImages = useCallback(async () => {
+    if (assets.length === 0) return
+    setIsBatchGenerating(true)
+    await Promise.allSettled(assets.map((a) => handleGenerateImage(a.id)))
+    setIsBatchGenerating(false)
+    showToast(`已提交 ${assets.length} 项图像生成任务`, 'success')
+  }, [assets, handleGenerateImage, showToast])
 
   const handlePickerSelect = async (globalAssetId: string) => {
     if (!picker) return
@@ -346,15 +395,59 @@ export default function LxtAssetsStage() {
           title="资产管理"
           countText={`共 ${totalCount} 项（角色 ${counts.character} / 场景 ${counts.location} / 道具 ${counts.prop}）`}
           leftSlot={
-            <button
-              type="button"
-              onClick={() => void handleAnalyzeLlm()}
-              disabled={!hasStoryboard || isAnalyzing}
-              className="glass-btn-base glass-btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <AppIcon name="idea" className="w-3.5 h-3.5" />
-              <span>{isAnalyzing ? 'LLM 分析中…' : '✨ LLM 分析增强'}</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleAnalyzeLlm()}
+                disabled={!hasStoryboard || isAnalyzing}
+                className="glass-btn-base glass-btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <AppIcon name="idea" className="w-3.5 h-3.5" />
+                <span>{isAnalyzing ? 'LLM 分析中…' : '✨ LLM 分析增强'}</span>
+              </button>
+              {assets.length > 0 && !isAnalyzing && (
+                <button
+                  type="button"
+                  onClick={() => void handleReanalyze()}
+                  disabled={clearMutation.isPending}
+                  className="glass-btn-base glass-btn-secondary flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span>重新分析</span>
+                </button>
+              )}
+              {assets.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void handleBatchConfirmProfiles()}
+                    disabled={isBatchConfirming || confirmingAssetIds.size > 0}
+                    title="对所有未确认档案的资产并发生成形象描述"
+                    className="glass-btn-base glass-btn-secondary flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <AppIcon name="check" className="w-3.5 h-3.5" />
+                    <span>
+                      {isBatchConfirming || confirmingAssetIds.size > 0
+                        ? `确认中… (${confirmingAssetIds.size})`
+                        : '一键确认档案'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerateAllImages()}
+                    disabled={isBatchGenerating || activeImageGenIds.size > 0}
+                    title="为所有资产并发提交图像生成任务"
+                    className="glass-btn-base glass-btn-secondary flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <AppIcon name="image" className="w-3.5 h-3.5" />
+                    <span>
+                      {isBatchGenerating || activeImageGenIds.size > 0
+                        ? `生成中… (${activeImageGenIds.size})`
+                        : '一键生成图片'}
+                    </span>
+                  </button>
+                </>
+              )}
+            </div>
           }
           rightSlot={
             <>
@@ -444,8 +537,8 @@ export default function LxtAssetsStage() {
                         onBindVoice={() => setPicker({ assetId: asset.id, type: 'voice' })}
                         onEditProfile={() => handleEditProfile(asset)}
                         onConfirmProfile={() => void handleConfirmProfile(asset)}
-                        isConfirmingProfile={confirmingAssetId === asset.id}
-                        confirmingStreamText={confirmingAssetId === asset.id ? confirmingStreamText : ''}
+                        isConfirmingProfile={confirmingAssetIds.has(asset.id)}
+                        confirmingStreamText={confirmingStreamTexts.get(asset.id) ?? ''}
                         onGenerateImage={(count) => void handleGenerateImage(asset.id, count)}
                         isGeneratingImage={activeImageGenIds.has(asset.id)}
                         onSelectImage={(imageUrl) => void handleSelectImage(asset.id, imageUrl)}
