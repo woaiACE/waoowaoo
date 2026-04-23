@@ -188,6 +188,8 @@ const ROUTE_FILES = [
   'src/app/api/user/ai-story-expand/route.ts',
   'src/app/api/user/models/route.ts',
   'src/app/api/user/transactions/route.ts',
+  // LXT 项目配置
+  'src/app/api/lxt/[projectId]/route.ts',
   // LXT 剧本模式
   'src/app/api/lxt/[projectId]/episodes/[episodeId]/route.ts',
   'src/app/api/lxt/[projectId]/episodes/route.ts',

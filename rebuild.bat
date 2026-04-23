@@ -29,7 +29,7 @@ echo [提示] 强制重建模式：将清除 .next 并重新执行 next build
 echo        数据库 Schema 同步（prisma db push）也会自动执行
 echo.
 
-powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%CORE_SCRIPT%" -RepoDir "%REPO_DIR%" -ForceRebuild
+powershell -NoProfile -ExecutionPolicy Bypass -File "%CORE_SCRIPT%" -RepoDir "%REPO_DIR%" -ForceRebuild
 
 if %errorlevel% neq 0 (
     echo.

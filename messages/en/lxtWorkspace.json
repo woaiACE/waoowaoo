@@ -14,6 +14,8 @@
   "noNovelText": "No source text yet. Click Edit to add.",
   "noEpisodesHint": "No episodes yet. Create your first episode below.",
   "createFirstEpisode": "Create First Episode",
+  "analysisModel": "Analysis model",
+  "selectModel": "Select model",
   "finalFilm": {
     "noRows": "No storyboard rows yet. Generate the production script first.",
     "reconcile": "Sync shots",

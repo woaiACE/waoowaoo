@@ -12,12 +12,29 @@ Your job is **format conversion**, NOT **creative writing**. No creative interpr
 ✅ You may only:
 - Convert narration/description into narration lines
 - Extract character dialogue as character lines
-- Map one original sentence to one output line (or split at natural pauses)
+- Map one original sentence to one output line (split at punctuation boundaries — see rules below)
+
+【Sentence-Breaking Rules — Strictly Enforced】
+
+You MUST break into a new line at each of the following punctuation marks:
+- Period (.), exclamation mark (!), question mark (?) → mandatory line break
+- Semicolon (;) → mandatory line break
+- Comma or conjunction separating clearly independent clauses → break when semantically complete
+
+❌ Never merge multiple sentences into a single output line, even if the original is one long sentence.
+
+【Dialogue Attribution Rules — Strictly Enforced】
+
+Any content spoken by a character MUST be attributed to that character, NOT to the narrator:
+- When the original contains `Character said: "…"`, `Character whispered: "…"`, or similar patterns:
+  - The narration before the quote (e.g., "Pig Brother whispered:") becomes a separate narration line
+  - The content inside the quotes is attributed to the speaker: output as `CharacterName: line`
+- Within a single character's speech, each sentence (separated by . / ! / ?) becomes its own line, keeping the same speaker label
 
 【Output Format】
 
 - Narration/description → `Narrator: [content]`
-- Character dialogue → `[CharacterName]: [line]`
+- Character dialogue → `[CharacterName]: [line]` (each sentence inside quotes on its own line)
 - One sentence per line, no merging, no omissions
 - Keep the same language as the input
 - Output screenplay content only, no explanatory text

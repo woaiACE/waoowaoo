@@ -11,6 +11,12 @@ import LxtAssetsStage from './components/LxtAssetsStage'
 import LxtFinalScriptStage from './components/LxtFinalScriptStage'
 import LxtFinalFilmStage from './components/LxtFinalFilmStage'
 
+interface LlmModelOption {
+  value: string
+  label: string
+  provider?: string
+}
+
 // LXT 支持的 stages
 const LXT_STAGES = ['lxt-script', 'lxt-storyboard', 'lxt-assets', 'lxt-final-script', 'lxt-final-film'] as const
 type LxtStage = typeof LXT_STAGES[number]
@@ -32,6 +38,12 @@ export interface LxtWorkspaceProps {
   onEpisodeCreate: (name: string) => Promise<void>
   onEpisodeRename: (episodeId: string, newName: string) => Promise<void>
   onEpisodeDelete: (episodeId: string) => Promise<void>
+  /** 当前项目级文本分析模型（lxtProject.analysisModel，或兜底 userPreference） */
+  analysisModel?: string | null
+  /** 可选的 LLM 模型列表，用于渲染模型选择器 */
+  llmModelOptions?: LlmModelOption[]
+  /** 用户切换分析模型时的回调（同步更新 lxtProject.analysisModel） */
+  onAnalysisModelChange?: (modelKey: string) => Promise<void>
 }
 
 /**
@@ -49,9 +61,23 @@ export default function LxtWorkspace({
   onEpisodeCreate,
   onEpisodeRename,
   onEpisodeDelete,
+  analysisModel,
+  llmModelOptions = [],
+  onAnalysisModelChange,
 }: LxtWorkspaceProps) {
   const t = useTranslations('lxtWorkspace')
   const tc = useTranslations('common')
+  const [modelSaving, setModelSaving] = useState(false)
+
+  const handleModelChange = async (value: string) => {
+    if (!value || value === analysisModel || !onAnalysisModelChange) return
+    setModelSaving(true)
+    try {
+      await onAnalysisModelChange(value)
+    } finally {
+      setModelSaving(false)
+    }
+  }
 
   const effectiveStage: LxtStage =
     LXT_STAGES.includes(urlStage as LxtStage) ? (urlStage as LxtStage) : 'lxt-script'
@@ -101,6 +127,31 @@ export default function LxtWorkspace({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* 模型选择器 — 仅在有可用 LLM 模型时显示 */}
+      {llmModelOptions.length > 0 && onAnalysisModelChange && (
+        <div className="flex items-center gap-2 self-end">
+          <span className="text-xs text-[var(--glass-text-tertiary)]">
+            {t('analysisModel')}
+          </span>
+          <select
+            value={analysisModel || ''}
+            disabled={modelSaving}
+            onChange={(e) => { void handleModelChange(e.target.value) }}
+            className="glass-field-input text-xs h-7 px-2 pr-7 min-w-[160px] max-w-[240px] disabled:opacity-50"
+          >
+            {!analysisModel && (
+              <option value="" disabled>{t('selectModel')}</option>
+            )}
+            {llmModelOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          {modelSaving && (
+            <span className="text-xs text-[var(--glass-text-tertiary)]">…</span>
+          )}
+        </div>
+      )}
+
       {/* Stage 导航 — 居中对齐，与通用版保持一致 */}
       <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--glass-bg-muted)] w-fit self-center">
         {stageTabs.map(tab => {

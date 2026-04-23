@@ -367,6 +367,30 @@ export default function ProjectDetailPage() {
     }
   }, [projectId, queryClient, t, lxtSelectedEpisodeId, lxtEpisodes, updateUrlParams])
 
+  /**
+   * LXT 模式：用户切换文本分析模型时，同步更新 lxtProject.analysisModel 和 userPreference
+   * 对应通用模式中 WorkspaceHeaderShell onAnalysisModelChange → PATCH /api/novel-promotion/[projectId]
+   */
+  const handleLxtAnalysisModelChange = useCallback(async (modelKey: string) => {
+    // 1. 更新项目级模型（最高优先级，resolveAnalysisModel 优先读此字段）
+    const res = await apiFetch(`/api/lxt/${projectId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ analysisModel: modelKey }),
+    })
+    if (!res.ok) throw new Error(t('modelSaveFailed', { defaultValue: '模型保存失败' }))
+
+    // 2. 同步更新用户全局偏好（下次新建项目时默认使用该模型）
+    apiFetch('/api/user-preference', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ analysisModel: modelKey }),
+    }).catch((err) => _ulogError('[LXT] 用户偏好模型同步失败:', err))
+
+    // 3. 刷新项目数据，使 analysisModel 显示最新值
+    queryClient.invalidateQueries({ queryKey: queryKeys.projectData(projectId) })
+  }, [projectId, queryClient, t])
+
   const handleSaveDefaultAnalysisModel = async () => {
     const modelKey = analysisModelDraft.trim()
     if (!modelKey) {
@@ -376,6 +400,7 @@ export default function ProjectDetailPage() {
 
     setModelSetupSaving(true)
     try {
+      // 更新全局用户偏好
       const response = await apiFetch('/api/user-preference', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -384,6 +409,19 @@ export default function ProjectDetailPage() {
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)
+      }
+
+      // LXT 模式：同时更新项目级 analysisModel，确保推理时使用最新模型
+      // （lxtProject.analysisModel 仅在建项时拷贝一次，此处保持与用户选择同步）
+      if (isLxtMode && projectId) {
+        await apiFetch(`/api/lxt/${projectId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ analysisModel: modelKey }),
+        }).catch((err) => {
+          // 同步失败不阻断主流程，但记录日志
+          _ulogError('[ProjectDetail] LXT 项目模型同步失败:', err)
+        })
       }
 
       setNeedsModelSetup(false)
@@ -461,6 +499,9 @@ export default function ProjectDetailPage() {
               onEpisodeCreate={handleLxtCreateEpisode}
               onEpisodeRename={handleLxtRenameEpisode}
               onEpisodeDelete={handleLxtDeleteEpisode}
+              analysisModel={project?.lxtData?.analysisModel}
+              llmModelOptions={llmModelOptions}
+              onAnalysisModelChange={handleLxtAnalysisModelChange}
             />
           ) : isGlobalAssetsView && project.novelPromotionData ? (
             // 全局资产视图（确保数据准备好）

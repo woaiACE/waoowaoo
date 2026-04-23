@@ -21,30 +21,30 @@ export async function handleLxtScriptToStoryboardTask(job: Job<TaskJobData>) {
 
   const locale = typeof payload.locale === 'string' && payload.locale === 'en' ? 'en' : 'zh'
 
-  // 1. 加载项目 & episode
+  // 1. 加载项目 & episode（从 lxtProject / lxtEpisode 读取，与 SSE 主路径对称）
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { id: true, name: true },
   })
   if (!project) throw new Error('Project not found')
 
-  const novelData = await prisma.novelPromotionProject.findUnique({
+  const lxtData = await prisma.lxtProject.findUnique({
     where: { projectId },
     select: { analysisModel: true },
   })
 
-  const episode = await prisma.novelPromotionEpisode.findUnique({
+  const episode = await prisma.lxtEpisode.findUnique({
     where: { id: episodeId },
     select: { id: true, srtContent: true },
   })
   if (!episode) throw new Error('Episode not found')
   if (!episode.srtContent?.trim()) throw new Error('Episode has no script content')
 
-  // 2. 解析模型
+  // 2. 解析模型（与 generate-storyboard SSE 路由对称）
   const analysisModel = await resolveAnalysisModel({
     userId: job.data.userId,
     inputModel: payload.model,
-    projectAnalysisModel: novelData?.analysisModel,
+    projectAnalysisModel: lxtData?.analysisModel,
   })
 
   await reportTaskProgress(job, 10, {
@@ -91,8 +91,8 @@ export async function handleLxtScriptToStoryboardTask(job: Job<TaskJobData>) {
     displayMode: 'detail',
   })
 
-  // 5. 写回数据库
-  await prisma.novelPromotionEpisode.update({
+  // 5. 写回数据库（lxtEpisode，与 SSE 主路径对称）
+  await prisma.lxtEpisode.update({
     where: { id: episodeId },
     data: { shotListContent },
   })

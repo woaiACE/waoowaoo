@@ -1037,9 +1037,34 @@ function Invoke-Phase8-PrismaDbPush {
                 }
             }
             if ($lockWaited -ge 30) {
-                Write-Warn "DLL 超时仍被占用，尝试终止残留 Node 进程..."
-                Get-Process -Name 'node' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-                Start-Sleep -Seconds 2
+                Write-Warn "DLL 超时仍被占用，尝试终止上次会话 app 进程..."
+
+                # 优先精确终止上次会话的 app 进程（避免误杀 VSCode、其他 Node 应用等）
+                if (Test-Path $Script:PidApp) {
+                    $savedPid = [int](Get-Content $Script:PidApp -ErrorAction SilentlyContinue).Trim()
+                    if ($savedPid -gt 0) {
+                        Write-Step -Phase 'Prisma' -Message "通过 PID 文件终止上次 app 进程 (PID: $savedPid) 及其子进程..."
+                        & taskkill /F /T /PID $savedPid 2>&1 | Out-Null
+                        Start-Sleep -Seconds 2
+                    }
+                    Remove-Item -Path $Script:PidApp -Force -ErrorAction SilentlyContinue
+                }
+
+                # 检查 DLL 是否已释放
+                $dllStillLocked = $false
+                try {
+                    $fs2 = [System.IO.File]::Open($dllPath, 'Open', 'ReadWrite', 'None')
+                    $fs2.Close(); $fs2.Dispose()
+                } catch {
+                    $dllStillLocked = $true
+                }
+
+                if ($dllStillLocked) {
+                    # 仍被占用 → 最后手段：终止所有 node 进程
+                    Write-Warn "DLL 仍被占用，终止所有残留 Node 进程（最后手段）..."
+                    Get-Process -Name 'node' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+                    Start-Sleep -Seconds 2
+                }
             }
         }
 
@@ -1070,8 +1095,9 @@ function Invoke-Phase9a-NextBuild {
 
     $nextDir       = Join-Path $RepoDir '.next'
     $buildIdFile   = Join-Path $nextDir 'BUILD_ID'
-    $gitCommitFile = Join-Path $nextDir 'GIT_COMMIT'        # 构建时写入，用于跨启动检测代码变更
-    $gitStatusFile = Join-Path $nextDir 'GIT_STATUS_HASH'   # 记录未提交工作区指纹，避免漏掉本地源码修改
+    # 跟踪文件存放于项目根目录（不在 .next 内），避免 prebuild 清空 .next 时丢失
+    $gitCommitFile = Join-Path $RepoDir '.portable-git-commit'
+    $gitStatusFile = Join-Path $RepoDir '.portable-git-status-hash'
 
     # ── 获取当前 git HEAD commit hash / 工作区状态 ───────────
     $currentCommit = ''
@@ -1111,8 +1137,14 @@ function Invoke-Phase9a-NextBuild {
     }
     elseif ($workingTreeHash -ne '') {
         if (-not (Test-Path $gitStatusFile)) {
-            $needRebuild  = $true
-            $rebuildReason = '检测到本地未提交代码变更，重建以同步最新界面'
+            # 跟踪文件缺失（可能由外部 npm run build 触发 prebuild 清空 .next 所致）
+            # BUILD_ID 已存在且代码状态未知 → 采用保守策略：写入当前状态并跳过重建
+            # 若确实需要更新代码，请使用 rebuild.bat（-ForceRebuild）
+            Write-Warn '便携构建状态文件缺失，将记录当前状态并跳过重建（如需强制重建，请运行 rebuild.bat）。'
+            Set-Content -Path $gitStatusFile -Value $workingTreeHash -Encoding ASCII -Force
+            if ($currentCommit -ne '') {
+                Set-Content -Path $gitCommitFile -Value $currentCommit -Encoding ASCII -Force
+            }
         }
         else {
             $lastStatusHash = (Get-Content $gitStatusFile -ErrorAction SilentlyContinue).Trim()
@@ -1124,9 +1156,9 @@ function Invoke-Phase9a-NextBuild {
     }
     elseif ($currentCommit -ne '') {
         if (-not (Test-Path $gitCommitFile)) {
-            # 旧版构建没有 GIT_COMMIT 文件 → 无法确认是否最新，保守重建
-            $needRebuild  = $true
-            $rebuildReason = '构建缺少 git 版本记录，保守重建以确保同步'
+            # 跟踪文件缺失 → 写入当前 commit 并跳过重建（保守但不阻断）
+            Write-Warn '便携构建版本记录缺失，将记录当前版本并跳过重建（如需强制重建，请运行 rebuild.bat）。'
+            Set-Content -Path $gitCommitFile -Value $currentCommit -Encoding ASCII -Force
         }
         else {
             $lastCommit = (Get-Content $gitCommitFile -ErrorAction SilentlyContinue).Trim()
@@ -1308,34 +1340,73 @@ function Invoke-Phase11And12-GuardAndShutdown {
     Write-Host '  └──────────────────────────────────────────────────┘' -ForegroundColor DarkCyan
     Write-Host ''
 
-    # 守护循环：每 500ms 检测一次键盘输入或进程状态
-    # 用键盘轮询替代异常捕获，在 PS5.1 / .NET Framework 下更可靠
-    Write-Host '  提示：按任意键安全停止所有服务...' -ForegroundColor Yellow
-    $shouldStop = $false
-    while (-not $shouldStop) {
-        # 检查键盘（非阻塞）
-        if ([Console]::KeyAvailable) {
-            $null = [Console]::ReadKey($true)
-            $shouldStop = $true
-        }
-        # 检查应用进程是否意外退出
-        if ($null -ne $AppProcess -and $AppProcess.HasExited) {
-            Write-Warn "应用进程意外退出（代码：$($AppProcess.ExitCode)）！请检查日志：$($Script:LogRoot)\app.log"
-            $shouldStop = $true
-        }
-        if (-not $shouldStop) {
-            Start-Sleep -Milliseconds 500
-        }
+    # 预检控制台是否可用（-NonInteractive 模式或 stdin 被重定向时抛出 InvalidOperationException）
+    $consoleAvailable = $true
+    try {
+        $null = [Console]::KeyAvailable
+    } catch [System.InvalidOperationException] {
+        $consoleAvailable = $false
     }
-    Invoke-Phase12-GracefulShutdown -AppProcess $AppProcess
+
+    if ($consoleAvailable) {
+        Write-Host '  提示：按任意键安全停止所有服务...' -ForegroundColor Yellow
+    } else {
+        Write-Host '  提示：非交互模式运行，请按 Ctrl+C 或关闭窗口以安全停止所有服务...' -ForegroundColor Yellow
+    }
+
+    # 守护循环：每 500ms 检测一次键盘输入或进程状态
+    $shouldStop = $false
+    $stopInfrastructure = $false  # 仅当用户主动关闭时停止 MySQL/Redis/MinIO
+    $loopInterrupted = $false     # 标记循环是否被 Ctrl+C/PipelineStoppedException 中断
+    try {
+        while (-not $shouldStop) {
+            # 检查键盘（非阻塞）- 控制台可用时才轮询
+            if ($consoleAvailable) {
+                try {
+                    if ([Console]::KeyAvailable) {
+                        $null = [Console]::ReadKey($true)
+                        $shouldStop = $true
+                        $stopInfrastructure = $true   # 用户主动停止 → 关闭所有服务
+                    }
+                } catch [System.InvalidOperationException] {
+                    # stdin 已被重定向，停用键盘检测，改为仅监控进程状态
+                    $consoleAvailable = $false
+                }
+            }
+            # 检查应用进程是否意外退出
+            if ($null -ne $AppProcess -and $AppProcess.HasExited) {
+                Write-Warn "应用进程意外退出（代码：$($AppProcess.ExitCode)）！请检查日志：$($Script:LogRoot)\app.log"
+                Write-Warn "基础服务（MySQL/Redis/MinIO）保持运行。如需完全停止，请重新运行 start.bat 后关闭窗口。"
+                $shouldStop = $true
+                # $stopInfrastructure 保持 $false → 不关闭 MySQL/Redis/MinIO
+            }
+            if (-not $shouldStop) {
+                Start-Sleep -Milliseconds 500
+            }
+        }
+    } catch [System.Management.Automation.PipelineStoppedException] {
+        # 用户按下 Ctrl+C 或关闭窗口 → 主动关闭，需要停止所有服务
+        $loopInterrupted = $true
+        $stopInfrastructure = $true
+    } finally {
+        # 无论守护循环如何退出（正常停止、Ctrl+C、异常），始终执行优雅关闭
+        Invoke-Phase12-GracefulShutdown -AppProcess $AppProcess -StopInfrastructure:$stopInfrastructure
+    }
 }
 
 function Invoke-Phase12-GracefulShutdown {
     param(
-        [System.Diagnostics.Process]$AppProcess
+        [System.Diagnostics.Process]$AppProcess,
+        # $true = 用户主动关闭，停止所有服务（含 MySQL/Redis/MinIO）
+        # $false = 应用意外退出或重建触发，仅停止应用进程，保留基础服务
+        [switch]$StopInfrastructure = $false
     )
 
-    Write-Banner 'Phase 12: 优雅关闭所有服务'
+    if ($StopInfrastructure) {
+        Write-Banner 'Phase 12: 优雅关闭所有服务'
+    } else {
+        Write-Banner 'Phase 12: 停止应用进程（保留基础服务）'
+    }
 
     # 1. 停止 Next.js App（concurrently --kill-others 会级联终止所有子进程）
     Write-Step -Phase '关闭' -Message "正在停止应用进程..."
@@ -1373,79 +1444,84 @@ function Invoke-Phase12-GracefulShutdown {
         }
     }
 
-    # 2. 安全关闭 Redis（SHUTDOWN SAVE 确保 AOF 落盘）
-    Write-Step -Phase '关闭' -Message "正在安全关闭 Redis（SHUTDOWN SAVE）..."
-    try {
-        $redisPid = $null
-        if (Test-Path $Script:PidRedis) {
-            $redisPid = [int](Get-Content $Script:PidRedis -ErrorAction SilentlyContinue)
+    if ($StopInfrastructure) {
+        # 2. 安全关闭 Redis（SHUTDOWN SAVE 确保 AOF 落盘）
+        Write-Step -Phase '关闭' -Message "正在安全关闭 Redis（SHUTDOWN SAVE）..."
+        try {
+            $redisPid = $null
+            if (Test-Path $Script:PidRedis) {
+                $redisPid = [int](Get-Content $Script:PidRedis -ErrorAction SilentlyContinue)
+            }
+            & $Script:RedisCli -p $Script:PortRedis SHUTDOWN SAVE 2>&1 | Out-Null
+            # 等待端口释放
+            $waited = 0
+            while ((Test-PortOpen -Port $Script:PortRedis) -and $waited -lt 15) {
+                Start-Sleep -Seconds 1
+                $waited++
+            }
+            Write-Success 'Redis 已安全关闭（数据已落盘）'
         }
-        & $Script:RedisCli -p $Script:PortRedis SHUTDOWN SAVE 2>&1 | Out-Null
-        # 等待端口释放
-        $waited = 0
-        while ((Test-PortOpen -Port $Script:PortRedis) -and $waited -lt 15) {
-            Start-Sleep -Seconds 1
-            $waited++
+        catch {
+            Write-Warn "Redis 正常关闭失败，尝试强制终止：$_"
+            Stop-ProcessByPidFile -PidFilePath $Script:PidRedis -ServiceName 'Redis'
         }
-        Write-Success 'Redis 已安全关闭（数据已落盘）'
-    }
-    catch {
-        Write-Warn "Redis 正常关闭失败，尝试强制终止：$_"
-        Stop-ProcessByPidFile -PidFilePath $Script:PidRedis -ServiceName 'Redis'
-    }
-    Remove-Item -Path $Script:PidRedis -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $Script:PidRedis -Force -ErrorAction SilentlyContinue
 
-    # 3. 安全关闭 MySQL（mysqladmin shutdown）
-    Write-Step -Phase '关闭' -Message "正在安全关闭 MySQL..."
-    try {
-        $shutdownArgs = @(
-            "-h127.0.0.1",
-            "-P$Script:PortMySql",
-            "-uroot",
-            "-p$Script:DbRootPassword",
-            '--connect-timeout=5',
-            'shutdown'
-        )
-        Start-Process `
-            -FilePath $Script:MySqlAdmin `
-            -ArgumentList $shutdownArgs `
-            -NoNewWindow `
-            -Wait | Out-Null
+        # 3. 安全关闭 MySQL（mysqladmin shutdown）
+        Write-Step -Phase '关闭' -Message "正在安全关闭 MySQL..."
+        try {
+            $shutdownArgs = @(
+                "-h127.0.0.1",
+                "-P$Script:PortMySql",
+                "-uroot",
+                "-p$Script:DbRootPassword",
+                '--connect-timeout=5',
+                'shutdown'
+            )
+            Start-Process `
+                -FilePath $Script:MySqlAdmin `
+                -ArgumentList $shutdownArgs `
+                -NoNewWindow `
+                -Wait | Out-Null
 
-        $waited = 0
-        while ((Test-PortOpen -Port $Script:PortMySql) -and $waited -lt 20) {
-            Start-Sleep -Seconds 1
-            $waited++
+            $waited = 0
+            while ((Test-PortOpen -Port $Script:PortMySql) -and $waited -lt 20) {
+                Start-Sleep -Seconds 1
+                $waited++
+            }
+            Write-Success 'MySQL 已安全关闭'
         }
-        Write-Success 'MySQL 已安全关闭'
-    }
-    catch {
-        Write-Warn "MySQL 正常关闭失败，尝试强制终止：$_"
-        Stop-ProcessByPidFile -PidFilePath $Script:PidMySql -ServiceName 'MySQL'
-    }
-    Remove-Item -Path $Script:PidMySql -Force -ErrorAction SilentlyContinue
-
-    # 4. 停止 MinIO
-    Write-Step -Phase '关闭' -Message "停止 MinIO..."
-    Stop-ProcessByPidFile -PidFilePath $Script:PidMinio -ServiceName 'MinIO'
-
-    # 5. 最终确认所有端口已释放
-    $portsToCheck = @($Script:PortApp, $Script:PortRedis, $Script:PortMySql, $Script:PortMinioApi)
-    $allClosed = $true
-    foreach ($port in $portsToCheck) {
-        if (Test-PortOpen -Port $port) {
-            Write-Warn "端口 $port 仍在监听，可能有残留进程。"
-            $allClosed = $false
+        catch {
+            Write-Warn "MySQL 正常关闭失败，尝试强制终止：$_"
+            Stop-ProcessByPidFile -PidFilePath $Script:PidMySql -ServiceName 'MySQL'
         }
-    }
+        Remove-Item -Path $Script:PidMySql -Force -ErrorAction SilentlyContinue
 
-    if ($allClosed) {
-        Write-Success '所有服务已完全停止，无僵尸进程。'
-    }
+        # 4. 停止 MinIO
+        Write-Step -Phase '关闭' -Message "停止 MinIO..."
+        Stop-ProcessByPidFile -PidFilePath $Script:PidMinio -ServiceName 'MinIO'
 
-    Write-Host ''
-    Write-Host '  waoowaoo 已安全退出。再见！' -ForegroundColor Cyan
-    Write-Host ''
+        # 5. 最终确认所有端口已释放
+        $portsToCheck = @($Script:PortApp, $Script:PortRedis, $Script:PortMySql, $Script:PortMinioApi)
+        $allClosed = $true
+        foreach ($port in $portsToCheck) {
+            if (Test-PortOpen -Port $port) {
+                Write-Warn "端口 $port 仍在监听，可能有残留进程。"
+                $allClosed = $false
+            }
+        }
+
+        if ($allClosed) {
+            Write-Success '所有服务已完全停止，无僵尸进程。'
+        }
+
+        Write-Host ''
+        Write-Host '  waoowaoo 已安全退出。再见！' -ForegroundColor Cyan
+        Write-Host ''
+    } else {
+        Write-Step -Phase '关闭' -Message "基础服务（MySQL/Redis/MinIO）保持运行，仅停止了应用进程。"
+        Write-Host ''
+    }
 }
 
 # ============================================================
@@ -1482,9 +1558,10 @@ function Main {
         Invoke-Phase11And12-GuardAndShutdown -AppProcess $appProcess
     }
     catch {
-        # 区分正常地Ctrl+C/键盘退出与真实错误
+        # 区分正常的 Ctrl+C/键盘退出与真实错误
+        # 注意：若已进入 Phase 11，Phase 12（优雅关闭）已在其 finally 块中执行完毕
         if ($_.Exception -is [System.Management.Automation.PipelineStoppedException]) {
-            # 用户按了 Ctrl+C，关闭流程已在 Phase12 完成
+            # 用户按了 Ctrl+C 或窗口关闭，Phase 12 已在 Phase 11 的 finally 中执行
             exit 0
         }
         Write-Host ''
@@ -1497,7 +1574,12 @@ function Main {
         Write-Host "  $Script:LogRoot" -ForegroundColor DarkGray
         Write-Host ''
         Write-Host '  按任意键退出...' -ForegroundColor Yellow
-        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+        try {
+            $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+        } catch {
+            # 非交互模式无键盘输入，直接退出
+            Start-Sleep -Seconds 3
+        }
         exit 1
     }
 }

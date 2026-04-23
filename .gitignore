@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# 便携版构建状态跟踪文件（由 scripts/start-core.ps1 自动生成）
+/.portable-git-commit
+/.portable-git-status-hash
+
 # production
 /build
 

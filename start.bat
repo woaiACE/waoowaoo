@@ -31,7 +31,7 @@ if %errorlevel% neq 0 (
 )
 
 REM Run the PowerShell bootstrap with safe options
-powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%CORE_SCRIPT%" -RepoDir "%REPO_DIR%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%CORE_SCRIPT%" -RepoDir "%REPO_DIR%"
 
 if %errorlevel% neq 0 (
     echo.
