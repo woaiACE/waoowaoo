@@ -21,6 +21,7 @@ import {
 } from '@/lib/lxt/final-film'
 import { getArtStylePrompt } from '@/lib/constants'
 import { normalizeReferenceImagesForGeneration } from '@/lib/media/outbound-image'
+import { resolveModelMaxReferenceImages } from '@/lib/model-capabilities/catalog'
 
 type Payload = Record<string, unknown>
 
@@ -54,25 +55,40 @@ async function mergeFinalFilmRow(
 }
 
 /**
- * 从 LXT 资产绑定中收集参考图 URL（用于 AI 模型参考注入）
+ * 从 LXT 资产绑定中收集参考图 URL（用于 AI 模型参考注入）。
+ *
+ * 按「角色 → 场景 → 道具」优先级排列，并根据 modelKey 的 capability catalog 中
+ * maxReferenceImages 字段自动截断，无需在代码里硬编码任何数字。
+ * 对没有 catalog 条目或未声明 maxReferenceImages 的模型返回全部参考图（无上限）。
  */
-async function collectLxtReferenceImages(bindings: LxtFinalFilmRowBindings | null): Promise<string[]> {
+async function collectLxtReferenceImages(
+  bindings: LxtFinalFilmRowBindings | null,
+  modelKey: string,
+): Promise<string[]> {
   if (!bindings) return []
-  const assetIds: string[] = [
+  // Priority: characters first, then scene, then props
+  const prioritizedIds: string[] = [
     ...bindings.characterAssetIds,
     ...(bindings.sceneAssetId ? [bindings.sceneAssetId] : []),
     ...(bindings.propAssetIds ?? []),
   ]
-  if (assetIds.length === 0) return []
+  if (prioritizedIds.length === 0) return []
 
   const assets = await prisma.lxtProjectAsset.findMany({
-    where: { id: { in: assetIds } },
+    where: { id: { in: prioritizedIds } },
     select: { id: true, imageUrl: true },
   })
 
+  // Read the per-model limit from the capability catalog (Infinity if unspecified)
+  const maxRefs = resolveModelMaxReferenceImages(modelKey)
+
+  // Preserve priority order, stop once the model limit is reached
+  const assetMap = new Map(assets.map((a) => [a.id, a]))
   const refs: string[] = []
-  for (const asset of assets) {
-    if (!asset.imageUrl) continue
+  for (const id of prioritizedIds) {
+    if (refs.length >= maxRefs) break
+    const asset = assetMap.get(id)
+    if (!asset?.imageUrl) continue
     const signed = toSignedUrlIfCos(asset.imageUrl, 3600)
     if (signed) refs.push(signed)
   }
@@ -119,7 +135,7 @@ export async function handleLxtFinalFilmImageTask(job: Job<TaskJobData>) {
     displayMode: 'detail',
   })
   const bindings = (payload.bindings as LxtFinalFilmRowBindings | null) ?? null
-  const rawRefs = await collectLxtReferenceImages(bindings)
+  const rawRefs = await collectLxtReferenceImages(bindings, modelId)
   const normalizedRefs = await normalizeReferenceImagesForGeneration(rawRefs)
 
   // ── 2. 组装四宫格提示词 ──────────────────────────────────────────

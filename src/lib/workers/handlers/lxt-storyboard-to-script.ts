@@ -44,6 +44,8 @@ function assembleShotOutput(
 ): string {
   const assetBindingsRaw = phase1['asset_bindings']
   const assetBindingsStr = assetBindingsRaw ? JSON.stringify(assetBindingsRaw) : null
+  const bindingStringRaw = phase1['binding_string']
+  const bindingString = typeof bindingStringRaw === 'string' ? bindingStringRaw.trim() : ''
   return [
     label,
     `镜头文案:${String(phase1['镜头文案'] ?? '')}`,
@@ -53,6 +55,7 @@ function assembleShotOutput(
     `语音分镜:${String(phase1['语音分镜'] ?? '')}`,
     `音效:${String(phase1['音效'] ?? '')}`,
     ...(assetBindingsStr ? [`资产绑定:${assetBindingsStr}`] : []),
+    ...(bindingString ? [`资产绑定简写:${bindingString}`] : []),
   ].join('\n')
 }
 

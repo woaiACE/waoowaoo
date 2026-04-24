@@ -31,6 +31,8 @@ export interface LLMCapabilities {
 
 export interface ImageCapabilities {
   resolutionOptions?: string[]
+  /** Maximum number of reference images this model accepts. Absent means no limit. */
+  maxReferenceImages?: number
   fieldI18n?: CapabilityFieldI18nMap
 }
 
@@ -85,6 +87,7 @@ const LLM_ALLOWED_FIELDS = new Set<keyof LLMCapabilities>([
 
 const IMAGE_ALLOWED_FIELDS = new Set<keyof ImageCapabilities>([
   'resolutionOptions',
+  'maxReferenceImages',
   'fieldI18n',
 ])
 
@@ -285,6 +288,20 @@ function validateImageCapabilities(issues: CapabilityValidationIssue[], raw: unk
       code: 'CAPABILITY_FIELD_INVALID',
       field: 'capabilities.image.resolutionOptions',
       message: 'resolutionOptions must be a non-empty string array',
+    })
+  }
+
+  const maxReferenceImages = raw.maxReferenceImages
+  if (
+    maxReferenceImages !== undefined
+    && (typeof maxReferenceImages !== 'number'
+      || !Number.isInteger(maxReferenceImages)
+      || maxReferenceImages < 1)
+  ) {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.image.maxReferenceImages',
+      message: 'maxReferenceImages must be a positive integer',
     })
   }
 

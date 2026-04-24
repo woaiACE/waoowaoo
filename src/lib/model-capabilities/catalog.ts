@@ -221,3 +221,28 @@ export function findBuiltinCapabilities(
 export function resetBuiltinCapabilityCatalogCacheForTest() {
   cache = null
 }
+
+/**
+ * Returns the maximum number of reference images a model accepts, as declared
+ * in the capability catalog. Returns `Infinity` if the model has no catalog
+ * entry or its entry does not specify `maxReferenceImages`.
+ *
+ * Usage: slice reference image arrays to this limit before sending to the model,
+ * ensuring different models can coexist without hard-coded constants in handlers.
+ */
+export function resolveModelMaxReferenceImages(modelKey: string): number {
+  const parsed = parseModelKey(modelKey)
+  if (!parsed) return Infinity
+  const entry = findBuiltinCapabilityCatalogEntry('image', parsed.provider, parsed.modelId)
+  const max = entry?.capabilities?.image?.maxReferenceImages
+  return typeof max === 'number' && max >= 1 ? max : Infinity
+}
+
+function parseModelKey(modelKey: string): { provider: string; modelId: string } | null {
+  const idx = modelKey.indexOf('::')
+  if (idx === -1) return null
+  const provider = modelKey.slice(0, idx).trim()
+  const modelId = modelKey.slice(idx + 2).trim()
+  if (!provider || !modelId) return null
+  return { provider, modelId }
+}
