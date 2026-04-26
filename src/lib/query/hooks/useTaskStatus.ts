@@ -79,6 +79,8 @@ export function useTaskList(params: {
     queryKey,
     enabled,
     staleTime: 5000,
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
     queryFn: async () => {
       const search = buildTaskSearch({
         projectId: params.projectId!,

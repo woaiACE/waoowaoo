@@ -16,6 +16,7 @@ import {
   buildFinalFilmTargetId,
   DEFAULT_GRID_PROMPT_PREFIX,
   type LxtFinalFilmRow,
+  type LxtFinalFilmImageSet,
 } from '@/lib/lxt/final-film'
 import { useLxtAssets, type LxtProjectAsset } from '@/lib/query/hooks/useLxtAssets'
 import {
@@ -257,6 +258,15 @@ function FinalFilmRow({
   const genImage = useGenerateLxtFinalFilmImage(projectId, episodeId)
   const genVideo = useGenerateLxtFinalFilmVideo(projectId, episodeId)
 
+  const [activeSetIndex, setActiveSetIndex] = useState<number | null>(null)
+
+  // 根据选中的套图计算尾帧 URL
+  const imageSets = row.imageSets
+  const activeSet = activeSetIndex !== null && Array.isArray(imageSets)
+    ? (imageSets[activeSetIndex] ?? null)
+    : null
+  const activeVideoEndFrameUrl = activeSet?.videoEndFrameUrl ?? row.videoEndFrameUrl
+
   const savePatch = (patch: Partial<LxtFinalFilmRow>) => {
     patchRow.mutate({ shotIndex: row.shotIndex, patch })
   }
@@ -356,18 +366,22 @@ function FinalFilmRow({
           onGenerate={() => genImage.mutate({ shotIndex: row.shotIndex })}
           isGenerating={genImage.isPending}
           generateLabel={t('generateImage')}
+          regenerateLabel={t('regenerateImage')}
           pendingLabel={t('pending')}
           processingLabel={t('processing')}
           noBindingsLabel={t('noBindings')}
           missingAssetLabel={t('missingAsset')}
           splitPanelsLabel={t('splitPanels')}
           endFrameAutoLabel={t('endFrameAuto')}
+          imageSets={row.imageSets}
+          activeSetIndex={activeSetIndex}
+          onSelectImageSet={setActiveSetIndex}
         />
 
         {/* 尾帧图 */}
         <MediaSlot
           label={t('endFrameSlot')}
-          imageUrl={row.videoEndFrameUrl}
+          imageUrl={activeVideoEndFrameUrl}
         />
 
         {/* 视频 */}
@@ -463,7 +477,7 @@ function FirstFrameSlot(props: {
   label: string
   imageUrl?: string | null
   gridImageUrl?: string | null
-  splitImageUrls?: string[] | null
+  splitImageUrls?: (string | null)[] | null
   imagePrompt?: string | null
   taskPhase?: string | null
   boundCharacterIds: string[]
@@ -473,26 +487,44 @@ function FirstFrameSlot(props: {
   onGenerate: () => void
   isGenerating: boolean
   generateLabel: string
+  regenerateLabel: string
   pendingLabel: string
   processingLabel: string
   noBindingsLabel: string
   missingAssetLabel: string
   splitPanelsLabel: string
   endFrameAutoLabel: string
+  imageSets?: LxtFinalFilmImageSet[] | null
+  activeSetIndex: number | null
+  onSelectImageSet: (index: number | null) => void
 }) {
   const {
     imageUrl, gridImageUrl, splitImageUrls, imagePrompt, taskPhase,
-    boundCharacterIds, boundSceneId, boundPropIds, assetById,
+    boundCharacterIds, boundSceneId, boundPropIds, assetById, imageSets,
+    activeSetIndex, onSelectImageSet,
   } = props
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const taskBusy = taskPhase === 'queued' || taskPhase === 'processing'
   const canGenerate = !props.isGenerating && !taskBusy && !!imagePrompt?.trim()
 
+  // 选中历史套图时显示历史数据
+  const activeSet = activeSetIndex !== null && Array.isArray(imageSets)
+    ? (imageSets[activeSetIndex] ?? null)
+    : null
+  const displayGridUrl = activeSet?.gridImageUrl ?? gridImageUrl
+  const displaySplitUrls = activeSet?.splitImageUrls ?? splitImageUrls
+  const displayImageUrl = activeSet?.gridImageUrl ?? imageUrl
+
   // 四宫格模式：有 splitImageUrls 时启用
-  const hasSplits = Array.isArray(splitImageUrls) && splitImageUrls.length > 0
+  const hasSplits = Array.isArray(displaySplitUrls) && displaySplitUrls.some((url) => url !== null)
   // 主展示图：四宫格原图优先，fallback 到 imageUrl
-  const displayUrl = gridImageUrl ?? imageUrl
+  const displayUrl = displayGridUrl ?? displayImageUrl
   const hasImage = !!displayUrl
+
+  // 套图数量：imageSets 已包含当前套图，直接使用其长度
+  const totalSets = Array.isArray(imageSets) && imageSets.length > 0
+    ? imageSets.length
+    : (hasImage ? 1 : 0)
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -545,18 +577,30 @@ function FirstFrameSlot(props: {
               className={['w-7 h-7', hasImage ? 'text-white' : 'text-[var(--glass-text-secondary)]'].join(' ')}
             />
             <span className={['text-[11px] font-semibold', hasImage ? 'text-white' : 'text-[var(--glass-text-secondary)]'].join(' ')}>
-              {props.generateLabel}
+              {hasImage ? props.regenerateLabel : props.generateLabel}
             </span>
           </button>
         )}
       </div>
+
+      {/* 显式重新生成按钮：有图后也保留，避免仅靠 hover 触发 */}
+      {hasImage && (
+        <button
+          type="button"
+          onClick={props.onGenerate}
+          disabled={!canGenerate}
+          className="glass-btn-base glass-btn-secondary h-7 px-2.5 text-[11px] disabled:opacity-40 self-start"
+        >
+          {props.regenerateLabel}
+        </button>
+      )}
 
       {/* ── 四宫格分图缩略图 ────────────────────────────────── */}
       {hasSplits && (
         <div className="flex flex-col gap-1">
           <span className="text-[10px] text-[var(--glass-text-tertiary)]">{props.splitPanelsLabel}</span>
           <div className="grid grid-cols-2 gap-0.5">
-            {splitImageUrls!.slice(0, 4).map((url, i) => (
+            {displaySplitUrls!.filter((url): url is string => url !== null).slice(0, 4).map((url, i) => (
               <div
                 key={i}
                 className="relative aspect-square rounded overflow-hidden bg-[var(--glass-bg-muted)] cursor-pointer"
@@ -572,6 +616,40 @@ function FirstFrameSlot(props: {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 套图历史指示器 ──────────────────────────────────── */}
+      {totalSets > 1 && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-[var(--glass-text-tertiary)] shrink-0">
+            {totalSets} 套
+          </span>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: totalSets }, (_, i) => {
+              const isActive = activeSetIndex === null
+                ? i === totalSets - 1 // null = 默认显示最新（最后一套）
+                : i === activeSetIndex
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    // 最后一套 = 当前 row 数据（activeSetIndex = null）
+                    onSelectImageSet(i === totalSets - 1 ? null : i)
+                  }}
+                  className={[
+                    'w-5 h-5 rounded text-[9px] font-bold transition-all border',
+                    isActive
+                      ? 'bg-[var(--glass-accent-from)] text-white border-transparent scale-110'
+                      : 'bg-[var(--glass-bg-muted)] text-[var(--glass-text-tertiary)] border-[var(--glass-stroke-base)] hover:bg-[var(--glass-bg-hover)]',
+                  ].join(' ')}
+                >
+                  {i + 1}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
@@ -606,6 +684,7 @@ function FirstFrameSlot(props: {
 }
 
 function MediaSlot(props: { label: string; imageUrl?: string | null }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[11px] font-semibold text-[var(--glass-text-tertiary)] uppercase tracking-wider">
@@ -614,11 +693,17 @@ function MediaSlot(props: { label: string; imageUrl?: string | null }) {
       <div className="aspect-square w-full rounded-lg overflow-hidden bg-[var(--glass-bg-muted)] border border-[var(--glass-stroke-base)] flex items-center justify-center">
         {props.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={props.imageUrl} alt={props.label} className="w-full h-full object-cover" />
+          <img
+            src={props.imageUrl}
+            alt={props.label}
+            className="w-full h-full object-cover cursor-pointer"
+            onClick={() => setPreviewUrl(props.imageUrl!)}
+          />
         ) : (
           <span className="text-xs text-[var(--glass-text-tertiary)]">—</span>
         )}
       </div>
+      {previewUrl && <ImagePreviewModal imageUrl={previewUrl} onClose={() => setPreviewUrl(null)} />}
     </div>
   )
 }

@@ -26,6 +26,7 @@
     "endFrameSlot": "视频尾帧图",
     "videoSlot": "视频",
     "generateImage": "生成图片",
+    "regenerateImage": "重新生成",
     "generateVideo": "生成视频",
     "setAsEndFrame": "设为尾帧",
     "bindAssets": "绑定资产",

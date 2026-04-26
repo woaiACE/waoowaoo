@@ -48,6 +48,7 @@ export const POST = apiHandler(async (
   const locale = resolveRequiredTaskLocale(request, body)
 
   const targetId = buildFinalFilmTargetId(episodeId, shotIndex)
+  const generationToken = row?.gridImageUrl || row?.imageUrl || 'initial'
   const payload = {
     episodeId,
     shotIndex,
@@ -68,7 +69,7 @@ export const POST = apiHandler(async (
     targetType: FINAL_FILM_TARGET_TYPE,
     targetId,
     payload,
-    dedupeKey: `${TASK_TYPE.LXT_FINAL_FILM_IMAGE}:${targetId}`,
+    dedupeKey: `${TASK_TYPE.LXT_FINAL_FILM_IMAGE}:${targetId}:${generationToken}`,
     billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.LXT_FINAL_FILM_IMAGE, payload),
   })
 

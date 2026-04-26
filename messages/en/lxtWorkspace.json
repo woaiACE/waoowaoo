@@ -26,6 +26,7 @@
     "endFrameSlot": "End frame",
     "videoSlot": "Video",
     "generateImage": "Generate image",
+    "regenerateImage": "Regenerate",
     "generateVideo": "Generate video",
     "setAsEndFrame": "Set as end frame",
     "bindAssets": "Bind assets",

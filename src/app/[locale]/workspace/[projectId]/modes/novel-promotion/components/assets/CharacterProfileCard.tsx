@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import TaskStatusInline from '@/components/task/TaskStatusInline'
 import { resolveTaskPresentationState } from '@/lib/task/presentation'
@@ -21,6 +22,7 @@ interface CharacterProfileCardProps {
     onDelete?: () => void
     isConfirming?: boolean
     isDeleting?: boolean
+    voiceSettings?: ReactNode
 }
 
 /**
@@ -56,7 +58,8 @@ export default function CharacterProfileCard({
     onUseExisting,
     onDelete,
     isConfirming = false,
-    isDeleting = false
+    isDeleting = false,
+    voiceSettings,
 }: CharacterProfileCardProps) {
     const t = useTranslations('assets')
     const deletingState = isDeleting
@@ -197,6 +200,12 @@ export default function CharacterProfileCard({
                         )}
                     </button>
                 </div>
+
+                {voiceSettings && (
+                    <div className="pt-3 mt-3 border-t border-[var(--glass-stroke-base)]">
+                        {voiceSettings}
+                    </div>
+                )}
             </div>
         </div>
     )

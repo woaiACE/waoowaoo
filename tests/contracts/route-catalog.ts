@@ -201,6 +201,7 @@ const ROUTE_FILES = [
   'src/app/api/lxt/[projectId]/assets/[assetId]/ai-modify-description/route.ts',
   'src/app/api/lxt/[projectId]/assets/[assetId]/confirm-profile/route.ts',
   'src/app/api/lxt/[projectId]/assets/[assetId]/generate/route.ts',
+  'src/app/api/lxt/[projectId]/assets/[assetId]/generate-narrative/route.ts',
   'src/app/api/lxt/[projectId]/assets/[assetId]/voice-infer/route.ts',
   'src/app/api/lxt/[projectId]/assets/[assetId]/voice-design/route.ts',
   'src/app/api/lxt/[projectId]/assets/[assetId]/voice-upload/route.ts',

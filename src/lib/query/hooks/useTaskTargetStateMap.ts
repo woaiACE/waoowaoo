@@ -127,6 +127,7 @@ function logMergeDecision(params: {
   | 'overlay_phase_ignored'
   | 'overlay_task_type_mismatch'
   | 'server_processing_authoritative'
+  | 'server_terminal_authoritative'
   runtimePhase: string | null
   runtimeTaskId: string | null
   runtimeTaskType: string | null
@@ -387,6 +388,27 @@ export function useTaskTargetStateMap(
           }
           continue
         }
+        // Server-side terminal states are authoritative only when the optimistic overlay
+        // is stale (about to expire). Fresh overlays override old terminal states to
+        // show the loading state for a new submission immediately.
+        if (current.phase === 'completed' || current.phase === 'failed') {
+          const remaining = (runtime.expiresAt ?? 0) - now
+          if (remaining <= 5000) {
+            if (shouldTraceMergeTarget(target.targetType)) {
+              logMergeDecision({
+                projectId,
+                key,
+                decision: 'server_terminal_authoritative',
+              runtimePhase: runtime.phase,
+              runtimeTaskId: runtime.runningTaskId,
+              runtimeTaskType: runtime.runningTaskType,
+              currentPhase: current.phase,
+              whitelist: target.types || [],
+            })
+          }
+          continue
+        }
+      }
       }
       map.set(key, {
         ...(current || buildIdleState(target)),

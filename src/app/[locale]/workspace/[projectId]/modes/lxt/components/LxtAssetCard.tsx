@@ -364,6 +364,7 @@ export default function LxtAssetCard({
                   onConfirm={onConfirmProfile}
                   onUseExisting={() => onBindGlobal('character')}
                   isConfirming={isConfirmingProfile}
+                  voiceSettings={<VoiceSettingsPanel adapter={voiceAdapter} />}
                 />
               ) : (
                 <>
@@ -396,10 +397,11 @@ export default function LxtAssetCard({
                   </div>
                 </>
               )}
-              {/* 音色面板（角色，无论是否 profileConfirmed 都可操作） */}
-              <div className="border-t border-[var(--glass-stroke-base)] pt-1">
-                <VoiceSettingsPanel adapter={voiceAdapter} />
-              </div>
+              {!parsedProfileData && (
+                <div className="border-t border-[var(--glass-stroke-base)] pt-1">
+                  <VoiceSettingsPanel adapter={voiceAdapter} />
+                </div>
+              )}
             </div>
           ) : (
             /* 场景 / 道具 - 待确认 */
@@ -435,27 +437,29 @@ export default function LxtAssetCard({
           )}
 
           {/* ── 底部操作栏 ─────────────────────────── */}
-          <div className="flex items-center gap-2 px-4 pb-4 pt-3 border-t border-[var(--glass-stroke-base)]">
-            <button
-              type="button"
-              onClick={onConfirmProfile}
-              disabled={isConfirmingProfile}
-              className="glass-btn-base glass-btn-primary h-8 px-3 text-xs disabled:opacity-40 flex items-center gap-1.5"
-            >
-              {isConfirmingProfile ? (
-                <><span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />生成中…</>
-              ) : (asset.description ? '重新生成描述' : '确认并生成')}
-            </button>
-            <div className="flex-1" />
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={isSaving}
-              className="glass-btn-base glass-btn-secondary h-8 px-4 text-xs disabled:opacity-40"
-            >
-              {isSaving ? '保存中…' : '保存'}
-            </button>
-          </div>
+          {(!isCharacter || !parsedProfileData) && (
+            <div className="flex items-center gap-2 px-4 pb-4 pt-3 border-t border-[var(--glass-stroke-base)]">
+              <button
+                type="button"
+                onClick={onConfirmProfile}
+                disabled={isConfirmingProfile}
+                className="glass-btn-base glass-btn-primary h-8 px-3 text-xs disabled:opacity-40 flex items-center gap-1.5"
+              >
+                {isConfirmingProfile ? (
+                  <><span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />生成中…</>
+                ) : (asset.description ? '重新生成描述' : '确认并生成')}
+              </button>
+              <div className="flex-1" />
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={isSaving}
+                className="glass-btn-base glass-btn-secondary h-8 px-4 text-xs disabled:opacity-40"
+              >
+                {isSaving ? '保存中…' : '保存'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     {previewImage && <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />}

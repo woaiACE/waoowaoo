@@ -21,6 +21,13 @@ export interface LxtFinalFilmRowBindings {
   propAssetIds?: string[]
 }
 
+export interface LxtFinalFilmImageSet {
+  gridImageUrl: string | null
+  splitImageUrls: (string | null)[]
+  videoEndFrameUrl: string | null
+  createdAt: string
+}
+
 export interface LxtFinalFilmRow {
   shotIndex: number             // 0-based，对应 parseLxtShots 的 index
   label?: string                // 分镜名（"分镜1"等）
@@ -28,7 +35,8 @@ export interface LxtFinalFilmRow {
   imagePrompt?: string          // 图片提示词
   imageUrl?: string | null      // 主图（四宫格模式下 = gridImageUrl 副本，向后兼容）
   gridImageUrl?: string | null  // 四宫格原图（AI 一次调用返回的 2×2 格局组图）
-  splitImageUrls?: string[] | null // 切割后4张独立分镜图（顺序：左上/右上/左下/右下）
+  splitImageUrls?: (string | null)[] | null // 切割后4张独立分镜图（顺序：左上/右上/左下/右下）
+  imageSets?: LxtFinalFilmImageSet[] | null // 最近保留的套图历史（最多2套，按时间升序）
   videoEndFrameUrl?: string | null // 视频尾帧图（四宫格模式下自动设为右下角分图）
   videoPrompt?: string          // 视频提示词
   videoUrl?: string | null      // 视频
@@ -107,12 +115,30 @@ function normalizeRow(row: unknown): LxtFinalFilmRow | null {
     splitImageUrls: Array.isArray(r.splitImageUrls)
       ? r.splitImageUrls.filter((u): u is string => typeof u === 'string')
       : null,
+    imageSets: Array.isArray(r.imageSets)
+      ? r.imageSets.map(normalizeImageSet).filter((s): s is LxtFinalFilmImageSet => s !== null)
+      : null,
     videoEndFrameUrl: typeof r.videoEndFrameUrl === 'string' ? r.videoEndFrameUrl : null,
     videoPrompt: typeof r.videoPrompt === 'string' ? r.videoPrompt : undefined,
     videoUrl: typeof r.videoUrl === 'string' ? r.videoUrl : null,
     shotType: typeof r.shotType === 'string' ? r.shotType : undefined,
     bindings: normalizeBindings(r.bindings),
   }
+}
+
+function normalizeImageSet(raw: unknown): LxtFinalFilmImageSet | null {
+  if (!raw || typeof raw !== 'object') return null
+  const s = raw as Record<string, unknown>
+  const gridImageUrl = typeof s.gridImageUrl === 'string' ? s.gridImageUrl : null
+  if (!gridImageUrl) return null
+  const splitImageUrls = Array.isArray(s.splitImageUrls)
+    ? s.splitImageUrls.filter((u): u is string => typeof u === 'string')
+    : []
+  const videoEndFrameUrl = typeof s.videoEndFrameUrl === 'string' ? s.videoEndFrameUrl : null
+  const createdAt = typeof s.createdAt === 'string' && s.createdAt.trim()
+    ? s.createdAt
+    : new Date(0).toISOString()
+  return { gridImageUrl, splitImageUrls, videoEndFrameUrl, createdAt }
 }
 
 function normalizeBindings(raw: unknown): LxtFinalFilmRowBindings | undefined {
@@ -143,6 +169,7 @@ export function deriveRowsFromShotList(shotListContent: string | null | undefine
     imageUrl: null,
     gridImageUrl: null,
     splitImageUrls: null,
+    imageSets: null,
     videoEndFrameUrl: null,
     videoPrompt: '',
     videoUrl: null,

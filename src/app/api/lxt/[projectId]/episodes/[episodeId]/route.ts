@@ -7,7 +7,6 @@ import {
   deriveRowsFromShotList,
   parseFinalFilmContent,
   serializeFinalFilmContent,
-  FINAL_FILM_CONTENT_VERSION,
 } from '@/lib/lxt/final-film'
 
 /**
@@ -31,13 +30,28 @@ export const GET = apiHandler(async (
   if (!episode) throw new ApiError('NOT_FOUND')
 
   // 惰性初始化 finalFilmContent：仅在未设置且有分镜脚本时生成骨架
+  // 使用事务避免与并发 setVideoRatio/setArtStyle PATCH 的竞态覆盖
   if (!episode.finalFilmContent && episode.shotListContent && episode.shotListContent.trim()) {
     const rows = deriveRowsFromShotList(episode.shotListContent)
     if (rows.length > 0) {
-      const content = serializeFinalFilmContent({ version: FINAL_FILM_CONTENT_VERSION, rows })
-      episode = await prisma.lxtEpisode.update({
-        where: { id: episodeId },
-        data: { finalFilmContent: content },
+      episode = await prisma.$transaction(async (tx) => {
+        const current = await tx.lxtEpisode.findUnique({
+          where: { id: episodeId },
+          select: { finalFilmContent: true },
+        })
+        // 若在事务内发现已被其他请求初始化，直接返回不覆盖
+        if (current?.finalFilmContent) {
+          const existing = await tx.lxtEpisode.findUnique({ where: { id: episodeId } })
+          return existing!
+        }
+        const content = serializeFinalFilmContent({
+          ...createEmptyFinalFilmContent(),
+          rows,
+        })
+        return tx.lxtEpisode.update({
+          where: { id: episodeId },
+          data: { finalFilmContent: content },
+        })
       })
     }
   } else if (!episode.finalFilmContent) {

@@ -74,6 +74,7 @@ export default function LxtAssetsStage() {
   // 支持多资产并发确认：Set 记录所有进行中的 assetId，Map 记录各自的流式文本
   const [confirmingAssetIds, setConfirmingAssetIds] = useState<Set<string>>(new Set())
   const [confirmingStreamTexts, setConfirmingStreamTexts] = useState<Map<string, string>>(new Map())
+  const [submittingImageAssetIds, setSubmittingImageAssetIds] = useState<Set<string>>(new Set())
   const [isBatchConfirming, setIsBatchConfirming] = useState(false)
   const [isBatchGenerating, setIsBatchGenerating] = useState(false)
 
@@ -236,13 +237,21 @@ export default function LxtAssetsStage() {
   }
 
   const handleGenerateImage = useCallback(async (assetId: string, count?: number) => {
+    setSubmittingImageAssetIds((prev) => new Set([...prev, assetId]))
     try {
       await generateImageMutation.mutateAsync({ assetId, count, artStyle: currentArtStyle })
       showToast('图像生成已提交，完成后自动更新…', 'success')
+      void assetsQuery.refetch()
     } catch {
       showToast('图像生成提交失败', 'error')
+    } finally {
+      setSubmittingImageAssetIds((prev) => {
+        const next = new Set(prev)
+        next.delete(assetId)
+        return next
+      })
     }
-  }, [generateImageMutation, showToast, currentArtStyle])
+  }, [generateImageMutation, showToast, currentArtStyle, assetsQuery])
 
   const handleSelectImage = async (assetId: string, imageUrl: string) => {
     try {
@@ -540,7 +549,7 @@ export default function LxtAssetsStage() {
                         isConfirmingProfile={confirmingAssetIds.has(asset.id)}
                         confirmingStreamText={confirmingStreamTexts.get(asset.id) ?? ''}
                         onGenerateImage={(count) => void handleGenerateImage(asset.id, count)}
-                        isGeneratingImage={activeImageGenIds.has(asset.id)}
+                        isGeneratingImage={activeImageGenIds.has(asset.id) || submittingImageAssetIds.has(asset.id)}
                         onSelectImage={(imageUrl) => void handleSelectImage(asset.id, imageUrl)}
                         onEditDescription={() => handleEditDescription(asset)}
                       />
@@ -562,7 +571,7 @@ export default function LxtAssetsStage() {
             description={editingDescription.description}
             isGeneratingImage={activeImageGenIds.has(editingDescription.assetId)}
             onClose={() => setEditingDescription(null)}
-            onSave={async () => {
+            onSave={async (_assetId) => {
               setEditingDescription(null)
               await assetsQuery.refetch()
               showToast('已保存', 'success')
@@ -583,6 +592,8 @@ export default function LxtAssetsStage() {
               onClose={() => setEditingProfile(null)}
               onSave={(data) => void handleSaveProfile(data)}
               isSaving={isSavingProfile}
+              projectId={projectId}
+              assetId={editingProfile.assetId}
             />
           )
         })()}

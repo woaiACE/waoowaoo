@@ -2,11 +2,11 @@
 
 /**
  * 角色档案编辑对话框
- * 允许用户编辑角色档案的各项属性
+ * 允许用户编辑角色档案的各项属性，并在LXT模式下生成8段叙述描述
  */
 
 import { useTranslations } from 'next-intl'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { CharacterProfileData, RoleLevel, CostumeTier } from '@/types/character-profile'
 import TaskStatusInline from '@/components/task/TaskStatusInline'
 import { resolveTaskPresentationState } from '@/lib/task/presentation'
@@ -19,7 +19,23 @@ interface CharacterProfileDialogProps {
     onClose: () => void
     onSave: (profileData: CharacterProfileData) => void
     isSaving?: boolean
+    /** LXT模式下传入，用于调用8段叙述生成API */
+    projectId?: string
+    /** LXT模式下传入，用于调用8段叙述生成API */
+    assetId?: string
 }
+
+// 8段叙述段落配置
+const NARRATIVE_SEGMENTS = [
+    { key: 'narrative_seg1_identity' as const, labelKey: 'characterProfile.narrativeDescription.seg1Label', placeholderKey: 'characterProfile.narrativeDescription.seg1Placeholder', rows: 2 },
+    { key: 'narrative_seg2_upper' as const,    labelKey: 'characterProfile.narrativeDescription.seg2Label', placeholderKey: 'characterProfile.narrativeDescription.seg2Placeholder', rows: 2 },
+    { key: 'narrative_seg3_body' as const,     labelKey: 'characterProfile.narrativeDescription.seg3Label', placeholderKey: 'characterProfile.narrativeDescription.seg3Placeholder', rows: 2 },
+    { key: 'narrative_seg4_face' as const,     labelKey: 'characterProfile.narrativeDescription.seg4Label', placeholderKey: 'characterProfile.narrativeDescription.seg4Placeholder', rows: 2 },
+    { key: 'narrative_seg5_features' as const, labelKey: 'characterProfile.narrativeDescription.seg5Label', placeholderKey: 'characterProfile.narrativeDescription.seg5Placeholder', rows: 3 },
+    { key: 'narrative_seg6_hair' as const,     labelKey: 'characterProfile.narrativeDescription.seg6Label', placeholderKey: 'characterProfile.narrativeDescription.seg6Placeholder', rows: 2 },
+    { key: 'narrative_seg7_lower' as const,    labelKey: 'characterProfile.narrativeDescription.seg7Label', placeholderKey: 'characterProfile.narrativeDescription.seg7Placeholder', rows: 2 },
+    { key: 'narrative_seg8_accessories' as const, labelKey: 'characterProfile.narrativeDescription.seg8Label', placeholderKey: 'characterProfile.narrativeDescription.seg8Placeholder', rows: 2 },
+] as const
 
 const ROLE_LEVELS: RoleLevel[] = ['S', 'A', 'B', 'C', 'D']
 const COSTUME_TIERS: CostumeTier[] = [5, 4, 3, 2, 1]
@@ -30,7 +46,9 @@ export default function CharacterProfileDialog({
     profileData,
     onClose,
     onSave,
-    isSaving = false
+    isSaving = false,
+    projectId,
+    assetId,
 }: CharacterProfileDialogProps) {
     const t = useTranslations('assets')
     const savingState = isSaving
@@ -45,15 +63,117 @@ export default function CharacterProfileDialog({
     const [newTag, setNewTag] = useState('')
     const [newColor, setNewColor] = useState('')
     const [newKeyword, setNewKeyword] = useState('')
+    // 8段叙述相关状态
+    const [narrativeOpen, setNarrativeOpen] = useState(false)
+    const [isGeneratingNarrative, setIsGeneratingNarrative] = useState(false)
+    const [narrativeError, setNarrativeError] = useState<string | null>(null)
+
+    const hasAnySegment = NARRATIVE_SEGMENTS.some(seg => !!formData[seg.key])
 
     useEffect(() => {
         setFormData(profileData)
+        // 若已有叙述段落数据，自动展开该区块
+        const hasSeg = NARRATIVE_SEGMENTS.some(seg => !!profileData[seg.key])
+        if (hasSeg) setNarrativeOpen(true)
     }, [profileData])
+
+    const generateNarrative = useCallback(async () => {
+        if (!projectId || !assetId) return
+        setIsGeneratingNarrative(true)
+        setNarrativeOpen(true)
+        setNarrativeError(null)
+        // 清空当前8段以便流式填充
+        setFormData(prev => ({
+            ...prev,
+            narrative_seg1_identity: '',
+            narrative_seg2_upper: '',
+            narrative_seg3_body: '',
+            narrative_seg4_face: '',
+            narrative_seg5_features: '',
+            narrative_seg6_hair: '',
+            narrative_seg7_lower: '',
+            narrative_seg8_accessories: '',
+        }))
+        try {
+            const res = await fetch(`/api/lxt/${projectId}/assets/${assetId}/generate-narrative`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profileData: formData }),
+            })
+            if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`)
+            const reader = res.body.getReader()
+            const decoder = new TextDecoder()
+            let buffer = ''
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) {
+                    // 处理流关闭前 buffer 中的剩余数据
+                    if (buffer.trim()) {
+                        const line = buffer.trim()
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const event = JSON.parse(line.slice(6)) as { kind: string; segments?: Record<string, string>; message?: string }
+                                if (event.kind === 'done' && event.segments) {
+                                    const segs = event.segments
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        narrative_seg1_identity: segs.seg1 ?? prev.narrative_seg1_identity ?? '',
+                                        narrative_seg2_upper:    segs.seg2 ?? prev.narrative_seg2_upper ?? '',
+                                        narrative_seg3_body:     segs.seg3 ?? prev.narrative_seg3_body ?? '',
+                                        narrative_seg4_face:     segs.seg4 ?? prev.narrative_seg4_face ?? '',
+                                        narrative_seg5_features: segs.seg5 ?? prev.narrative_seg5_features ?? '',
+                                        narrative_seg6_hair:     segs.seg6 ?? prev.narrative_seg6_hair ?? '',
+                                        narrative_seg7_lower:    segs.seg7 ?? prev.narrative_seg7_lower ?? '',
+                                        narrative_seg8_accessories: segs.seg8 ?? prev.narrative_seg8_accessories ?? '',
+                                    }))
+                                } else if (event.kind === 'error') {
+                                    setNarrativeError(event.message ?? '生成失败')
+                                }
+                            } catch { /* ignore */ }
+                        }
+                    }
+                    break
+                }
+                buffer += decoder.decode(value, { stream: true })
+                const lines = buffer.split('\n')
+                buffer = lines.pop() ?? ''
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue
+                    try {
+                        const event = JSON.parse(line.slice(6)) as { kind: string; segments?: Record<string, string>; message?: string }
+                        if (event.kind === 'done' && event.segments) {
+                            const segs = event.segments
+                            setFormData(prev => ({
+                                ...prev,
+                                narrative_seg1_identity: segs.seg1 ?? prev.narrative_seg1_identity ?? '',
+                                narrative_seg2_upper:    segs.seg2 ?? prev.narrative_seg2_upper ?? '',
+                                narrative_seg3_body:     segs.seg3 ?? prev.narrative_seg3_body ?? '',
+                                narrative_seg4_face:     segs.seg4 ?? prev.narrative_seg4_face ?? '',
+                                narrative_seg5_features: segs.seg5 ?? prev.narrative_seg5_features ?? '',
+                                narrative_seg6_hair:     segs.seg6 ?? prev.narrative_seg6_hair ?? '',
+                                narrative_seg7_lower:    segs.seg7 ?? prev.narrative_seg7_lower ?? '',
+                                narrative_seg8_accessories: segs.seg8 ?? prev.narrative_seg8_accessories ?? '',
+                            }))
+                        } else if (event.kind === 'error') {
+                            setNarrativeError(event.message ?? '生成失败')
+                        }
+                    } catch { /* skip malformed lines */ }
+                }
+            }
+        } catch (err) {
+            setNarrativeError(err instanceof Error ? err.message : '生成失败')
+        } finally {
+            setIsGeneratingNarrative(false)
+        }
+    }, [projectId, assetId, formData])
 
     if (!isOpen) return null
 
     const handleSubmit = () => {
-        onSave(formData)
+        // 提交时将8段合并为 narrativeDescription
+        const segs = NARRATIVE_SEGMENTS.map(seg => formData[seg.key]).filter(Boolean)
+        const merged = segs.length > 0 ? segs.join('，') : undefined
+        onSave({ ...formData, narrativeDescription: merged })
     }
 
     const addTag = () => {
@@ -258,6 +378,88 @@ export default function CharacterProfileDialog({
                             </button>
                         </div>
                     </div>
+
+                    {/* 8段叙述描述（仅LXT模式，需要 projectId + assetId） */}
+                    {projectId && assetId && (
+                        <div className="border border-[var(--glass-stroke-base)] rounded-xl overflow-hidden">
+                            {/* 区块标题栏 */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-[var(--glass-bg-muted)]">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-[var(--glass-text-primary)]">
+                                        {t('characterProfile.narrativeDescription.sectionTitle')}
+                                    </span>
+                                    {hasAnySegment && (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--glass-tone-success-bg)] text-[var(--glass-tone-success-fg)]">
+                                            ✓
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => void generateNarrative()}
+                                        disabled={isGeneratingNarrative || isSaving}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--glass-accent-from)] text-white hover:bg-[var(--glass-accent-to)] transition-colors disabled:opacity-50"
+                                    >
+                                        {isGeneratingNarrative ? (
+                                            <>
+                                                <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                                {t('characterProfile.narrativeDescription.generating')}
+                                            </>
+                                        ) : hasAnySegment ? (
+                                            t('characterProfile.narrativeDescription.regenerateBtn')
+                                        ) : (
+                                            t('characterProfile.narrativeDescription.generateBtn')
+                                        )}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNarrativeOpen(v => !v)}
+                                        className="p-1.5 hover:bg-[var(--glass-bg-surface)] rounded-lg transition-colors text-[var(--glass-text-tertiary)]"
+                                        aria-label={narrativeOpen ? t('characterProfile.narrativeDescription.collapseLabel') : t('characterProfile.narrativeDescription.expandLabel')}
+                                    >
+                                        <AppIcon name="chevronDown" className={`w-4 h-4 transition-transform ${narrativeOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* 8段编辑表单 */}
+                            {narrativeOpen && (
+                                <div className="p-4 space-y-3">
+                                    {narrativeError && (
+                                        <div className="px-3 py-2 rounded-lg bg-[var(--glass-tone-danger-bg)] text-[var(--glass-tone-danger-fg)] text-xs">
+                                            {narrativeError}
+                                        </div>
+                                    )}
+                                    {!hasAnySegment && !isGeneratingNarrative && (
+                                        <p className="text-xs text-[var(--glass-text-tertiary)] text-center py-2">
+                                            {t('characterProfile.narrativeDescription.generateFirst')}
+                                        </p>
+                                    )}
+                                    {NARRATIVE_SEGMENTS.map((seg) => (
+                                        <div key={seg.key}>
+                                            <label className="block text-xs font-medium text-[var(--glass-text-secondary)] mb-1">
+                                                {t(seg.labelKey as never)}
+                                                {seg.key === 'narrative_seg5_features' && (
+                                                    <span className="ml-1 text-[10px] text-[var(--glass-tone-warning-fg)]">
+                                                        {t('characterProfile.narrativeDescription.seg5Hint')}
+                                                    </span>
+                                                )}
+                                            </label>
+                                            <textarea
+                                                value={formData[seg.key] ?? ''}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, [seg.key]: e.target.value }))}
+                                                placeholder={isGeneratingNarrative ? '' : t(seg.placeholderKey as never)}
+                                                rows={seg.rows}
+                                                disabled={isGeneratingNarrative}
+                                                className="w-full px-3 py-2 text-sm border border-[var(--glass-stroke-strong)] rounded-lg resize-none focus:ring-2 focus:ring-[var(--glass-tone-info-fg)] focus:border-[var(--glass-stroke-focus)] disabled:opacity-60 disabled:bg-[var(--glass-bg-muted)]"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* 底部按钮 */}

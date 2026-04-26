@@ -73,7 +73,14 @@ export const PATCH = apiHandler(async (
 
     if (body.reconcile || body.autoFillFromScript) {
       const rows = reconcileRowsWithShotList(content.rows, current.shotListContent)
-      content = { version: FINAL_FILM_CONTENT_VERSION, rows }
+      // Keep top-level generation settings when rebuilding row skeletons.
+      content = {
+        version: FINAL_FILM_CONTENT_VERSION,
+        rows,
+        gridPromptPrefix: content.gridPromptPrefix,
+        videoRatio: content.videoRatio,
+        artStyle: content.artStyle,
+      }
     }
 
     if (body.autoFillFromScript) {

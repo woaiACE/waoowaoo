@@ -18,6 +18,7 @@ import {
   DEFAULT_VIDEO_RATIO,
   DEFAULT_ART_STYLE,
   type LxtFinalFilmRowBindings,
+  type LxtFinalFilmImageSet,
 } from '@/lib/lxt/final-film'
 import { getArtStylePrompt } from '@/lib/constants'
 import { normalizeReferenceImagesForGeneration } from '@/lib/media/outbound-image'
@@ -47,6 +48,47 @@ async function mergeFinalFilmRow(
     })
     const content = parseFinalFilmContent(current?.finalFilmContent)
     const next = applyRowPatch(content, shotIndex, patch)
+    await tx.lxtEpisode.update({
+      where: { id: episodeId },
+      data: { finalFilmContent: serializeFinalFilmContent(next) },
+    })
+  })
+}
+
+async function mergeFinalFilmGeneratedImages(
+  episodeId: string,
+  shotIndex: number,
+  generated: {
+    gridImageUrl: string | null
+    splitImageUrls: (string | null)[]
+    videoEndFrameUrl: string | null
+  },
+) {
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.lxtEpisode.findUnique({
+      where: { id: episodeId },
+      select: { finalFilmContent: true },
+    })
+    const content = parseFinalFilmContent(current?.finalFilmContent)
+    const row = content.rows.find((r) => r.shotIndex === shotIndex)
+
+    const nextSet: LxtFinalFilmImageSet = {
+      gridImageUrl: generated.gridImageUrl,
+      splitImageUrls: generated.splitImageUrls,
+      videoEndFrameUrl: generated.videoEndFrameUrl,
+      createdAt: new Date().toISOString(),
+    }
+    const history = Array.isArray(row?.imageSets) ? row.imageSets : []
+    const nextHistory = [...history, nextSet].slice(-2)
+
+    const next = applyRowPatch(content, shotIndex, {
+      imageUrl: generated.gridImageUrl,
+      gridImageUrl: generated.gridImageUrl,
+      splitImageUrls: generated.splitImageUrls,
+      imageSets: nextHistory,
+      videoEndFrameUrl: generated.videoEndFrameUrl,
+    })
+
     await tx.lxtEpisode.update({
       where: { id: episodeId },
       data: { finalFilmContent: serializeFinalFilmContent(next) },
@@ -222,8 +264,7 @@ export async function handleLxtFinalFilmImageTask(job: Job<TaskJobData>) {
   const splitSignedUrls = splitCosKeys.map((key) => toSignedUrlIfCos(key, 72 * 3600))
 
   // ── 8. 写回数据库 ─────────────────────────────────────────────────
-  await mergeFinalFilmRow(episodeId, shotIndex, {
-    imageUrl: gridSignedUrl,
+  await mergeFinalFilmGeneratedImages(episodeId, shotIndex, {
     gridImageUrl: gridSignedUrl,
     splitImageUrls: splitSignedUrls,
     videoEndFrameUrl: splitSignedUrls[3] ?? gridSignedUrl,

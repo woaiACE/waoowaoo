@@ -49,6 +49,28 @@ export interface CharacterProfileData {
 
     /** 物种形态特征关键词（非人类角色填写，如["耷拉软耳","灰白细绒毛","浅灰色蹄"]） */
     species_traits?: string[]
+
+    // ── 8段叙述描述字段（图片生成用，LLM自动生成后可手动编辑） ──
+
+    /** 段1：基础身份（物种/年龄/性别/肤质，25-35字） */
+    narrative_seg1_identity?: string
+    /** 段2：上衣装扮（款式/颜色/图案，30-40字） */
+    narrative_seg2_upper?: string
+    /** 段3：身体特征（身高/体型/比例，35-45字） */
+    narrative_seg3_body?: string
+    /** 段4：脸型基础（脸型/轮廓，25-35字） */
+    narrative_seg4_face?: string
+    /** 段5：五官气质（眼鼻口+神态+气质，55-70字，最关键段落） */
+    narrative_seg5_features?: string
+    /** 段6：头发风格（发型/发质/发色，20-30字） */
+    narrative_seg6_hair?: string
+    /** 段7：下装腿脚（下装/脚部/鞋类，30-40字） */
+    narrative_seg7_lower?: string
+    /** 段8：配饰细节（颈部/装饰品，25-35字） */
+    narrative_seg8_accessories?: string
+
+    /** 8段合并后的完整叙述描述（提交时自动合并，用于图片生成） */
+    narrativeDescription?: string
 }
 
 /**
