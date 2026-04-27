@@ -6,7 +6,9 @@ import {
   getUserModels,
   toSignedUrlIfCos,
   resolveImageSourceFromGeneration,
+  resolveVideoSourceFromGeneration,
   uploadImageSourceToCos,
+  uploadVideoSourceToCos,
   splitGridImage,
 } from '@/lib/workers/utils'
 import type { TaskJobData } from '@/lib/task/types'
@@ -14,7 +16,7 @@ import {
   applyRowPatch,
   parseFinalFilmContent,
   serializeFinalFilmContent,
-  DEFAULT_GRID_PROMPT_PREFIX,
+  resolveGridPromptPrefix,
   DEFAULT_VIDEO_RATIO,
   DEFAULT_ART_STYLE,
   type LxtFinalFilmRowBindings,
@@ -23,6 +25,7 @@ import {
 import { getArtStylePrompt } from '@/lib/constants'
 import { normalizeReferenceImagesForGeneration } from '@/lib/media/outbound-image'
 import { resolveModelMaxReferenceImages } from '@/lib/model-capabilities/catalog'
+import { buildMultiShotVideoPrompt } from '@/lib/lxt/video-prompt'
 
 type Payload = Record<string, unknown>
 
@@ -181,17 +184,17 @@ export async function handleLxtFinalFilmImageTask(job: Job<TaskJobData>) {
   const normalizedRefs = await normalizeReferenceImagesForGeneration(rawRefs)
 
   // ── 2. 组装四宫格提示词 ──────────────────────────────────────────
-  const gridPrefix =
-    typeof payload.gridPromptPrefix === 'string' && payload.gridPromptPrefix.trim()
-      ? payload.gridPromptPrefix.trim()
-      : DEFAULT_GRID_PROMPT_PREFIX
-
   // 画风风格 prompt（来自用户在阶段一的选择，fallback 到默认 realistic）
   const artStyle =
     typeof payload.artStyle === 'string' && payload.artStyle.trim()
       ? payload.artStyle.trim()
       : DEFAULT_ART_STYLE
   const artStyleText = getArtStylePrompt(artStyle, 'en')
+
+  const gridPrefix =
+    typeof payload.gridPromptPrefix === 'string' && payload.gridPromptPrefix.trim()
+      ? payload.gridPromptPrefix.trim()
+      : resolveGridPromptPrefix(artStyle)
 
   const fullPrompt = artStyleText
     ? `${gridPrefix}${imagePrompt}, ${artStyleText}`
@@ -280,25 +283,144 @@ export async function handleLxtFinalFilmImageTask(job: Job<TaskJobData>) {
 }
 
 /**
- * LXT 成片 — 行级视频生成（基础版占位）
+ * LXT 成片 — 行级视频生成
  *
- * 当前实现：保留任务状态流转，handler 直接抛出未实现错误。
- * 后续接入真实视频生成 provider 后替换为实际调用。
+ * 使用 Seedance 2.0 多分镜提示词 + 首尾帧模式，复用通用模式的视频生成基础设施。
+ *
+ * Payload: { episodeId, shotIndex, videoPrompt, videoModel, firstFrameUrl,
+ *            lastFrameUrl?, generationMode, bindings?, videoRatio?, artStyle? }
  */
 export async function handleLxtFinalFilmVideoTask(job: Job<TaskJobData>) {
   const payload = (job.data.payload || {}) as Payload
+  const userId = job.data.userId
+
   const episodeId = readString(payload, 'episodeId')
   const shotIndex = readNumber(payload, 'shotIndex')
-  if (!episodeId || shotIndex === null) {
-    throw new Error('lxt_final_film_video: episodeId, shotIndex required')
+  const videoPrompt = readString(payload, 'videoPrompt')
+  const videoModel = readString(payload, 'videoModel')
+  const firstFrameUrl = readString(payload, 'firstFrameUrl')
+  const lastFrameUrl = readString(payload, 'lastFrameUrl')
+  const generationModeRaw = readString(payload, 'generationMode') || 'normal'
+  const videoRatio = readString(payload, 'videoRatio')
+
+  if (!episodeId || shotIndex === null || !videoPrompt || !videoModel || !firstFrameUrl) {
+    throw new Error('lxt_final_film_video: missing required payload fields')
   }
+
+  const generationMode = (
+    generationModeRaw === 'firstlastframe' ? 'firstlastframe' : 'normal'
+  ) as 'normal' | 'firstlastframe'
 
   await reportTaskProgress(job, 10, {
     stage: 'lxt_final_film_video_start',
-    stageLabel: '提交视频生成（占位）',
+    stageLabel: '提交视频生成',
+    displayMode: 'detail',
+  })
+  await assertTaskActive(job, 'lxt_final_film_video_start')
+
+  // 1. 加载 episode 获取全部分镜行作为多分镜上下文
+  await reportTaskProgress(job, 18, {
+    stage: 'lxt_final_film_video_context',
+    stageLabel: '构建多分镜提示词',
     displayMode: 'detail',
   })
 
-  // 基础版：真实 provider 尚未接入，保留状态机但直接失败，便于前端展示 failed 状态
-  throw new Error('LXT 成片视频生成尚未接入真实 provider，等待后续里程碑实现')
+  const episode = await prisma.lxtEpisode.findUnique({
+    where: { id: episodeId },
+    select: { finalFilmContent: true },
+  })
+  const content = parseFinalFilmContent(episode?.finalFilmContent)
+  const allRows = content.rows
+  const currentRow = allRows.find((r) => r.shotIndex === shotIndex)
+  if (!currentRow) throw new Error(`Shot index ${shotIndex} not found in episode ${episodeId}`)
+
+  // 2. 构建多分镜提示词（前后各 1 镜上下文）
+  if (!currentRow.videoPrompt?.trim()) {
+    throw new Error(`Shot ${shotIndex}: videoPrompt is empty, cannot generate video`)
+  }
+  const multiShotPrompt = buildMultiShotVideoPrompt(currentRow, allRows)
+
+  // 3. COS 签名首帧 / 尾帧 URL（24h TTL，适配异步视频生成可能的长等待）
+  const signedFirstFrame = toSignedUrlIfCos(firstFrameUrl, 24 * 3600)
+  if (!signedFirstFrame) throw new Error('Cannot resolve first frame URL')
+
+  let signedLastFrame: string | undefined
+  if (generationMode === 'firstlastframe' && lastFrameUrl) {
+    signedLastFrame = toSignedUrlIfCos(lastFrameUrl, 24 * 3600) ?? undefined
+  }
+
+  // 4. 收集资产参考图（角色/场景/道具），用于保持视频中角色外观一致性
+  const bindings = (payload.bindings as LxtFinalFilmRowBindings | null) ?? null
+  const rawRefs = await collectLxtReferenceImages(bindings, videoModel)
+  const normalizedRefs = rawRefs.length > 0
+    ? await normalizeReferenceImagesForGeneration(rawRefs)
+    : []
+
+  await reportTaskProgress(job, 30, {
+    stage: 'lxt_final_film_video_generate',
+    stageLabel: '生成视频中…',
+    displayMode: 'detail',
+  })
+  await assertTaskActive(job, 'lxt_final_film_video_generate')
+
+  // 5. 调用通用视频生成基础设施（生成 + 轮询）
+  const generated = await resolveVideoSourceFromGeneration(job, {
+    userId,
+    modelId: videoModel,
+    imageUrl: signedFirstFrame,
+    referenceImages: normalizedRefs.length > 0 ? normalizedRefs : undefined,
+    options: {
+      prompt: multiShotPrompt,
+      resolution: '720p',
+      duration: 8,
+      ...(videoRatio ? { aspectRatio: videoRatio } : {}),
+      generationMode,
+      ...(signedLastFrame ? { lastFrameImageUrl: signedLastFrame } : {}),
+    },
+    pollProgress: { start: 30, end: 85 },
+  })
+
+  const videoUrl = generated.url
+  if (!videoUrl) throw new Error('Video generation returned no URL')
+
+  await reportTaskProgress(job, 88, {
+    stage: 'lxt_final_film_video_upload',
+    stageLabel: '上传视频',
+    displayMode: 'detail',
+  })
+  await assertTaskActive(job, 'lxt_final_film_video_upload')
+
+  // 6. 上传视频到 COS
+  const targetId = `${episodeId}:${shotIndex}`
+  const cosKey = await uploadVideoSourceToCos(
+    videoUrl,
+    'lxt/final-film-video',
+    targetId,
+    generated.downloadHeaders,
+  )
+
+  const signedVideoUrl = toSignedUrlIfCos(cosKey, 72 * 3600)
+
+  await reportTaskProgress(job, 95, {
+    stage: 'lxt_final_film_video_persist',
+    stageLabel: '保存结果',
+    displayMode: 'detail',
+  })
+  await assertTaskActive(job, 'lxt_final_film_video_persist')
+
+  // 7. 回写 videoUrl 到行数据
+  await mergeFinalFilmRow(episodeId, shotIndex, {
+    videoUrl: signedVideoUrl,
+  })
+
+  // 8. 返回 actualVideoTokens 用于计费结算
+  return {
+    success: true,
+    episodeId,
+    shotIndex,
+    videoUrl: signedVideoUrl,
+    ...(typeof generated.actualVideoTokens === 'number'
+      ? { actualVideoTokens: generated.actualVideoTokens }
+      : {}),
+  }
 }

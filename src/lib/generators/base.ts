@@ -58,6 +58,7 @@ export interface VideoGenerateParams {
     userId: string
     imageUrl: string           // 起始图片
     prompt?: string            // 提示词（可选）
+    referenceImages?: string[] // 参考图片 URLs 或 base64（用于角色/场景一致性）
     options?: GenerateOptions
 }
 

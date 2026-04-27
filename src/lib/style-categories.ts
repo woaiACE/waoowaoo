@@ -451,6 +451,17 @@ export function getStyleById(id: string | null | undefined): StyleItem | undefin
   return undefined
 }
 
+/** 根据风格 ID 查找所属类目 ID（找不到返回 undefined） */
+export function getStyleCategoryId(id: string | null | undefined): string | undefined {
+  if (!id) return undefined
+  for (const cat of STYLE_CATEGORIES) {
+    for (const style of cat.styles) {
+      if (style.id === id) return cat.id
+    }
+  }
+  return undefined
+}
+
 /** 默认兜底画风 ID */
 const DEFAULT_FALLBACK_STYLE_ID = 'american-comic'
 

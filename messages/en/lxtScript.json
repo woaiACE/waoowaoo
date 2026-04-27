@@ -89,6 +89,8 @@
     "noScript": "No script has been generated for this episode yet. Please complete the \"Generate Script\" step first.",
     "goToScriptStage": "Go to Script Stage",
     "nextStepBtn": "Next: Generate Final Script →",
+    "analyzingScript": "Analyzing script...",
+    "generatingStoryboard": "Generating storyboard...",
     "reanalyzeBtn": "Re-analyze",
     "reanalyzeConfirm": "This will delete the current storyboard and regenerate. Continue?"
   },

@@ -107,6 +107,7 @@ export function useGenerateLxtFinalFilmImage(projectId: string | null, episodeId
 
 /** 提交行级视频生成 */
 export function useGenerateLxtFinalFilmVideo(projectId: string | null, episodeId: string | null) {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ shotIndex }: { shotIndex: number }) => {
       if (!projectId || !episodeId) throw new Error('projectId/episodeId required')
@@ -116,6 +117,26 @@ export function useGenerateLxtFinalFilmVideo(projectId: string | null, episodeId
       )
       if (!res.ok) await readError(res, 'Failed to submit video generation')
       return await res.json() as { taskId: string }
+    },
+    onMutate: async ({ shotIndex }) => {
+      if (!projectId || !episodeId) return
+      const targetId = buildFinalFilmTargetId(episodeId, shotIndex)
+      upsertTaskTargetOverlay(qc, {
+        projectId,
+        targetType: FINAL_FILM_TARGET_TYPE,
+        targetId,
+        phase: 'queued',
+        intent: 'generate',
+      })
+      await qc.invalidateQueries({ queryKey: queryKeys.tasks.all(projectId), exact: false })
+    },
+    onError: (_err, { shotIndex }) => {
+      if (!projectId || !episodeId) return
+      clearTaskTargetOverlay(qc, {
+        projectId,
+        targetType: FINAL_FILM_TARGET_TYPE,
+        targetId: buildFinalFilmTargetId(episodeId, shotIndex),
+      })
     },
   })
 }

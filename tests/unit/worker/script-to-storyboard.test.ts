@@ -75,6 +75,9 @@ const prismaMock = vi.hoisted(() => ({
   novelPromotionEpisode: {
     findUnique: vi.fn(),
   },
+  userPreference: {
+    findUnique: vi.fn(),
+  },
   $transaction: vi.fn(),
 }))
 
@@ -257,6 +260,8 @@ describe('worker script-to-storyboard behavior', () => {
     })
 
     prismaMock.$transaction.mockReset()
+
+    prismaMock.userPreference.findUnique.mockResolvedValue(null)
 
     persistStoryboardOutputsMock.mockImplementation(async ({ voiceLineRows }: { voiceLineRows: VoiceLineInput[] | null }) => {
       const rows = voiceLineRows || []

@@ -1,4 +1,4 @@
-import { parseLxtShots } from './parse-shots'
+import { parseLxtShots, getShotField } from './parse-shots'
 
 /**
  * 按名称从资产库自动匹配角色/场景绑定
@@ -28,13 +28,6 @@ export interface AutoBindResult {
   propAssetIds: string[]
 }
 
-const IGNORE_NAMES = new Set([
-  '无', '暂无', '无角色', '无道具', '无人物', '空镜', '环境',
-  '多人', '若干', 'none', 'n/a', '-', '/',
-])
-
-const SPLIT_RE = /[、，,\/|；;]+/
-
 function normalizeName(value: string): string {
   return value
     .replace(/[【】\[\]()（）]/g, ' ')
@@ -43,25 +36,6 @@ function normalizeName(value: string): string {
     .replace(/\s{2,}/g, ' ')
     .trim()
     .toLowerCase()
-}
-
-function splitNames(rawValue: string): string[] {
-  return rawValue
-    .split(SPLIT_RE)
-    .map(normalizeName)
-    .filter((p) => p.length > 0 && !IGNORE_NAMES.has(p))
-}
-
-function readLineValue(raw: string, labels: string[]): string[] {
-  for (const line of raw.split(/\r?\n/)) {
-    const trimmed = line.trim()
-    for (const label of labels) {
-      // 匹配字段值，遇到行内分隔符（连续两个或以上空格，如"出场角色：A、B  角色行动：…"）时截断
-      const m = trimmed.match(new RegExp(`^${label}\\s*[：:]\\s*(.+?)(?:\\s{2,}|$)`))
-      if (m?.[1]?.trim()) return splitNames(m[1])
-    }
-  }
-  return []
 }
 
 export function autoBindAssetsFromShotList(
@@ -84,19 +58,19 @@ export function autoBindAssetsFromShotList(
 
   const shots = parseLxtShots(shotListContent)
   return shots.map((shot) => {
-    const charNames = readLineValue(shot.raw, ['出场角色', '角色', '人物', '主角'])
-    const sceneNames = readLineValue(shot.raw, ['场景', '地点', '环境'])
-    const propNames = readLineValue(shot.raw, ['道具', '关键道具', '物件', '主要道具'])
+    const charNames = getShotField(shot, ['出场角色', '角色', '人物', '主角'])
+    const sceneNames = getShotField(shot, ['场景', '地点', '环境'])
+    const propNames = getShotField(shot, ['道具', '关键道具', '物件', '主要道具'])
 
     const characterAssetIds = charNames
-      .map((n) => charMap.get(n))
+      .map((n) => charMap.get(normalizeName(n)))
       .filter((id): id is string => !!id)
 
     // 场景匹配：优先精确，miss 后降级为包含匹配
     const sceneAssetId = findSceneId(sceneNames, sceneMap)
 
     const propAssetIds = propNames
-      .map((n) => propMap.get(n))
+      .map((n) => propMap.get(normalizeName(n)))
       .filter((id): id is string => !!id)
 
     return { shotIndex: shot.index, characterAssetIds, sceneAssetId, propAssetIds }
@@ -105,15 +79,16 @@ export function autoBindAssetsFromShotList(
 
 /** 精确匹配优先，miss 后降级为包含关系匹配 */
 function findSceneId(sceneNames: string[], sceneMap: Map<string, string>): string | null {
-  // 1. 精确匹配
+  // 1. 精确匹配（normalize 后比较）
   for (const n of sceneNames) {
-    const id = sceneMap.get(n)
+    const id = sceneMap.get(normalizeName(n))
     if (id) return id
   }
   // 2. 包含关系降级匹配（资产名包含查询词，或查询词包含资产名）
   for (const n of sceneNames) {
+    const nn = normalizeName(n)
     for (const [key, id] of sceneMap) {
-      if (key.includes(n) || n.includes(key)) return id
+      if (key.includes(nn) || nn.includes(key)) return id
     }
   }
   return null

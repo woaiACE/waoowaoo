@@ -32,6 +32,7 @@ export const PROMPT_IDS = {
   // LXT 剧本模式
   LXT_VOICE_PROMPT_INFER: 'lxt_voice_prompt_infer',
   LXT_NOVEL_TO_SCRIPT: 'lxt_novel_to_script',
+  LXT_SCRIPT_ANALYSIS: 'lxt_script_analysis',
   LXT_SCRIPT_TO_STORYBOARD: 'lxt_script_to_storyboard',
   LXT_STORYBOARD_TO_SCRIPT: 'lxt_storyboard_to_script',
   LXT_SHOT_PHASE1_BASE: 'lxt_shot_phase1_base',

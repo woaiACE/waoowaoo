@@ -53,12 +53,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
     projectAnalysisModel: novelData?.analysisModel,
   })
 
-  // 构建 prompt
+  // 构建 prompt（预加载模板）
   const locale = typeof body.locale === 'string' && body.locale === 'en' ? 'en' : 'zh'
-  const template = getPromptTemplate(PROMPT_IDS.LXT_SCRIPT_TO_STORYBOARD, locale)
-  const prompt = template.replace('{script}', episode.srtContent)
+  const analysisTemplate = getPromptTemplate(PROMPT_IDS.LXT_SCRIPT_ANALYSIS, locale)
+  const storyboardTemplate = getPromptTemplate(PROMPT_IDS.LXT_SCRIPT_TO_STORYBOARD, locale)
+  const analysisPrompt = analysisTemplate.replace('{script}', episode.srtContent)
+  const basePrompt = storyboardTemplate.replace('{script}', episode.srtContent)
 
-  // 流式 SSE 返回
+  // 流式 SSE 返回（2 阶段）
   const encoder = new TextEncoder()
   let fullText = ''
 
@@ -70,20 +72,58 @@ export const POST = apiHandler(async (request: NextRequest) => {
         } catch { /* controller closed */ }
       }
 
-      const callbacks: ChatCompletionStreamCallbacks = {
-        onChunk: (chunk) => {
-          if (chunk.kind === 'reasoning') {
-            enqueue({ kind: 'reasoning', delta: chunk.delta })
-          } else {
-            fullText += chunk.delta
-            enqueue({ kind: 'text', delta: chunk.delta })
+      // ===== Phase 1: Script Analysis =====
+      enqueue({ kind: 'phase', phase: 'analysis', message: '正在分析剧本...' })
+
+      let p1Failed = false
+      let p1FullText = ''
+      let analysisResult: Record<string, unknown> | null = null
+
+      try {
+        await chatCompletionStream(
+          session.user.id,
+          analysisModel,
+          [{ role: 'user', content: analysisPrompt }],
+          {
+            temperature: 0.7,
+            reasoning: true,
+            reasoningEffort: 'high',
+            projectId,
+            action: 'lxt_script_analysis',
+          },
+          {
+            onChunk: (chunk) => {
+              if (chunk.kind === 'reasoning') {
+                enqueue({ kind: 'reasoning', delta: chunk.delta, phase: 'analysis' })
+              } else {
+                p1FullText += chunk.delta
+              }
+            },
+            onError: () => {
+              p1Failed = true
+            },
+          },
+        )
+
+        if (!p1Failed && p1FullText.trim()) {
+          try {
+            const cleaned = p1FullText.trim().replace(/```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/i, '$1').trim()
+            const parsed = JSON.parse(cleaned || p1FullText)
+            if (parsed && typeof parsed === 'object') analysisResult = parsed as Record<string, unknown>
+          } catch {
+            // JSON parse failed, proceed without analysis
           }
-        },
-        onError: (err) => {
-          enqueue({ kind: 'error', message: err instanceof Error ? err.message : String(err) })
-          controller.close()
-        },
+        }
+      } catch {
+        // Phase 1 failed, proceed without analysis
       }
+
+      // ===== Phase 2: Storyboard Generation =====
+      enqueue({ kind: 'phase', phase: 'storyboard', message: '正在生成分镜...' })
+
+      const prompt = analysisResult
+        ? `【剧本分析结果】\n${JSON.stringify(analysisResult)}\n\n${basePrompt}`
+        : basePrompt
 
       try {
         await chatCompletionStream(
@@ -97,7 +137,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
             projectId,
             action: 'lxt_script_to_storyboard',
           },
-          callbacks,
+          {
+            onChunk: (chunk) => {
+              if (chunk.kind === 'reasoning') {
+                enqueue({ kind: 'reasoning', delta: chunk.delta, phase: 'storyboard' })
+              } else {
+                fullText += chunk.delta
+                enqueue({ kind: 'text', delta: chunk.delta, phase: 'storyboard' })
+              }
+            },
+            onError: (err) => {
+              enqueue({ kind: 'error', message: err instanceof Error ? err.message : String(err) })
+              controller.close()
+            },
+          },
         )
 
         // 保存分镜结果到数据库

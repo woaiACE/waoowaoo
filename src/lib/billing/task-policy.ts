@@ -60,6 +60,7 @@ const BILLABLE_TASK_TYPES = new Set<TaskType>([
   TASK_TYPE.LXT_SCRIPT_TO_STORYBOARD,
   TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT,
   TASK_TYPE.LXT_ASSET_VOICE_PROMPT_INFER,
+  TASK_TYPE.LXT_FINAL_FILM_VIDEO,
 ])
 
 function toNumber(value: unknown, fallback: number) {
@@ -258,6 +259,7 @@ export function buildDefaultTaskBillingInfo(taskType: TaskType, payload: AnyPayl
     case TASK_TYPE.ASSET_HUB_MODIFY:
       return buildImageTaskInfo(taskType, payload)
     case TASK_TYPE.VIDEO_PANEL:
+    case TASK_TYPE.LXT_FINAL_FILM_VIDEO:
       return buildVideoTaskInfo(taskType, payload)
     case TASK_TYPE.LIP_SYNC: {
       const lipSyncModel = pickFirstString([payload?.lipSyncModel]) || 'kling'

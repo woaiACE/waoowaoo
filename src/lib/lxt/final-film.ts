@@ -1,4 +1,5 @@
 import { parseLxtShots } from './parse-shots'
+import { getStyleCategoryId } from '@/lib/style-categories'
 
 /**
  * LXT 成片阶段数据模型
@@ -14,6 +15,23 @@ export const FINAL_FILM_CONTENT_VERSION = 1
 
 /** 四宫格生图指令前缀默认值（可在 LxtFinalFilmContent.gridPromptPrefix 中覆盖） */
 export const DEFAULT_GRID_PROMPT_PREFIX = '四格漫画，2x2格局，连续分镜，'
+
+/**
+ * 根据画风风格智能选择四宫格布局前缀。
+ *
+ * "四格漫画"（comic/manga）仅对二次元/动漫风格在语义上正确。
+ * 写实、电影、3D 和纯艺术风格使用中性英文布局前缀，
+ * 避免在图片生成 prompt 中产生「漫画」与「写实电影」的风格信号冲突。
+ *
+ * 用户可通过 LxtFinalFilmContent.gridPromptPrefix 显式覆盖此值。
+ */
+export function resolveGridPromptPrefix(artStyle?: string | null): string {
+  const categoryId = getStyleCategoryId(artStyle)
+  if (categoryId === 'anime') {
+    return DEFAULT_GRID_PROMPT_PREFIX
+  }
+  return '2x2 grid layout, 4 sequential keyframes, '
+}
 
 export interface LxtFinalFilmRowBindings {
   characterAssetIds: string[]
@@ -50,7 +68,7 @@ export const DEFAULT_ART_STYLE = 'realistic'
 export interface LxtFinalFilmContent {
   version: number
   rows: LxtFinalFilmRow[]
-  /** 四宫格生图指令前缀（可配置，默认 DEFAULT_GRID_PROMPT_PREFIX） */
+  /** 四宫格生图指令前缀（未配置时由 resolveGridPromptPrefix 按画风自动选择） */
   gridPromptPrefix?: string
   /** 图片/视频生成比例（默认 9:16，短剧竖屏） */
   videoRatio?: string
@@ -62,7 +80,6 @@ export function createEmptyFinalFilmContent(): LxtFinalFilmContent {
   return {
     version: FINAL_FILM_CONTENT_VERSION,
     rows: [],
-    gridPromptPrefix: DEFAULT_GRID_PROMPT_PREFIX,
     videoRatio: DEFAULT_VIDEO_RATIO,
     artStyle: DEFAULT_ART_STYLE,
   }
@@ -81,9 +98,9 @@ export function parseFinalFilmContent(raw?: string | null): LxtFinalFilmContent 
     const rows = Array.isArray(parsed.rows)
       ? parsed.rows.map(normalizeRow).filter((r): r is LxtFinalFilmRow => r !== null)
       : []
-    const gridPromptPrefix = typeof parsed.gridPromptPrefix === 'string'
-      ? parsed.gridPromptPrefix
-      : DEFAULT_GRID_PROMPT_PREFIX
+    const gridPromptPrefix = typeof parsed.gridPromptPrefix === 'string' && parsed.gridPromptPrefix.trim()
+      ? parsed.gridPromptPrefix.trim()
+      : undefined
     const videoRatio = typeof parsed.videoRatio === 'string' && parsed.videoRatio.trim()
       ? parsed.videoRatio.trim()
       : DEFAULT_VIDEO_RATIO

@@ -27,6 +27,7 @@ export default function LxtStoryboardStage() {
   const { episodeName, srtContent, shotListContent } = useWorkspaceEpisodeStageData()
 
   const [isGenerating, setIsGenerating] = useState(false)
+  const [currentPhase, setCurrentPhase] = useState<'analysis' | 'storyboard' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // 流式输出状态
@@ -50,6 +51,7 @@ export default function LxtStoryboardStage() {
     if (!projectId || !episodeId || !srtContent?.trim() || isGenerating) return
 
     setIsGenerating(true)
+    setCurrentPhase(null)
     setError(null)
     setReasoning('')
     setStoryboardText('')
@@ -87,11 +89,14 @@ export default function LxtStoryboardStage() {
           const jsonStr = line.slice(6)
           try {
             const event = JSON.parse(jsonStr) as {
-              kind: 'reasoning' | 'text' | 'done' | 'error'
+              kind: 'reasoning' | 'text' | 'done' | 'error' | 'phase'
               delta?: string
+              phase?: string
               message?: string
             }
-            if (event.kind === 'reasoning' && event.delta) {
+            if (event.kind === 'phase' && event.phase) {
+              setCurrentPhase(event.phase as 'analysis' | 'storyboard')
+            } else if (event.kind === 'reasoning' && event.delta) {
               setReasoning((prev) => prev + event.delta)
               requestAnimationFrame(() => {
                 const el = reasoningRef.current
@@ -148,6 +153,15 @@ export default function LxtStoryboardStage() {
       {error && (
         <div className="glass-surface p-3 text-sm text-[var(--glass-tone-danger-fg)] border border-[var(--glass-tone-danger-stroke)]">
           {error}
+        </div>
+      )}
+
+      {currentPhase && (
+        <div className="flex items-center gap-2 text-sm text-[var(--glass-text-secondary)]">
+          <span className="inline-block w-2 h-2 rounded-full bg-[var(--glass-tone-accent-fg)] animate-pulse" />
+          {currentPhase === 'analysis'
+            ? t('storyboard.analyzingScript')
+            : t('storyboard.generatingStoryboard')}
         </div>
       )}
 

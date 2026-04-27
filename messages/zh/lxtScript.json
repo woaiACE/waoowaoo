@@ -89,6 +89,8 @@
     "noScript": "当前集尚未生成剧本，请先完成「生成剧本」步骤",
     "goToScriptStage": "前往剧本阶段",
     "nextStepBtn": "下一步：生成制作脚本 →",
+    "analyzingScript": "正在分析剧本...",
+    "generatingStoryboard": "正在生成分镜...",
     "reanalyzeBtn": "重新分析",
     "reanalyzeConfirm": "将删除当前分镜并重新生成，确定继续？"
   },

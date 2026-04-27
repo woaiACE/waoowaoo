@@ -175,6 +175,10 @@ export const PROMPT_CATALOG: Record<PromptId, PromptCatalogEntry> = {
     pathStem: 'lxt-script/novel_to_script',
     variableKeys: ['novel_text', 'instruction'],
   },
+  [PROMPT_IDS.LXT_SCRIPT_ANALYSIS]: {
+    pathStem: 'lxt-script/script_analysis',
+    variableKeys: ['script'],
+  },
   [PROMPT_IDS.LXT_SCRIPT_TO_STORYBOARD]: {
     pathStem: 'lxt-script/script_to_storyboard',
     variableKeys: ['script'],

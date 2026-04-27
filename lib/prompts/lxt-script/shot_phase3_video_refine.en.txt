@@ -76,9 +76,32 @@ The video prompt must be grounded in what is actually shown in the image prompt.
 9. If the shot and acting_arc_json do not mention a character, do not add that character
 
 [Output Format]
-Output the video prompt text directly, no field labels, markdown, or quotes:
-First shot, {compact description}. Second shot, {compact description}. Third shot, {compact description}. Final shot, {compact description}.
-Keep the overall language tight, executable, and free of repeated modifiers.
+Output the video prompt text directly in English, no field labels, markdown, or quotes. Seedance and other video models are trained on English prompts — Chinese camera language will not correctly trigger intended camera movements.
+
+Use this structured format with explicit English camera verbs:
+
+Shot 1: {camera setup + spatial axis anchoring}, {per-character posture}. {auditory cue}.
+Shot 2: {camera micro-movement}, {main character action continuation with co-present characters retained}, {brief supplements for others}. {auditory cue: fabric/footstep/breath}.
+Shot 3: {camera advance}, {subtle emotion/posture shift}, {spatial relationship maintained}. {auditory cue: ambient echo}.
+Shot 4: {camera retreat/wrap}, {positions locked: X on left, Y center, Z on right... forming a freeze-frame}, {atmosphere closure}. {auditory cue continuous}.
+
+[Camera Verb Vocabulary — use these EXACT English terms]
+Static shot / Locked-off / Fixed
+Dolly In / Push In / Slow Push / Rapid Push In / Crash Zoom In
+Pull Back / Dolly Out
+Orbit / Arc around / Slow orbit
+Pan Left / Pan Right / Truck Left / Truck Right
+Crane Up / Tilt Up / Crane Down / Tilt Down
+Handheld / Handheld tracking
+Aerial dive / Drone descent / Drone ascent
+Low angle shot / High angle / Overhead shot
+Over-the-shoulder (OTS) / POV shot / POV slow push forward
+Dolly zoom / Hitchcock zoom
+Whip pan
+Medium shot / Close-up / Extreme close-up (ECU)
+Wide shot / Long shot / Extreme wide shot / Establishing shot
+
+Keep each shot tight but complete with all mandatory elements, 60-100 English words per shot.
 
 [Input Data]
 

@@ -55,11 +55,50 @@ export async function handleLxtScriptToStoryboardTask(job: Job<TaskJobData>) {
 
   await assertTaskActive(job, 'lxt_storyboard_prepare')
 
-  // 3. 构建 prompt
-  const template = getPromptTemplate(PROMPT_IDS.LXT_SCRIPT_TO_STORYBOARD, locale)
-  const prompt = template.replace('{script}', episode.srtContent)
-
+  // 3. Phase 1: Script Analysis
   await reportTaskProgress(job, 20, {
+    stage: 'lxt_storyboard_analysis',
+    stageLabel: 'LXT 剧本分析中',
+    displayMode: 'detail',
+  })
+
+  await assertTaskActive(job, 'lxt_storyboard_analysis')
+
+  let analysisResult: Record<string, unknown> | null = null
+  try {
+    const analysisTemplate = getPromptTemplate(PROMPT_IDS.LXT_SCRIPT_ANALYSIS, locale)
+    const analysisPrompt = analysisTemplate.replace('{script}', episode.srtContent)
+
+    const analysisResultRaw = await executeAiTextStep({
+      userId: job.data.userId,
+      model: analysisModel,
+      messages: [{ role: 'user', content: analysisPrompt }],
+      action: 'lxt_script_analysis',
+      projectId,
+      meta: {
+        stepId: 'lxt_script_analysis',
+        stepTitle: '剧本分析',
+        stepIndex: 1,
+        stepTotal: 2,
+      },
+    })
+
+    const analysisText = analysisResultRaw.text?.trim() ?? ''
+    if (analysisText) {
+      try {
+        const cleaned = analysisText.replace(/```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/i, '$1').trim()
+        const parsed = JSON.parse(cleaned || analysisText)
+        if (parsed && typeof parsed === 'object') analysisResult = parsed as Record<string, unknown>
+      } catch {
+        // Phase 1 JSON parse failed, proceed without analysis
+      }
+    }
+  } catch {
+    // Phase 1 failed, proceed without analysis
+  }
+
+  // 4. Phase 2: Storyboard Generation
+  await reportTaskProgress(job, 40, {
     stage: 'lxt_storyboard_generate',
     stageLabel: 'LXT 分镜生成中',
     displayMode: 'detail',
@@ -67,7 +106,12 @@ export async function handleLxtScriptToStoryboardTask(job: Job<TaskJobData>) {
 
   await assertTaskActive(job, 'lxt_storyboard_generate')
 
-  // 4. 调用 LLM
+  const storyboardTemplate = getPromptTemplate(PROMPT_IDS.LXT_SCRIPT_TO_STORYBOARD, locale)
+  const basePrompt = storyboardTemplate.replace('{script}', episode.srtContent)
+  const prompt = analysisResult
+    ? `【剧本分析结果】\n${JSON.stringify(analysisResult)}\n\n${basePrompt}`
+    : basePrompt
+
   const result = await executeAiTextStep({
     userId: job.data.userId,
     model: analysisModel,
@@ -77,8 +121,8 @@ export async function handleLxtScriptToStoryboardTask(job: Job<TaskJobData>) {
     meta: {
       stepId: 'lxt_script_to_storyboard',
       stepTitle: '剧本转分镜',
-      stepIndex: 1,
-      stepTotal: 1,
+      stepIndex: 2,
+      stepTotal: 2,
     },
   })
 

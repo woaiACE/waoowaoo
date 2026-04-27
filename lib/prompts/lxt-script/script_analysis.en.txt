@@ -1,0 +1,36 @@
+You are a professional screenplay analyst. Analyze the following script and extract structured narrative elements. Output as pure JSON only (no markdown code blocks, no extra text).
+
+【Output JSON Fields】
+
+{
+  "characters": [
+    {
+      "name": "Full character name (include species/identity, e.g. \"MotherPig\", \"BigBrotherPig\", \"FoxBoss\")",
+      "personality": "Personality traits (2-4 keywords, comma-separated)",
+      "role": "Protagonist / Supporting"
+    }
+  ],
+  "scenes": [
+    {
+      "name": "Master scene name (concise, e.g. \"Forest Edge Home\", \"Inside Forest\")",
+      "sub_areas": ["sub-area 1", "sub-area 2"],
+      "time_of_day": "Daytime / Evening / Midnight / Dawn"
+    }
+  ],
+  "emotional_arc": ["Sequence of emotional shifts across the story, 3-6 emotion labels in story chronological order"],
+  "key_narrative_beats": ["Key turning points or events, 2-4 entries, brief description"],
+  "main_scene": "Primary scene throughout the script",
+  "tone": "Overall tone (Lighthearted / Tense / Warm / Suspenseful / Sad / Humorous)",
+  "summary": "Script summary, 50 characters or less"
+}
+
+【Guidelines】
+- characters array: must include ALL characters with dialogue or explicit visual description, no omissions
+- scenes array: if entire script takes place in one master scene, use only one entry; list variations in sub_areas
+- emotional_arc: choose labels from: Calm, Happy, Curious, Fearful, Worried, Nervous, Excited, Gentle, Serious, Surprised, Sad, Angry
+- Do NOT use markdown code blocks (```json), output raw JSON directly
+- Do NOT add any text outside the JSON
+
+【Script Content】
+
+{script}

@@ -14,7 +14,7 @@ import {
   reconcileRowsWithShotList,
   FINAL_FILM_TARGET_TYPE,
   buildFinalFilmTargetId,
-  DEFAULT_GRID_PROMPT_PREFIX,
+  resolveGridPromptPrefix,
   type LxtFinalFilmRow,
   type LxtFinalFilmImageSet,
 } from '@/lib/lxt/final-film'
@@ -112,10 +112,10 @@ export default function LxtFinalFilmStage() {
   // 四宫格提示前缀（从 finalFilmContent 顶层读取，可配置）
   const parsedContent = useMemo(() => parseFinalFilmContent(finalFilmContent), [finalFilmContent])
   const [gridPromptPrefix, setGridPromptPrefix] = useState(
-    parsedContent.gridPromptPrefix ?? DEFAULT_GRID_PROMPT_PREFIX,
+    parsedContent.gridPromptPrefix ?? '',
   )
   useEffect(() => {
-    setGridPromptPrefix(parsedContent.gridPromptPrefix ?? DEFAULT_GRID_PROMPT_PREFIX)
+    setGridPromptPrefix(parsedContent.gridPromptPrefix ?? '')
   }, [parsedContent.gridPromptPrefix])
 
   const saveGridPromptPrefix = useCallback(
@@ -170,7 +170,7 @@ export default function LxtFinalFilmStage() {
           onChange={(e) => setGridPromptPrefix(e.target.value)}
           onBlur={(e) => void saveGridPromptPrefix(e.target.value)}
           className="glass-field-input text-xs px-2 h-7 flex-1"
-          placeholder={DEFAULT_GRID_PROMPT_PREFIX}
+          placeholder={resolveGridPromptPrefix(parsedContent.artStyle)}
         />
       </div>
       <div className="flex items-center justify-end gap-2">
@@ -385,7 +385,12 @@ function FinalFilmRow({
         />
 
         {/* 视频 */}
-        <VideoSlot label={t('videoSlot')} videoUrl={row.videoUrl} />
+        <VideoSlot
+          label={t('videoSlot')}
+          videoUrl={row.videoUrl}
+          taskBusy={taskBusy}
+          taskLabel={taskPhaseLabel}
+        />
       </div>
 
       {/* 操作按钮组 */}
@@ -708,14 +713,26 @@ function MediaSlot(props: { label: string; imageUrl?: string | null }) {
   )
 }
 
-function VideoSlot(props: { label: string; videoUrl?: string | null }) {
+function VideoSlot(props: {
+  label: string
+  videoUrl?: string | null
+  taskBusy?: boolean
+  taskLabel?: string | null
+}) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[11px] font-semibold text-[var(--glass-text-tertiary)] uppercase tracking-wider">
         {props.label}
       </span>
-      <div className="aspect-square w-full rounded-lg overflow-hidden bg-[var(--glass-bg-muted)] border border-[var(--glass-stroke-base)] flex items-center justify-center">
-        {props.videoUrl ? (
+      <div className="aspect-square w-full rounded-lg overflow-hidden bg-[var(--glass-bg-muted)] border border-[var(--glass-stroke-base)] flex items-center justify-center relative">
+        {props.taskBusy ? (
+          <div className="flex flex-col items-center justify-center gap-1.5">
+            <AppIcon name="loader" className="w-5 h-5 text-[var(--glass-text-secondary)] animate-spin" />
+            {props.taskLabel && (
+              <span className="text-xs text-[var(--glass-text-secondary)]">{props.taskLabel}</span>
+            )}
+          </div>
+        ) : props.videoUrl ? (
           <video src={props.videoUrl} controls className="w-full h-full object-cover" />
         ) : (
           <span className="text-xs text-[var(--glass-text-tertiary)]">—</span>

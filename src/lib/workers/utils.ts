@@ -412,6 +412,7 @@ export async function resolveVideoSourceFromGeneration(
     userId: string
     modelId: string
     imageUrl: string
+    referenceImages?: string[]
     options?: {
       prompt?: string
       duration?: number
@@ -494,10 +495,16 @@ export async function resolveVideoSourceFromGeneration(
 
   const result = await withLogContext(
     { projectId: job.data.projectId, taskId: job.data.taskId, userId: params.userId },
-    () => generateVideo(params.userId, params.modelId, params.imageUrl, {
-      ...providerRequestOptions,
-      ...providerCapabilityOptions,
-    }),
+    () => generateVideo(
+      params.userId,
+      params.modelId,
+      params.imageUrl,
+      {
+        ...providerRequestOptions,
+        ...providerCapabilityOptions,
+      },
+      params.referenceImages,
+    ),
   )
   if (!result.success) {
     throw new Error(result.error || 'Video generation failed')

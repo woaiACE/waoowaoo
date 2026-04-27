@@ -190,7 +190,8 @@ export async function generateVideo(
         generateAudio?: boolean  // 仅 Seedance 1.5 Pro 支持
         lastFrameImageUrl?: string  // 首尾帧模式的尾帧图片
         [key: string]: string | number | boolean | undefined
-    }
+    },
+    referenceImages?: string[],
 ): Promise<GenerateResult> {
     const selection = await resolveModelSelection(userId, modelKey, 'video')
     _ulogInfo(`[generateVideo] resolved model selection: ${selection.modelKey}`)
@@ -274,6 +275,7 @@ export async function generateVideo(
         userId,
         imageUrl,
         prompt,
+        referenceImages,
         options: {
             ...providerOptions,
             provider: selection.provider,

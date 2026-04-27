@@ -6,6 +6,7 @@ import { submitTask } from '@/lib/task/submitter'
 import { resolveRequiredTaskLocale } from '@/lib/task/resolve-locale'
 import { TASK_TYPE } from '@/lib/task/types'
 import { buildDefaultTaskBillingInfo } from '@/lib/billing'
+import { getUserModelConfig } from '@/lib/config-service'
 import {
   FINAL_FILM_TARGET_TYPE,
   buildFinalFilmTargetId,
@@ -13,15 +14,9 @@ import {
 } from '@/lib/lxt/final-film'
 
 /**
- * 视频 provider 接入开关：worker handler 与 provider 接入完成后置为 true，
- * 解开下方的任务提交通路。当前基础版尚未接入真实 provider，直接返回 501。
- */
-const FINAL_FILM_VIDEO_PROVIDER_READY = false
-
-/**
  * POST /api/lxt/[projectId]/final-film/[episodeId]/[shotIndex]/generate-video
  *
- * 为指定分镜行提交视频生成任务（异步 BullMQ）。
+ * 为指定分镜行提交视频生成任务（异步 BullMQ），使用 Seedance 2.0。
  */
 export const POST = apiHandler(async (
   request: NextRequest,
@@ -51,30 +46,35 @@ export const POST = apiHandler(async (
     throw new ApiError('INVALID_PARAMS', { message: '请先生成或选择首帧图片' })
   }
 
-  if (!FINAL_FILM_VIDEO_PROVIDER_READY) {
-    // provider 尚未接入，显式 501，避免产生一个必然失败的真实任务。
-    return NextResponse.json(
-      {
-        error: {
-          code: 'NOT_IMPLEMENTED',
-          message: 'LXT 成片视频生成尚未接入真实 provider，等待后续里程碑实现',
-        },
-      },
-      { status: 501 },
-    )
-  }
-
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
   const locale = resolveRequiredTaskLocale(request, body)
+
+  // 视频模型：请求体显式指定 > 用户偏好 > Seedance 2.0
+  const bodyModel = typeof body.videoModel === 'string' && body.videoModel.trim()
+    ? body.videoModel.trim()
+    : null
+  const userModels = await getUserModelConfig(session.user.id)
+  const resolvedVideoModel =
+    bodyModel
+    || userModels.videoModel
+    || 'doubao-seedance-2-0-260128'
+
+  const hasEndFrame = !!row.videoEndFrameUrl
+  const generationMode = hasEndFrame ? 'firstlastframe' : 'normal'
 
   const targetId = buildFinalFilmTargetId(episodeId, shotIndex)
   const payload = {
     episodeId,
     shotIndex,
     videoPrompt,
+    videoModel: resolvedVideoModel,
     firstFrameUrl: row.imageUrl,
     lastFrameUrl: row.videoEndFrameUrl || null,
+    generationMode,
     displayMode: 'detail' as const,
+    bindings: row.bindings || null,
+    videoRatio: content.videoRatio || null,
+    artStyle: content.artStyle || null,
   }
 
   const result = await submitTask({
@@ -86,7 +86,7 @@ export const POST = apiHandler(async (
     targetType: FINAL_FILM_TARGET_TYPE,
     targetId,
     payload,
-    dedupeKey: `${TASK_TYPE.LXT_FINAL_FILM_VIDEO}:${targetId}`,
+    dedupeKey: `${TASK_TYPE.LXT_FINAL_FILM_VIDEO}:${targetId}:${resolvedVideoModel}`,
     billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.LXT_FINAL_FILM_VIDEO, payload),
   })
 

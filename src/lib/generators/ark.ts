@@ -307,7 +307,7 @@ export class ArkImageGenerator extends BaseImageGenerator {
 
 export class ArkVideoGenerator extends BaseVideoGenerator {
     protected async doGenerate(params: VideoGenerateParams): Promise<GenerateResult> {
-        const { userId, imageUrl, prompt = '', options = {} } = params
+        const { userId, imageUrl, prompt = '', referenceImages = [], options = {} } = params
 
         const { apiKey } = await getProviderConfig(userId, 'ark')
         const {
@@ -438,6 +438,23 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         const content: ArkVideoContentItem[] = []
         if (prompt.trim()) {
             content.push({ type: 'text', text: prompt })
+        }
+
+        // 参考图注入（角色/场景/道具，用于保持视频中角色外观一致性）
+        for (const refUrl of referenceImages) {
+            try {
+                const refBase64 = await normalizeToBase64ForGeneration(refUrl)
+                content.push({
+                    type: 'image_url',
+                    image_url: { url: refBase64 },
+                    role: 'reference_image',
+                })
+            } catch {
+                _ulogInfo(`[ARK Video] 参考图片转换失败: ${refUrl}`)
+            }
+        }
+        if (referenceImages.length > 0) {
+            _ulogInfo(`[ARK Video] 参考图注入: ${referenceImages.length} 张`)
         }
 
         if (lastFrameImageUrl) {
