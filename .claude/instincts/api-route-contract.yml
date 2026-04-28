@@ -1,0 +1,21 @@
+---
+id: waoowaoo-api-route-contract
+trigger: "when adding or modifying an API route"
+confidence: 0.85
+domain: api
+source: local-repo-analysis
+---
+
+# Register Every API Route in Route Catalog
+
+## Action
+1. Create route handler at `src/app/api/<feature>/<endpoint>/route.ts`
+2. Register the route in `tests/contracts/route-catalog.ts`
+3. Add contract test in `tests/integration/api/contract/`
+4. Run `npm run check:api-handler` to validate compliance
+
+## Evidence
+- `tests/contracts/route-catalog.ts` changed in 17 of 50 commits (34%)
+- Every API route has corresponding contract tests in `tests/integration/api/contract/`
+- Route catalog is the third most-changed file in the repo
+- Dedicated guard script `scripts/guards/api-route-contract-guard.mjs` enforces this pattern

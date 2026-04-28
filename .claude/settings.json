@@ -1,0 +1,53 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx eslint --fix \"$FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Hook] Reminder: run /code-review before committing if you edited source files'"
+          },
+          {
+            "type": "command",
+            "command": "echo '[Hook] Running final type-check...' && npx tsc --noEmit --pretty 2>&1 | head -50"
+          },
+          {
+            "type": "command",
+            "command": "echo '[Hook] Checking API route contracts...' && npm run check:api-handler 2>&1 | tail -20"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(npx vitest *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git commit *)",
+      "Bash(cd *)",
+      "Bash(find *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(node scripts/*)",
+      "Read(~/.claude/**)",
+      "Read(**)"
+    ]
+  }
+}

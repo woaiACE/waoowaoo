@@ -1,0 +1,23 @@
+---
+id: waoowaoo-commit-convention
+trigger: "when writing a commit message"
+confidence: 0.9
+domain: git
+source: local-repo-analysis
+---
+
+# Use Conventional Commits with Scopes
+
+## Action
+Prefix commits with type and optional scope: `type(scope): description`
+
+Types: feat, fix, refactor, chore, docs, build, test, style, perf, ci
+
+Common scopes: lxt, panel-prompt, storyboard, asset-gen, ip-mode, ai-write, editor, relation-graph, novel-promotion, embedding, test
+
+## Evidence
+- Analyzed 50 commits
+- 45/50 (90%) follow conventional commit format
+- 34 feat (68%), 14 fix (28%), 3 refactor, 2 docs, 2 chore, 2 build
+- Dominant scope: lxt (11 scoped commits)
+- Chinese descriptions in body are accepted

@@ -1,0 +1,22 @@
+---
+id: waoowaoo-i18n-pattern
+trigger: "when adding user-facing text or prompts"
+confidence: 0.8
+domain: i18n
+source: local-repo-analysis
+---
+
+# Dual-Layer i18n: Messages + Prompt Catalog
+
+## Action
+1. User-facing UI messages: add keys to `messages/{en,zh}/*.json` (both languages required)
+2. AI prompt templates: add to `src/lib/prompt-i18n/catalog.ts` with ID registered in `src/lib/prompt-i18n/prompt-ids.ts`
+3. Use `[locale]` dynamic segment in Next.js App Router for language routing
+4. Navigation/routing config in `src/i18n/routing.ts` and `src/i18n/navigation.ts`
+
+## Evidence
+- `messages/zh/lxtWorkspace.json` and `messages/en/lxtWorkspace.json` both in top-30 most-changed (8 commits each)
+- `messages/zh/assets.json` and `messages/en/assets.json` (8 commits each)
+- `src/lib/prompt-i18n/catalog.ts` changed in 11/50 commits (22%) - 4th most-changed file
+- `src/lib/prompt-i18n/prompt-ids.ts` changed in 7/50 commits (14%)
+- zh and en message files always change in pairs

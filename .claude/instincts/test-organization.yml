@@ -1,0 +1,23 @@
+---
+id: waoowaoo-test-organization
+trigger: "when writing tests"
+confidence: 0.85
+domain: testing
+source: local-repo-analysis
+---
+
+# Follow Test Organization and Contract-Driven Patterns
+
+## Action
+1. Use Vitest for all tests (`.test.ts` or `.test.tsx` suffix)
+2. Place tests in `tests/` directory by type (unit, integration, concurrency)
+3. Use fakes from `tests/helpers/fakes/` for LLM, media, and providers
+4. Prefer fake implementations over mocking
+5. Use centralized test helpers (auth.ts, prisma.ts, db-reset.ts) instead of inline setup
+6. Integration tests use a real test database with `tests/helpers/db-reset.ts`
+
+## Evidence
+- 40+ test files in `tests/` directory across unit, integration, contracts, concurrency, regression, system
+- `tests/helpers/fakes/` contains llm.ts, media.ts, and providers.ts - used across all integration tests
+- API contract tests cover every route registered in `tests/contracts/route-catalog.ts`
+- Test files co-located in `src/lib/` for contracts (e.g., `src/lib/contracts/image-urls-contract.test.ts`)

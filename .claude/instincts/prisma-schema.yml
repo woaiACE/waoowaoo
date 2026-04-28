@@ -1,0 +1,21 @@
+---
+id: waoowaoo-prisma-schema
+trigger: "when modifying the database schema"
+confidence: 0.85
+domain: database
+source: local-repo-analysis
+---
+
+# Use PascalCase Models with @@map for Table Names
+
+## Action
+1. Define models in PascalCase in `prisma/schema.prisma`
+2. Use `@@map("snake_case_table_name")` to map to actual table names
+3. Run `node scripts/prisma-generate-safe.mjs` to regenerate client (handles Windows DLL file lock)
+4. Never run `prisma generate` directly on Windows
+
+## Evidence
+- `prisma/schema.prisma` is the most-changed file (18/50 commits, 36%)
+- Commit `fix: revert schema.prisma to PascalCase+@@map to restore Prisma camelCase API` confirms PascalCase convention
+- Build commit `build: use safe prisma generate wrapper to handle Windows DLL file lock` confirms wrapper requirement
+- Frequently co-changes with task types and handler files

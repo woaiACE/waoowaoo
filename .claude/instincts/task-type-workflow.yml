@@ -1,0 +1,24 @@
+---
+id: waoowaoo-task-type-workflow
+trigger: "when adding a new background job or task type"
+confidence: 0.8
+domain: architecture
+source: local-repo-analysis
+---
+
+# Follow 5-Step Task Type Creation Workflow
+
+## Action
+When adding a new worker task type:
+1. Define type in `src/lib/task/types.ts`
+2. Add handler in `src/lib/workers/handlers/`
+3. Update `src/lib/task/intent.ts` for task routing
+4. Update `src/lib/billing/task-policy.ts` for credit costing
+5. Update `tests/contracts/task-type-catalog.ts` for compliance
+
+## Evidence
+- `src/lib/task/types.ts` changed in 8/50 commits (16%)
+- `src/lib/workers/handlers/` has 7+ handler files (character, location, panel, story-to-script, etc.)
+- `tests/contracts/task-type-catalog.ts` changed in 7/50 commits (14%)
+- `src/lib/task/intent.ts` and `src/lib/billing/task-policy.ts` also in top-30 most-changed files
+- These 5 files frequently co-change together in the same commit

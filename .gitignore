@@ -40,7 +40,10 @@ yarn-error.log*
 # IDE and AI tools
 .vscode/
 .idea/
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/skills/
+!.claude/instincts/
 .cursor/
 .gemini/
 .artifacts/
