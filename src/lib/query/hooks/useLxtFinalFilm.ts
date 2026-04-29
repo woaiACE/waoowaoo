@@ -116,7 +116,7 @@ export function useGenerateLxtFinalFilmVideo(projectId: string | null, episodeId
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) },
       )
       if (!res.ok) await readError(res, 'Failed to submit video generation')
-      return await res.json() as { taskId: string }
+      return await res.json() as { taskId: string; generationMode?: string }
     },
     onMutate: async ({ shotIndex }) => {
       if (!projectId || !episodeId) return
@@ -204,6 +204,82 @@ export function useAutoFillLxtFinalFilm(projectId: string | null, episodeId: str
     },
     onSuccess: () => {
       if (projectId && episodeId) void invalidateEpisode(qc, projectId, episodeId)
+    },
+  })
+}
+
+/** 设置旁白音色 ID（P1-3） */
+export function useSetLxtNarratorVoiceId(projectId: string | null, episodeId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ narratorVoiceId }: { narratorVoiceId: string }) => {
+      if (!projectId || !episodeId) throw new Error('projectId/episodeId required')
+      const res = await apiFetch(`/api/lxt/${projectId}/final-film/${episodeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setNarratorVoiceId: narratorVoiceId }),
+      })
+      if (!res.ok) await readError(res, 'Failed to set narrator voice ID')
+      return await res.json()
+    },
+    onSuccess: () => {
+      if (projectId && episodeId) void invalidateEpisode(qc, projectId, episodeId)
+    },
+  })
+}
+
+/** 设置旁白声音描述文本（P1-3） */
+export function useSetLxtNarratorVoicePrompt(projectId: string | null, episodeId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ narratorVoicePrompt }: { narratorVoicePrompt: string }) => {
+      if (!projectId || !episodeId) throw new Error('projectId/episodeId required')
+      const res = await apiFetch(`/api/lxt/${projectId}/final-film/${episodeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setNarratorVoicePrompt: narratorVoicePrompt }),
+      })
+      if (!res.ok) await readError(res, 'Failed to set narrator voice prompt')
+      return await res.json()
+    },
+    onSuccess: () => {
+      if (projectId && episodeId) void invalidateEpisode(qc, projectId, episodeId)
+    },
+  })
+}
+
+/** 提交行级音频生成（P1-3） */
+export function useGenerateLxtFinalFilmAudio(projectId: string | null, episodeId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ shotIndex }: { shotIndex: number }) => {
+      if (!projectId || !episodeId) throw new Error('projectId/episodeId required')
+      const res = await apiFetch(
+        `/api/lxt/${projectId}/final-film/${episodeId}/${shotIndex}/generate-audio`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) },
+      )
+      if (!res.ok) await readError(res, 'Failed to submit audio generation')
+      return await res.json() as { taskId: string }
+    },
+    onMutate: async ({ shotIndex }) => {
+      if (!projectId || !episodeId) return
+      const targetId = buildFinalFilmTargetId(episodeId, shotIndex)
+      upsertTaskTargetOverlay(qc, {
+        projectId,
+        targetType: FINAL_FILM_TARGET_TYPE,
+        targetId,
+        phase: 'queued',
+        intent: 'generate',
+      })
+      await qc.invalidateQueries({ queryKey: queryKeys.tasks.all(projectId), exact: false })
+    },
+    onError: (_err, { shotIndex }) => {
+      if (!projectId || !episodeId) return
+      clearTaskTargetOverlay(qc, {
+        projectId,
+        targetType: FINAL_FILM_TARGET_TYPE,
+        targetId: buildFinalFilmTargetId(episodeId, shotIndex),
+      })
     },
   })
 }

@@ -12,8 +12,13 @@ import {
   splitGridImage,
 } from '@/lib/workers/utils'
 import type { TaskJobData } from '@/lib/task/types'
+import { TASK_TYPE } from '@/lib/task/types'
+import { submitTask } from '@/lib/task/submitter'
+import { buildDefaultTaskBillingInfo } from '@/lib/billing'
 import {
   applyRowPatch,
+  FINAL_FILM_TARGET_TYPE,
+  buildFinalFilmTargetId,
   parseFinalFilmContent,
   serializeFinalFilmContent,
   resolveGridPromptPrefix,
@@ -22,10 +27,12 @@ import {
   type LxtFinalFilmRowBindings,
   type LxtFinalFilmImageSet,
 } from '@/lib/lxt/final-film'
-import { getArtStylePrompt } from '@/lib/constants'
+import { getArtStylePrompt, getArtStyleNegativePrompt, isArkModelKey, isGeminiCompatibleModelKey, convertNegativeToPositivePrompt } from '@/lib/constants'
 import { normalizeReferenceImagesForGeneration } from '@/lib/media/outbound-image'
 import { resolveModelMaxReferenceImages } from '@/lib/model-capabilities/catalog'
 import { buildMultiShotVideoPrompt } from '@/lib/lxt/video-prompt'
+
+const MAX_IMAGE_SETS = 3
 
 type Payload = Record<string, unknown>
 
@@ -82,7 +89,7 @@ async function mergeFinalFilmGeneratedImages(
       createdAt: new Date().toISOString(),
     }
     const history = Array.isArray(row?.imageSets) ? row.imageSets : []
-    const nextHistory = [...history, nextSet].slice(-2)
+    const nextHistory = [...history, nextSet].slice(-MAX_IMAGE_SETS)
 
     const next = applyRowPatch(content, shotIndex, {
       imageUrl: generated.gridImageUrl,
@@ -200,6 +207,19 @@ export async function handleLxtFinalFilmImageTask(job: Job<TaskJobData>) {
     ? `${gridPrefix}${imagePrompt}, ${artStyleText}`
     : `${gridPrefix}${imagePrompt}`
 
+  // ── 2.5 负向提示词 / 正向退化 ────────────────────────────────────
+  const imageArtStyleNegativePrompt = getArtStyleNegativePrompt(artStyle)
+  const isImageArkModel = isArkModelKey(modelId)
+  const isImageNativeNegativeUnsupported = isImageArkModel || isGeminiCompatibleModelKey(modelId)
+  const positiveNegativeFallback = isImageNativeNegativeUnsupported && imageArtStyleNegativePrompt
+    ? convertNegativeToPositivePrompt(imageArtStyleNegativePrompt)
+    : null
+
+  // Ark / Gemini 模型不支持 negative_prompt，将负向约束转为正向描述追加到 prompt
+  const imageFinalPrompt = positiveNegativeFallback
+    ? `${fullPrompt}, ${positiveNegativeFallback}`
+    : fullPrompt
+
   await reportTaskProgress(job, 22, {
     stage: 'lxt_final_film_image_generate',
     stageLabel: '生成四宫格图像中…',
@@ -217,10 +237,11 @@ export async function handleLxtFinalFilmImageTask(job: Job<TaskJobData>) {
   const source = await resolveImageSourceFromGeneration(job, {
     userId,
     modelId,
-    prompt: fullPrompt,
+    prompt: imageFinalPrompt,
     options: {
       aspectRatio: videoRatio,
       referenceImages: normalizedRefs.length > 0 ? normalizedRefs : undefined,
+      negativePrompt: isImageNativeNegativeUnsupported ? undefined : imageArtStyleNegativePrompt || undefined,
     },
     pollProgress: { start: 22, end: 75 },
   })
@@ -349,12 +370,50 @@ export async function handleLxtFinalFilmVideoTask(job: Job<TaskJobData>) {
     signedLastFrame = toSignedUrlIfCos(lastFrameUrl, 24 * 3600) ?? undefined
   }
 
-  // 4. 收集资产参考图（角色/场景/道具），用于保持视频中角色外观一致性
+  // 4. 收集参考图 ──────────────────────────────────────────────────
   const bindings = (payload.bindings as LxtFinalFilmRowBindings | null) ?? null
   const rawRefs = await collectLxtReferenceImages(bindings, videoModel)
-  const normalizedRefs = rawRefs.length > 0
-    ? await normalizeReferenceImagesForGeneration(rawRefs)
+
+  // P0-1: 4帧全量注入 — 当前镜头的分镜图全部传入 Seedance，利用帧间时序关系提升运动连贯性
+  const splitFrames: string[] = []
+  const latestSet = currentRow.imageSets?.[currentRow.imageSets.length - 1]
+  if (latestSet?.splitImageUrls) {
+    for (const url of latestSet.splitImageUrls) {
+      if (url) {
+        const signed = toSignedUrlIfCos(url, 24 * 3600)
+        if (signed) splitFrames.push(signed)
+      }
+    }
+  }
+
+  // P0-3: 前一镜尾帧注入 — 保持视觉连续性
+  const currentIdx = allRows.findIndex((r) => r.shotIndex === shotIndex)
+  const prevRow = currentIdx > 0 ? allRows[currentIdx - 1] : null
+  const prevEndFrameSigned = prevRow?.videoEndFrameUrl
+    ? toSignedUrlIfCos(prevRow.videoEndFrameUrl, 24 * 3600) ?? undefined
+    : undefined
+
+  // 合并：分镜帧优先 + 资产参考图 + 前一镜尾帧
+  // ARK Seedance: firstlastframe 模式下 last_frame 与 reference_image 不可混用，跳过参考图注入
+  const allVideoRefs = generationMode === 'firstlastframe'
+    ? []
+    : [...splitFrames, ...rawRefs, ...(prevEndFrameSigned ? [prevEndFrameSigned] : [])]
+  const normalizedRefs = allVideoRefs.length > 0
+    ? await normalizeReferenceImagesForGeneration(allVideoRefs)
     : []
+
+  // P0-2: 镜头间种子锁定 — 同一集共用 seed，角色面部几何跨镜稳定
+  const videoSeed = content.videoSeed ?? (Math.floor(Math.random() * 2147483647))
+  if (!content.videoSeed) {
+    await prisma.lxtEpisode.update({
+      where: { id: episodeId },
+      data: { finalFilmContent: serializeFinalFilmContent({ ...content, videoSeed }) },
+    })
+  }
+
+  // P0-4: 视频参数可配置化（从 content 读取，fallback 到默认值）
+  const videoDuration = content.videoDuration ?? 8
+  const videoResolution = content.videoResolution ?? '720p'
 
   await reportTaskProgress(job, 30, {
     stage: 'lxt_final_film_video_generate',
@@ -371,11 +430,13 @@ export async function handleLxtFinalFilmVideoTask(job: Job<TaskJobData>) {
     referenceImages: normalizedRefs.length > 0 ? normalizedRefs : undefined,
     options: {
       prompt: multiShotPrompt,
-      resolution: '720p',
-      duration: 8,
+      resolution: videoResolution,
+      duration: videoDuration,
       ...(videoRatio ? { aspectRatio: videoRatio } : {}),
       generationMode,
+      seed: videoSeed,
       ...(signedLastFrame ? { lastFrameImageUrl: signedLastFrame } : {}),
+      generateAudio: false, // LXT 当前不支持音频生成（P1-3），Seedance 2.0 能力校验要求此字段
     },
     pollProgress: { start: 30, end: 85 },
   })
@@ -413,7 +474,27 @@ export async function handleLxtFinalFilmVideoTask(job: Job<TaskJobData>) {
     videoUrl: signedVideoUrl,
   })
 
-  // 8. 返回 actualVideoTokens 用于计费结算
+  // 8. 链式触发音频生成（P1-3）：仅当已配置旁白音色时自动提交
+  const reviewTargetId = buildFinalFilmTargetId(episodeId, shotIndex)
+  if (content.narratorVoiceId) {
+    await submitTask({
+      userId,
+      locale: job.data.locale,
+      projectId: job.data.projectId,
+      type: TASK_TYPE.LXT_FINAL_FILM_AUDIO,
+      targetType: FINAL_FILM_TARGET_TYPE,
+      targetId: reviewTargetId,
+      payload: {
+        episodeId,
+        shotIndex,
+        videoUrl: signedVideoUrl,
+      },
+      dedupeKey: `lxt_final_film_audio:${reviewTargetId}`,
+      billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.LXT_FINAL_FILM_AUDIO, {}),
+    })
+  }
+
+  // 9. 返回 actualVideoTokens 用于计费结算
   return {
     success: true,
     episodeId,

@@ -46,6 +46,8 @@ export const PATCH = apiHandler(async (
     setGridPromptPrefix?: string
     setVideoRatio?: string
     setArtStyle?: string
+    setNarratorVoiceId?: string
+    setNarratorVoicePrompt?: string
   }
 
   const patches: Array<{ shotIndex: number; patch: Partial<LxtFinalFilmRow> }> = []
@@ -58,8 +60,8 @@ export const PATCH = apiHandler(async (
     }
   } else if (typeof body.shotIndex === 'number' && body.patch && typeof body.patch === 'object') {
     patches.push({ shotIndex: body.shotIndex, patch: body.patch })
-  } else if (!body.reconcile && !body.autoFillFromScript && typeof body.setGridPromptPrefix !== 'string' && typeof body.setVideoRatio !== 'string' && typeof body.setArtStyle !== 'string') {
-    throw new ApiError('INVALID_PARAMS', { message: 'shotIndex+patch | rows[] | reconcile=true | autoFillFromScript=true | setGridPromptPrefix | setVideoRatio | setArtStyle required' })
+  } else if (!body.reconcile && !body.autoFillFromScript && typeof body.setGridPromptPrefix !== 'string' && typeof body.setVideoRatio !== 'string' && typeof body.setArtStyle !== 'string' && typeof body.setNarratorVoiceId !== 'string' && typeof body.setNarratorVoicePrompt !== 'string') {
+    throw new ApiError('INVALID_PARAMS', { message: 'shotIndex+patch | rows[] | reconcile=true | autoFillFromScript=true | setGridPromptPrefix | setVideoRatio | setArtStyle | setNarratorVoiceId | setNarratorVoicePrompt required' })
   }
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -80,6 +82,8 @@ export const PATCH = apiHandler(async (
         gridPromptPrefix: content.gridPromptPrefix,
         videoRatio: content.videoRatio,
         artStyle: content.artStyle,
+        narratorVoiceId: content.narratorVoiceId,
+        narratorVoicePrompt: content.narratorVoicePrompt,
       }
     }
 
@@ -170,6 +174,14 @@ export const PATCH = apiHandler(async (
 
     if (typeof body.setArtStyle === 'string') {
       content = { ...content, artStyle: body.setArtStyle }
+    }
+
+    if (typeof body.setNarratorVoiceId === 'string') {
+      content = { ...content, narratorVoiceId: body.setNarratorVoiceId }
+    }
+
+    if (typeof body.setNarratorVoicePrompt === 'string') {
+      content = { ...content, narratorVoicePrompt: body.setNarratorVoicePrompt }
     }
 
     return await tx.lxtEpisode.update({

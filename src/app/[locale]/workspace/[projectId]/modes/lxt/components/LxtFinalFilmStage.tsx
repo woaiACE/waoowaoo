@@ -25,8 +25,17 @@ import {
   useGenerateLxtFinalFilmImage,
   useGenerateLxtFinalFilmVideo,
   useAutoFillLxtFinalFilm,
+  useSetLxtNarratorVoiceId,
+  useSetLxtNarratorVoicePrompt,
+  useGenerateLxtFinalFilmAudio,
 } from '@/lib/query/hooks/useLxtFinalFilm'
 import { useTaskTargetStateMap, type TaskTargetState } from '@/lib/query/hooks/useTaskTargetStateMap'
+
+const NARRATOR_VOICE_PRESETS = [
+  { label: '旁白', prompt: '富有感情的叙述者，声音温暖有故事感' },
+  { label: '男播音', prompt: '沉稳的中年男性播音员，音色低沉浑厚，语速平稳，吐字清晰' },
+  { label: '温柔女', prompt: '温柔甜美的年轻女性，声音清脆悦耳，语调轻柔' },
+] as const
 
 /**
  * LXT 成片 Stage
@@ -109,6 +118,10 @@ export default function LxtFinalFilmStage() {
   const reconcileMutation = useReconcileLxtFinalFilm(projectId, episodeId || null)
   const autoFillMutation = useAutoFillLxtFinalFilm(projectId, episodeId || null)
 
+  // P1-3: Narrator voice hooks
+  const setNarratorVoiceIdMut = useSetLxtNarratorVoiceId(projectId, episodeId || null)
+  const setNarratorVoicePromptMut = useSetLxtNarratorVoicePrompt(projectId, episodeId || null)
+
   // 四宫格提示前缀（从 finalFilmContent 顶层读取，可配置）
   const parsedContent = useMemo(() => parseFinalFilmContent(finalFilmContent), [finalFilmContent])
   const [gridPromptPrefix, setGridPromptPrefix] = useState(
@@ -117,6 +130,16 @@ export default function LxtFinalFilmStage() {
   useEffect(() => {
     setGridPromptPrefix(parsedContent.gridPromptPrefix ?? '')
   }, [parsedContent.gridPromptPrefix])
+
+  // P1-3: Narrator voice state
+  const [narratorVoicePrompt, setNarratorVoicePromptLocal] = useState(
+    parsedContent.narratorVoicePrompt ?? '',
+  )
+  useEffect(() => {
+    setNarratorVoicePromptLocal(parsedContent.narratorVoicePrompt ?? '')
+  }, [parsedContent.narratorVoicePrompt])
+  const narratorVoiceId = parsedContent.narratorVoiceId
+  const [isDesigningNarrator, setIsDesigningNarrator] = useState(false)
 
   const saveGridPromptPrefix = useCallback(
     async (prefix: string) => {
@@ -173,6 +196,72 @@ export default function LxtFinalFilmStage() {
           placeholder={resolveGridPromptPrefix(parsedContent.artStyle)}
         />
       </div>
+      {/* P1-3: Narrator voice config */}
+      <div className="glass-surface p-3 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <AppIcon name="mic" className="w-4 h-4 text-[var(--glass-text-secondary)]" />
+          <span className="text-xs font-semibold text-[var(--glass-text-secondary)]">旁白音色</span>
+          {narratorVoiceId && (
+            <span className="w-2 h-2 rounded-full bg-[var(--glass-tone-success-fg)]" title="已配置" />
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {NARRATOR_VOICE_PRESETS.map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => {
+                setNarratorVoicePromptLocal(preset.prompt)
+                setNarratorVoicePromptMut.mutate({ narratorVoicePrompt: preset.prompt })
+              }}
+              className={`glass-btn-base px-2 py-0.5 text-[10px] rounded border transition-all ${
+                narratorVoicePrompt === preset.prompt
+                  ? 'bg-[var(--glass-accent-from)] text-white border-transparent'
+                  : 'bg-transparent text-[var(--glass-text-secondary)] border-[var(--glass-stroke-base)] hover:bg-[var(--glass-bg-hover)]'
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={narratorVoicePrompt}
+            onChange={(e) => setNarratorVoicePromptLocal(e.target.value)}
+            onBlur={(e) => {
+              if (e.target.value !== (parsedContent.narratorVoicePrompt ?? ''))
+                setNarratorVoicePromptMut.mutate({ narratorVoicePrompt: e.target.value })
+            }}
+            placeholder="自定义旁白声音描述…"
+            className="glass-field-input text-xs px-2 h-7 flex-1"
+          />
+          <button
+            type="button"
+            disabled={isDesigningNarrator || !narratorVoicePrompt.trim()}
+            onClick={async () => {
+              if (!projectId || !episodeId) return
+              setIsDesigningNarrator(true)
+              try {
+                const res = await apiFetch(`/api/lxt/${projectId}/final-film/${episodeId}/design-narrator-voice`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ voicePrompt: narratorVoicePrompt }),
+                })
+                const data = await res.json() as { voiceId?: string; success?: boolean }
+                if (data.voiceId && data.success !== false) {
+                  setNarratorVoiceIdMut.mutate({ narratorVoiceId: data.voiceId })
+                }
+              } catch { /* ignore */ }
+              finally { setIsDesigningNarrator(false) }
+            }}
+            className="glass-btn-base glass-btn-primary h-7 px-3 text-[10px] disabled:opacity-40"
+          >
+            {isDesigningNarrator ? '…' : narratorVoiceId ? '重新设计' : 'AI 设计音色'}
+          </button>
+        </div>
+      </div>
+
       <div className="flex items-center justify-end gap-2">
         <button
           type="button"
@@ -257,8 +346,10 @@ function FinalFilmRow({
   const patchRow = usePatchLxtFinalFilmRow(projectId, episodeId)
   const genImage = useGenerateLxtFinalFilmImage(projectId, episodeId)
   const genVideo = useGenerateLxtFinalFilmVideo(projectId, episodeId)
+  const genAudio = useGenerateLxtFinalFilmAudio(projectId, episodeId)
 
   const [activeSetIndex, setActiveSetIndex] = useState<number | null>(null)
+  const [videoGenMode, setVideoGenMode] = useState<string | null>(null)
 
   // 根据选中的套图计算尾帧 URL
   const imageSets = row.imageSets
@@ -415,12 +506,37 @@ function FinalFilmRow({
         </button>
         <button
           type="button"
-          onClick={() => genVideo.mutate({ shotIndex: row.shotIndex })}
+          onClick={async () => {
+            const result = await genVideo.mutateAsync({ shotIndex: row.shotIndex })
+            if (result?.generationMode) setVideoGenMode(result.generationMode)
+          }}
           disabled={genVideo.isPending || taskBusy || !videoPrompt.trim() || !row.imageUrl}
           className="glass-btn-base glass-btn-primary h-8 px-3 text-xs disabled:opacity-40"
         >
           {t('generateVideo')}
         </button>
+        {videoGenMode && (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+            videoGenMode === 'firstlastframe'
+              ? 'bg-amber-500/10 text-amber-500'
+              : 'bg-emerald-500/10 text-emerald-500'
+          }`}>
+            {videoGenMode === 'firstlastframe' ? '首尾帧 · 参考图未注入' : '标准 · 4帧+参考图注入'}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => genAudio.mutate({ shotIndex: row.shotIndex })}
+          disabled={genAudio.isPending || taskBusy || !row.videoUrl}
+          className="glass-btn-base glass-btn-primary h-8 px-3 text-xs disabled:opacity-40"
+          title={!row.videoUrl ? '请先生成视频' : undefined}
+        >
+          <AppIcon name="mic" className="w-3.5 h-3.5 mr-1" />
+          {t('generateAudio')}
+        </button>
+        {row.audioUrl && (
+          <AudioSlot label={t('audioSlot')} audioUrl={row.audioUrl} audioDuration={row.audioDuration ?? null} />
+        )}
       </div>
 
       {bindingOpen && (
@@ -549,6 +665,17 @@ function FirstFrameSlot(props: {
           />
         )}
 
+        {/* 查看四宫格按钮 */}
+        {hasImage && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setPreviewUrl(displayUrl!) }}
+            className="absolute top-1 right-1 z-10 glass-btn-base glass-btn-secondary h-6 px-2 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+{'查看'}
+          </button>
+        )}
+
         {/* 任务进行中遮罩（含 mutation pending 状态） */}
         {(taskBusy || props.isGenerating) && (
           <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1.5">
@@ -572,7 +699,7 @@ function FirstFrameSlot(props: {
             className={[
               'absolute inset-0 flex flex-col items-center justify-center gap-1 transition-all',
               hasImage
-                ? 'opacity-0 group-hover:opacity-100 bg-black/40 hover:bg-black/55'
+                ? 'opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto bg-black/40 hover:bg-black/55'
                 : 'hover:bg-[var(--glass-bg-hover)]',
               !canGenerate ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
             ].join(' ')}
@@ -951,6 +1078,26 @@ function BindingPanel(props: {
           {props.labels.save}
         </button>
       </div>
+    </div>
+  )
+}
+
+function AudioSlot(props: { label: string; audioUrl?: string | null; audioDuration?: number | null }) {
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <AppIcon name="mic" className="w-3.5 h-3.5 text-[var(--glass-text-secondary)]" />
+      {props.audioUrl ? (
+        <>
+          <audio src={props.audioUrl} controls className="h-6 w-32" />
+          {typeof props.audioDuration === 'number' && (
+            <span className="text-[10px] text-[var(--glass-text-tertiary)]">
+              {Math.round(props.audioDuration)}s
+            </span>
+          )}
+        </>
+      ) : (
+        <span className="text-[10px] text-[var(--glass-text-tertiary)]">—</span>
+      )}
     </div>
   )
 }

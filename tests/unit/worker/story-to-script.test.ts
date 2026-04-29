@@ -9,6 +9,7 @@ const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
   novelPromotionClip: { update: vi.fn(async () => ({})) },
   locationImage: { createMany: vi.fn(async () => ({ count: 0 })) },
+  userPreference: { findUnique: vi.fn() },
 }))
 
 const workerMock = vi.hoisted(() => ({
@@ -128,6 +129,7 @@ describe('worker story-to-script behavior', () => {
       id: 'project-1',
       name: 'Project One',
     })
+    prismaMock.userPreference.findUnique.mockResolvedValue(null)
 
     prismaMock.novelPromotionProject.findUnique.mockResolvedValue({
       id: 'np-project-1',

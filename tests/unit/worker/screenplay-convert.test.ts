@@ -7,6 +7,7 @@ const prismaMock = vi.hoisted(() => ({
   novelPromotionProject: { findUnique: vi.fn() },
   novelPromotionEpisode: { findUnique: vi.fn() },
   novelPromotionClip: { update: vi.fn(async () => ({})) },
+  userPreference: { findUnique: vi.fn() },
 }))
 
 const llmMock = vi.hoisted(() => ({
@@ -80,6 +81,7 @@ describe('worker screenplay-convert behavior', () => {
       id: 'project-1',
       name: 'Project One',
     })
+    prismaMock.userPreference.findUnique.mockResolvedValue(null)
 
     prismaMock.novelPromotionProject.findUnique.mockResolvedValue({
       id: 'np-project-1',

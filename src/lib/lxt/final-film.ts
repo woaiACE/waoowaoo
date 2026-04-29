@@ -46,6 +46,13 @@ export interface LxtFinalFilmImageSet {
   createdAt: string
 }
 
+export interface LxtFinalFilmRowReviewResult {
+  status: 'pending' | 'pass' | 'repairing' | 'failed'
+  scores?: { format: number; narrative: number; character: number; emotion: number; logic: number; conflict: number; overall: number }
+  retryCount: number
+  reviewedAt?: string
+}
+
 export interface LxtFinalFilmRow {
   shotIndex: number             // 0-based，对应 parseLxtShots 的 index
   label?: string                // 分镜名（"分镜1"等）
@@ -54,12 +61,15 @@ export interface LxtFinalFilmRow {
   imageUrl?: string | null      // 主图（四宫格模式下 = gridImageUrl 副本，向后兼容）
   gridImageUrl?: string | null  // 四宫格原图（AI 一次调用返回的 2×2 格局组图）
   splitImageUrls?: (string | null)[] | null // 切割后4张独立分镜图（顺序：左上/右上/左下/右下）
-  imageSets?: LxtFinalFilmImageSet[] | null // 最近保留的套图历史（最多2套，按时间升序）
+  imageSets?: LxtFinalFilmImageSet[] | null // 最近保留的套图历史（最多3套，按时间升序）
   videoEndFrameUrl?: string | null // 视频尾帧图（四宫格模式下自动设为右下角分图）
   videoPrompt?: string          // 视频提示词
   videoUrl?: string | null      // 视频
   shotType?: string             // 景别（全景/中景/近景/特写等）
   bindings?: LxtFinalFilmRowBindings // 资产绑定关系（引用）
+  reviewResult?: LxtFinalFilmRowReviewResult | null // 质量评审结果（P1-15）
+  audioUrl?: string | null // 对白/旁白音频 URL（P1-3）
+  audioDuration?: number | null // 音频时长秒（P1-3）
 }
 
 export const DEFAULT_VIDEO_RATIO = '9:16'
@@ -74,6 +84,16 @@ export interface LxtFinalFilmContent {
   videoRatio?: string
   /** 画风风格 ID（默认 realistic 真人写实，短剧常用） */
   artStyle?: string
+  /** 视频随机种子（同一集共用，保持噪声模式一致 → 角色面部几何跨镜稳定） */
+  videoSeed?: number
+  /** 视频时长（秒），默认 8 */
+  videoDuration?: number
+  /** 视频分辨率，默认 720p */
+  videoResolution?: string
+  /** 旁白音色 ID（百炼 QwenTTS voiceId，P1-3） */
+  narratorVoiceId?: string
+  /** 旁白声音描述文本（P1-3） */
+  narratorVoicePrompt?: string
 }
 
 export function createEmptyFinalFilmContent(): LxtFinalFilmContent {
@@ -107,7 +127,22 @@ export function parseFinalFilmContent(raw?: string | null): LxtFinalFilmContent 
     const artStyle = typeof parsed.artStyle === 'string' && parsed.artStyle.trim()
       ? parsed.artStyle.trim()
       : DEFAULT_ART_STYLE
-    return { version: FINAL_FILM_CONTENT_VERSION, rows, gridPromptPrefix, videoRatio, artStyle }
+    const videoSeed = typeof parsed.videoSeed === 'number' && Number.isFinite(parsed.videoSeed)
+      ? parsed.videoSeed
+      : undefined
+    const videoDuration = typeof parsed.videoDuration === 'number' && parsed.videoDuration > 0
+      ? parsed.videoDuration
+      : undefined
+    const videoResolution = typeof parsed.videoResolution === 'string' && parsed.videoResolution.trim()
+      ? parsed.videoResolution.trim()
+      : undefined
+    const narratorVoiceId = typeof parsed.narratorVoiceId === 'string' && parsed.narratorVoiceId.trim()
+      ? parsed.narratorVoiceId.trim()
+      : undefined
+    const narratorVoicePrompt = typeof parsed.narratorVoicePrompt === 'string' && parsed.narratorVoicePrompt.trim()
+      ? parsed.narratorVoicePrompt.trim()
+      : undefined
+    return { version: FINAL_FILM_CONTENT_VERSION, rows, gridPromptPrefix, videoRatio, artStyle, videoSeed, videoDuration, videoResolution, narratorVoiceId, narratorVoicePrompt }
   } catch {
     return createEmptyFinalFilmContent()
   }
@@ -140,6 +175,9 @@ function normalizeRow(row: unknown): LxtFinalFilmRow | null {
     videoUrl: typeof r.videoUrl === 'string' ? r.videoUrl : null,
     shotType: typeof r.shotType === 'string' ? r.shotType : undefined,
     bindings: normalizeBindings(r.bindings),
+    reviewResult: normalizeReviewResult(r.reviewResult),
+    audioUrl: typeof r.audioUrl === 'string' ? r.audioUrl : null,
+    audioDuration: typeof r.audioDuration === 'number' ? r.audioDuration : null,
   }
 }
 
@@ -156,6 +194,28 @@ function normalizeImageSet(raw: unknown): LxtFinalFilmImageSet | null {
     ? s.createdAt
     : new Date(0).toISOString()
   return { gridImageUrl, splitImageUrls, videoEndFrameUrl, createdAt }
+}
+
+function normalizeReviewResult(raw: unknown): LxtFinalFilmRowReviewResult | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const status = r.status as string
+  if (status !== 'pending' && status !== 'pass' && status !== 'repairing' && status !== 'failed') return null
+  const scores = r.scores as Record<string, unknown> | undefined
+  return {
+    status,
+    scores: scores ? {
+      format: typeof scores.format === 'number' ? scores.format : 0,
+      narrative: typeof scores.narrative === 'number' ? scores.narrative : 0,
+      character: typeof scores.character === 'number' ? scores.character : 0,
+      emotion: typeof scores.emotion === 'number' ? scores.emotion : 0,
+      logic: typeof scores.logic === 'number' ? scores.logic : 0,
+      conflict: typeof scores.conflict === 'number' ? scores.conflict : 0,
+      overall: typeof scores.overall === 'number' ? scores.overall : 0,
+    } : undefined,
+    retryCount: typeof r.retryCount === 'number' ? r.retryCount : 0,
+    reviewedAt: typeof r.reviewedAt === 'string' ? r.reviewedAt : undefined,
+  }
 }
 
 function normalizeBindings(raw: unknown): LxtFinalFilmRowBindings | undefined {

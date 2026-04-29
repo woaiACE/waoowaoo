@@ -39,6 +39,8 @@ export const PROMPT_IDS = {
   LXT_SHOT_PHASE2A_IMAGE: 'lxt_shot_phase2a_image',
   LXT_SHOT_PHASE2B_ACTING_ARC: 'lxt_shot_phase2b_acting_arc',
   LXT_SHOT_PHASE3_VIDEO_REFINE: 'lxt_shot_phase3_video_refine',
+  LXT_SHOT_CRITIC: 'lxt_shot_critic',
+  LXT_SHOT_REPAIR: 'lxt_shot_repair',
   // IP 角色模式
   IP_FACE_DESCRIBE: 'ip_face_describe',
   IP_SCREENPLAY_REWRITE: 'ip_screenplay_rewrite',

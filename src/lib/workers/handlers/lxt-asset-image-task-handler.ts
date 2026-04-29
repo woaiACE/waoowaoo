@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive, getUserModels, toSignedUrlIfCos } from '@/lib/workers/utils'
 import { generateCleanImageToStorage } from './image-task-handler-shared'
-import { addCharacterPromptSuffix, addLocationPromptSuffix, addPropPromptSuffix, CHARACTER_ASSET_IMAGE_RATIO, LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO, getArtStylePrompt } from '@/lib/constants'
+import { addCharacterPromptSuffix, addLocationPromptSuffix, addPropPromptSuffix, CHARACTER_ASSET_IMAGE_RATIO, LOCATION_IMAGE_RATIO, PROP_IMAGE_RATIO, getArtStylePrompt, getArtStyleNegativePrompt, isArkModelKey, isGeminiCompatibleModelKey, convertNegativeToPositivePrompt } from '@/lib/constants'
 import type { TaskJobData } from '@/lib/task/types'
 import type { CharacterProfileData } from '@/types/character-profile'
 
@@ -81,8 +81,8 @@ export async function handleLxtAssetImageTask(job: Job<TaskJobData>) {
     const promptWithStyle = artStyleText ? `${rawPrompt}, ${artStyleText}` : rawPrompt
     finalPrompt = addLocationPromptSuffix(promptWithStyle)
   } else {
-    // prop
-    modelId = userModels.locationModel ?? null
+    // prop — P0-7: 优先使用 characterModel（道具图更接近角色风格），fallback 到 locationModel
+    modelId = userModels.characterModel ?? userModels.locationModel ?? null
     aspectRatio = PROP_IMAGE_RATIO
     rawPrompt = asset.description?.trim() || asset.summary?.trim() || asset.name
     const promptWithStyle = artStyleText ? `${rawPrompt}, ${artStyleText}` : rawPrompt
@@ -91,6 +91,32 @@ export async function handleLxtAssetImageTask(job: Job<TaskJobData>) {
 
   if (!modelId) {
     throw new Error(`Image model not configured for kind=${asset.kind}`)
+  }
+
+  // P0-6: 负向提示词 / 正向退化
+  const artStyleNegativePrompt = artStyle ? getArtStyleNegativePrompt(artStyle) : ''
+  const isAssetArkModel = isArkModelKey(modelId)
+  const isAssetNativeNegativeUnsupported = isAssetArkModel || isGeminiCompatibleModelKey(modelId)
+  const assetPositiveFallback = isAssetNativeNegativeUnsupported && artStyleNegativePrompt
+    ? convertNegativeToPositivePrompt(artStyleNegativePrompt)
+    : null
+  if (assetPositiveFallback) {
+    finalPrompt = `${finalPrompt}, ${assetPositiveFallback}`
+  }
+
+  // P0-6: 角色类型 — 查询已有同名资产作为参考图注入，保持同一角色多次生成的一致性
+  const referenceImages: string[] = []
+  if (asset.kind === 'character') {
+    const existingAssets = await prisma.lxtProjectAsset.findMany({
+      where: { name: asset.name, kind: 'character', imageUrl: { not: null }, id: { not: assetId } },
+      select: { imageUrl: true },
+    })
+    for (const existing of existingAssets) {
+      if (existing.imageUrl) {
+        const signed = toSignedUrlIfCos(existing.imageUrl, 3600)
+        if (signed) referenceImages.push(signed)
+      }
+    }
   }
 
   await reportTaskProgress(job, 30, {
@@ -107,7 +133,11 @@ export async function handleLxtAssetImageTask(job: Job<TaskJobData>) {
     prompt: finalPrompt,
     targetId: assetId,
     keyPrefix: 'lxt/asset-images',
-    options: { aspectRatio },
+    options: {
+      aspectRatio,
+      negativePrompt: isAssetNativeNegativeUnsupported ? undefined : artStyleNegativePrompt || undefined,
+      referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+    },
   })
 
   await reportTaskProgress(job, 90, {

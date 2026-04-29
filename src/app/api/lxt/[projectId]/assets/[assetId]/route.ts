@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireProjectAuthLight, isErrorResponse } from '@/lib/api-auth'
 import { apiHandler, ApiError } from '@/lib/api-errors'
+import { parseProfileData } from '@/types/character-profile'
 
 export const PATCH = apiHandler(async (
   request: NextRequest,
@@ -22,7 +23,12 @@ export const PATCH = apiHandler(async (
 
   if (typeof body.name === 'string') updateData.name = body.name.trim()
   if (body.summary !== undefined) updateData.summary = body.summary
-  if (body.profileData !== undefined) updateData.profileData = body.profileData
+  if (body.profileData !== undefined) {
+    const existing = parseProfileData(current.profileData)
+    const incoming = parseProfileData(body.profileData)
+    const merged = { ...existing, ...incoming }
+    updateData.profileData = JSON.stringify(merged)
+  }
   if (body.description !== undefined) updateData.description = body.description
   if (typeof body.profileConfirmed === 'boolean') updateData.profileConfirmed = body.profileConfirmed
   if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl

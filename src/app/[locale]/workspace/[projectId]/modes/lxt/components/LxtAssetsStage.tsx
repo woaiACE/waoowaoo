@@ -298,7 +298,7 @@ export default function LxtAssetsStage() {
       const res = await apiFetch(`/api/lxt/${projectId}/assets/${asset.id}/confirm-profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ artStyle: currentArtStyle }),
       })
       if (!res.ok || !res.body) {
         showToast('生成描述失败', 'error')

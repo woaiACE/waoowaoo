@@ -31,14 +31,14 @@ describe('resolveAnalysisModel', () => {
     expect(prismaMock.userPreference.findUnique).not.toHaveBeenCalled()
   })
 
-  it('uses project analysisModel when inputModel is missing', async () => {
+  it('prefers user global preference over project analysisModel when both are present', async () => {
     const result = await resolveAnalysisModel({
       userId: 'user-1',
       projectAnalysisModel: 'openai-compatible:project::gpt-4.1',
     })
 
-    expect(result).toBe('openai-compatible:project::gpt-4.1')
-    expect(prismaMock.userPreference.findUnique).not.toHaveBeenCalled()
+    expect(result).toBe('openai-compatible:pref::gpt-4.1-mini')
+    expect(prismaMock.userPreference.findUnique).toHaveBeenCalled()
   })
 
   it('falls back to user preference analysisModel when project is missing', async () => {

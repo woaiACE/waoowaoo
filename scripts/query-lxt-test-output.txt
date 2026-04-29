@@ -1,0 +1,351 @@
+Project: LXT测试 | Episodes: 1 | Assets: 8
+
+========== STAGE 1: srtContent ==========
+旁白：在一片茂密的森林旁边，住着温柔的猪妈妈和她的两个儿子，猪哥哥和猪弟弟。
+旁白：猪哥哥勇敢又充满好奇心，总是喜欢到处探险。
+旁白：猪弟弟却很胆小，小小的风吹草动都会让他紧张起来。
+旁白：不过，两兄弟的感情很好，常常一起玩耍。
+旁白：每天傍晚太阳下山时，猪妈妈都会再三叮嘱两个孩子：
+猪妈妈：孩子们，千万不可以走进旁边的森林喔。
+猪妈妈：里面黑漆漆的，非常危险。
+旁白：兄弟俩总是乖乖地点头答应。
+旁白：可是，猪哥哥的心里一直对森林充满了好奇。
+旁白：到了半夜，趁着妈妈熟睡，猪哥哥悄悄地摇醒了猪弟弟，小声地说：
+猪哥哥：弟弟，快醒醒。
+猪哥哥：我们趁现在去森林里探险吧，一定很好玩。
+旁白：猪弟弟揉揉惺忪的睡眼，虽然觉得有点害怕，但还是跟着哥哥轻手轻脚地溜出了家门。
+
+========== STAGE 2: shotListContent ==========
+```json
+[
+  {
+    "shot_label": "分镜1",
+    "scene": "森林旁的家",
+    "visual": "中景，森林旁的家-客厅，傍晚暖色斜阳落在屋内，猪妈妈坐在沙发上织毛衣，猪哥哥蹲在地上拼探险地图，猪弟弟抱着布偶坐在哥哥身侧",
+    "characters": ["猪妈妈", "猪哥哥", "猪弟弟"],
+    "character_actions": "猪妈妈指尖勾着毛线织毛衣，猪哥哥趴在地上指尖点着地图图案，猪弟弟抱着布偶晃脚",
+    "dialogue": [
+      {"speaker": "旁白", "style": "画外音(旁白)", "text": "在一片茂密的森林旁边，住着温柔的猪妈妈和她的两个儿子，猪哥哥和猪弟弟。"}
+    ],
+    "emotion": "平静"
+  },
+  {
+    "shot_label": "分镜2",
+    "scene": "森林旁的家",
+    "visual": "近景，森林旁的家-客厅，猪哥哥举着拼好的地图抬头看向窗外的森林，眼睛亮晶晶的",
+    "characters": ["猪哥哥"],
+    "character_actions": "猪哥哥晃了晃手里的地图，视线落在窗外森林的方向，嘴角上扬",
+    "dialogue": [
+      {"speaker": "猪哥哥", "style": "画外音", "text": "我勇敢又充满好奇心，总是喜欢到处探险。"}
+    ],
+    "emotion": "高兴"
+  },
+  {
+    "shot_label": "分镜3",
+    "scene": "森林旁的家",
+    "visual": "近景，森林旁的家-客厅，窗外风吹树叶发出声响，猪弟弟猛地抱紧布偶缩起脖子看向窗外",
+    "characters": ["猪弟弟"],
+    "character_actions": "猪弟弟攥紧布偶的耳朵，后背绷直，警惕地扫过窗边",
+    "dialogue": [
+      {"speaker": "猪弟弟", "style": "画外音", "text": "我却很胆小，小小的风吹草动都会让我紧张起来。"}
+    ],
+    "emotion": "害怕"
+  },
+  {
+    "shot_label": "分镜4",
+    "scene": "森林旁的家",
+    "visual": "中景，森林旁的家-客厅，猪妈妈拉着两个孩子的手站在窗边，猪哥哥和猪弟弟抬着头看着妈妈",
+    "characters": ["猪妈妈", "猪哥哥", "猪弟弟"],
+    "character_actions": "猪妈妈抬手摸了摸两个孩子的头，猪哥哥乖巧点头，猪弟弟跟着哥哥的动作点头",
+    "dialogue": [
+      {"speaker": "旁白", "style": "画外音(旁白)", "text": "每天傍晚太阳下山时，猪妈妈都会再三叮嘱两个孩子："},
+      {"speaker": "猪妈妈", "style": "普通对话", "text": "孩子们，千万不可以走进旁边的森林喔，里面黑漆漆的，非常危险。"},
+      {"speaker": "旁白", "style": "画外音(旁白)", "text": "兄弟俩总是乖乖地点头答应。"}
+    ],
+    "emotion": "担忧"
+  },
+  {
+    "shot_label": "分镜5",
+    "scene": "森林旁的家",
+    "visual": "近景，森林旁的家-客厅，猪妈妈转身去厨房收拾东西，猪哥哥偷偷扭头看向窗外渐暗的森林，咬着嘴唇",
+    "characters": ["猪哥哥"],
+    "character_actions": "猪哥哥手指攥紧衣角，视线黏在森林的方向，没有挪开",
+    "dialogue": [
+      {"speaker": "猪哥哥", "style": "独白", "text": "可是，我心里一直对森林充满了好奇。"}
+    ],
+    "emotion": "好奇"
+  },
+  {
+    "shot_label": "分镜6",
+    "scene": "森林旁的家",
+    "visual": "中景，森林旁的家-卧室，半夜冷色月光透过窗户洒在床上，猪哥哥趴在猪弟弟的枕边，用手指轻轻戳猪弟弟的脸，猪妈妈在对面的小床上睡得安稳",
+    "characters": ["猪妈妈", "猪哥哥", "猪弟弟"],
+    "character_actions": "猪哥哥压着嗓子凑在猪弟弟耳边说话，猪弟弟闭着眼睛皱起眉头晃脑袋，猪妈妈呼吸平稳毫无察觉",
+    "dialogue": [
+      {"speaker": "旁白", "style": "画外音(旁白)", "text": "到了半夜，趁着妈妈熟睡，猪哥哥悄悄地摇醒了猪弟弟，小声地说："},
+      {"speaker": "猪哥哥", "style": "普通对话", "text": "弟弟，快醒醒。我们趁现在去森林里探险吧，一定很好玩。"}
+    ],
+    "emotion": "兴奋"
+  },
+  {
+    "shot_label": "分镜7",
+    "scene": "森林旁的家",
+    "visual": "中景，森林旁的家-家门口，猪哥哥已经迈出家门站在台阶上，猪弟弟穿着睡衣抱着布偶，脚踩在门槛上犹犹豫豫",
+    "characters": ["猪哥哥", "猪弟弟"],
+    "character_actions": "猪哥哥回头朝着猪弟弟招手，脚已经朝着森林的方向迈出半步，猪弟弟咬着嘴唇犹豫几秒，还是抬脚跟了上去",
+    "dialogue": [
+      {"speaker": "旁白", "style": "画外音(旁白)", "text": "猪弟弟揉揉惺忪的睡眼，虽然觉得有点害怕，但还是跟着哥哥轻手轻脚地溜出了家门。"}
+    ],
+    "emotion": "紧张"
+  }
+]
+```
+
+========== STAGE 3: Assets ==========
+
+--- [character] 猪哥哥 ---
+  confirmed: true
+  imageUrl: /api/storage/sign?key=images%2Flxt%2Fasset-images-ad2c75b7-3563-45a8-9152-a38642
+  description: american-comic, 猪哥哥, 约8岁拟人化男性猪幼崽, , 开心活泼表情, 圆乎乎粉白小猪脸型, 浅棕弯细眉, 圆溜溜黑亮大眼睛, 粉扑扑圆润小猪鼻, 粉润小巧嘴唇, 绒绒细腻猪肤质感, , 左耳有一块棕色小斑点, 背着橙黄拼浅蓝迷你帆布探险背包, , 浅棕柔软短卷发, 齐眉碎刘海, , 4头身幼童比例, 圆乎乎胖乎乎身形, 窄小溜肩, 娇小可爱感, , 浅蓝纯棉圆领短袖T恤, 无内搭, 橙黄纯棉宽松休闲短裤, , 白色帆布休闲运动鞋, ,
+  profileData keys: role_level, archetype, personality_tags, era_period, social_class, occupation, costume_tier, suggested_colors, primary_identifier, visual_keywords, gender, age_range
+  role_level: S | archetype: 勇敢冒险者 | gender: 男 | age_range: 约8岁（拟人化幼崽）
+  personality_tags: ["勇敢","好奇","活泼","有主见"]
+  visual_keywords: ["元气满满","少年感","爱探险"]
+
+--- [character] 猪妈妈 ---
+  confirmed: true
+  imageUrl: /api/storage/sign?key=images%2Flxt%2Fasset-images-92aaa077-33d7-4859-baff-bd34ec
+  description: american-comic, 猪妈妈, 约35岁拟人化中年女性, , 温柔微笑, 圆润拟人猪猪脸型, 浅棕色柔和弯眉, 圆大暖褐色眼睛, 小巧粉色猪鼻, 饱满淡粉色嘴唇, 细腻哑光浅粉色肤质, , 头顶别着蓝色针织发夹, 身着针织围裙, , 米黄色及耳短卷发, 齐眉软碎刘海, , 6头身标准成人比例, 身形圆润丰满, 肩宽适中, 柔和娇憨感, , 浅绿色棉质圆领长袖居家上衣, 内搭米白色棉柔打底衫, 下装米黄色棉质宽松中长裙, 米黄色针织无袖长款围裙, , 米白色布面平底家居鞋, ,
+  profileData keys: role_level, archetype, personality_tags, era_period, social_class, occupation, costume_tier, suggested_colors, primary_identifier, visual_keywords, gender, age_range
+  role_level: B | archetype: 温柔母亲 | gender: 女 | age_range: 约35岁（拟人化中年）
+  personality_tags: ["温柔","细心","关爱孩子","谨慎"]
+  visual_keywords: ["温柔贤惠","居家感","亲和力强"]
+
+--- [character] 猪弟弟 ---
+  confirmed: true
+  imageUrl: /api/storage/sign?key=images%2Flxt%2Fasset-images-1cfb3606-b61c-42ff-bb82-9c2bd4
+  description: american-comic, 猪弟弟, 约6岁男性拟人化幼崽, , 开心活泼表情, 圆乎乎幼态脸型, 弯弯浅褐短眉, 圆溜溜黑亮眼睛, 粉润软小猪鼻, 粉嫩嫩嘟嘟唇, 软乎乎浅粉色毛绒肤质, , 右耳带有一块浅灰色斑点, 怀抱着米白色软绒兔子布偶, , 浅粉色短绒毛, 仅覆盖头顶, 软蓬小卷造型, 无刘海, , 3头身Q版幼崽比例, 身形圆滚滚软乎乎, 肩窄小巧, 娇小可爱感, , 浅粉色棉质圆领套头卫衣, 内搭米白色棉料贴身打底衫, 下装米白色棉质束脚休闲裤, , 浅粉色软底儿童休闲运动鞋, ,
+  profileData keys: role_level, archetype, personality_tags, era_period, social_class, occupation, costume_tier, suggested_colors, primary_identifier, visual_keywords, gender, age_range
+  role_level: A | archetype: 软萌幼崽 | gender: 男 | age_range: 约6岁（拟人化幼崽）
+  personality_tags: ["胆小","软萌","乖巧","依赖哥哥"]
+  visual_keywords: ["软萌可爱","怯生生","奶气"]
+
+--- [location] 森林旁的家_卧室_半夜 ---
+  confirmed: true
+  imageUrl: EMPTY
+  description: 一间位于森林边缘的卡通原木结构卧室, 室内光线昏暗柔和, 整体暖黄低饱和色调, , 卧室侧边靠墙处, 米白色哑光实木平开门, 门板带有浅棕色小猪浮雕纹路, 配银色圆形金属门把手, , 卧室临森林侧墙面, 米白色木质边框方形落地窗, 半挂半透米白色棉麻窗帘, 玻璃表面倒映深黑色森林树影, , 浅棕色拼接实木地板, 表面带自然原木纹理, 铺有米白色短绒圆形地毯, 地毯印浅粉色小猪爪印纹样, , 窗外背景, 深墨色深夜天空, 点缀零星银白色细碎星光, 远处是深墨绿色森林剪影, , 上下铺床沿处, 浅粉色光滑实木护栏, 边缘做圆角处理, , 卧室角落地面, 暖黄色软胶小猪造型小夜灯, 散发微弱柔光, , 上铺床面, 天蓝色纯棉卡通图案被褥, 呈自然揉皱状态, , 下铺床面, 嫩粉色纯棉卡通图案被褥, 呈蓬松舒展状态, , 窗边墙面处, 浅棕色原木小型边桌, 桌面摆放银白色金属外壳手电筒, 透明玻璃装半杯凉白开, , 卧室墙角处, 深棕色藤编收纳筐, 筐内堆放彩色毛绒玩具, ,
+
+--- [location] 森林旁的家_客厅_傍晚 ---
+  confirmed: true
+  imageUrl: /api/storage/sign?key=images%2Flxt%2Fasset-images-6be21fc1-9c8e-492f-a01c-627106
+  description: 一座毗邻茂密森林的温馨住宅客厅空间, 整体被暖橙色柔光笼罩, 色调温暖柔和, 充满居家生活感, , 
+客厅内侧靠墙位置, 米白色实木复合平开门, 门框包浅棕色实木收边条, 门板嵌小块方形磨砂玻璃, 门呈半开状态露出外侧玄关边角, , 
+客厅临森林侧整面墙, 超大落地透明玻璃窗, 白色塑钢窗框, 玻璃表面沾零星细密雨珠, 玻璃映出窗外森林暗影与晚霞光影, , 
+客厅全域地面, 浅棕色原木实木地板, 表面带清晰自然树木纹理, 局部铺米白色短绒针织地毯, 地毯边缘带浅棕色编织流苏, , 
+窗外傍晚天空, 暗紫渐变橙粉晕染色调, 絮状云团零散漂浮, 边缘被落日镀上浅金色光泽, , 
+窗外森林边缘位置, 深棕色实木栅栏, 由打磨光滑的圆木棍拼接而成, 表面刷哑光透明清漆, , 
+客厅中央位置, 米白色棉麻布艺L型沙发, 表面带浅灰色小波点纹理, 散落数个姜黄色针织方形抱枕, 沙发前方位置, 浅胡桃色实木长方形茶几, 桌面铺透明PVC防水软垫, 摆放米白色陶瓷宽口马克杯, 浅褐色竹制圆形果盘, 沙发旁墙角位置, 暖黄色陶瓷底座落地灯, 配米白色亚麻锥形灯罩, 正散发出柔和暖光, 客厅墙面位置, 米
+
+--- [location] 森林旁的家_家门口_半夜 ---
+  confirmed: false
+  imageUrl: EMPTY
+  description: EMPTY
+
+--- [prop] 探险地图 ---
+  confirmed: false
+  imageUrl: EMPTY
+  description: EMPTY
+
+--- [prop] 猪弟弟的布偶 ---
+  confirmed: false
+  imageUrl: EMPTY
+  description: EMPTY
+
+========== STAGE 4: scriptContent (1st shot + full preview) ==========
+scriptContent length: 21022 chars
+分镜1
+镜头文案:旁白-平静:画外音(旁白)：在一片茂密的森林旁边，住着温柔的猪妈妈和她的两个儿子，猪哥哥和猪弟弟。
+图片提示词:全局物理空间位置: 森林旁的家客厅，摄影机位于客厅入户门内侧，平视对准客厅核心活动区；中景构图：猪妈妈在画面右侧布艺沙发上，朝向左侧客厅中央，坐姿端正织毛衣；猪哥哥在画面中央地面，朝向身下的探险地图，趴卧姿态；猪弟弟在画面中央偏右猪哥哥身侧，朝向哥哥手中的地图，抱布偶坐地。
+分镜图片布局：
+左上图片:中景，机位初始固定在入户门内侧，傍晚，暖橙色斜阳从西侧落地窗斜照入内，西侧落地窗在画面后方、窗外可见深绿林冠与橙红色晚霞，右侧布艺沙发在画面右，中央地面在画面中。猪妈妈坐在沙发上指尖勾着毛线准备落针，猪哥哥趴在地上指尖刚触到地图边缘，猪弟弟抱布偶坐直身体脚未晃动。三人同框，空间关系清晰，镜头高度与坐立的猪妈妈胸口齐平。
+右上图片:中景，机位稍向右侧平移并轻微推近，傍晚暖橙色斜阳从西侧落地窗斜照入内，西侧落地窗在画面后方、窗外可见深绿林冠与橙红色晚霞，右侧布艺沙发在画面右，中央地面在画面中。猪妈妈指尖勾着毛线落下第一针，猪哥哥指尖点在地图上的森林标识处，猪弟弟抱布偶开始小幅度晃脚。三人同框，空间关系清晰，镜头高度不变。
+左下图片:中景，机位从偏右缓慢回到更居中位置并略微下压一点，暖橙色斜阳持续从西侧落地窗斜照入内，西侧落地窗在画面后方、窗外可见深绿林冠与橙红色晚霞，右侧布艺沙发在画面右，中央地面在画面中。猪妈妈织毛衣的手匀速动作拉出毛线弧度，猪哥哥指尖沿地图路径慢慢滑动，猪弟弟晃脚幅度变大、头靠向哥哥肩膀。三人同框，空间关系清晰。
+右下图片:中景，机位轻微后撤回到更稳定的同框构图，暖橙色斜阳持续从西侧落地窗斜照入内，西侧落地窗在画面后方、窗外可见深绿林冠与橙红色晚霞，右侧布艺沙发在画面右，中央地面在画面中。猪妈妈织毛衣动作不停，猪哥哥指尖停在地图路径终点仍低头看地图，猪弟弟抱布偶晃脚靠在哥哥身侧保持姿态。三人同框，空间关系清晰，镜头高度不变，衔接下一段叙事。
+视频提示词:Shot 1: Static medium shot positioned inside the front door of the forest-side cottage living room, west-facing floor-to-ceiling window at the back of the frame with dark green forest crown and orange sunset outside, fabric sofa on the right, central open floor area in the middle of the frame. Mother Pig hooks yarn with her fingertips and gazes at the knitting needle in her hand, Elder Brother Pig touches the edge of the adventure map with his fingertip and glances across the map's color blocks, Little Brother Pig holds his plush doll and wiggles his feet while staring at his brother's hand. Soft rustle of yarn and faint wind blowing through forest leaves are audible.
+Shot 2: Truck Right slightly then Dolly In slowly, keep all three characters in full frame, maintain spatial alignment with west window at the back and fabric sofa on the right. Mother Pig continues knitting with interlaced needles and occasionally glances at her two children, Elder Brother Pig taps the forest mark on the map and turns his head to look at Little Brother Pig, Little Brother Pig stops wiggling his feet and fixes his gaze on his brother's fingertip. Faint clicking sound of knitting needles colliding can be heard.
+Shot 3: Pan back to center slowly then Tilt Down slightly, Push into medium close-up, keep spatial relationship unchanged with west window at the back and sofa on the right. Mother Pig pauses knitting, rests the needle on her lap and watches her two kids, Elder Brother Pig raises his finger pointing toward the floor-to-ceiling window and looks out at the forest, Little Brother Pig hugs his plush doll tightly, leans forward and follows his brother's gaze to the outside forest. Faint cricket chirps from the outside forest drift into the room.
+Shot 4: Dolly Out slightly then Locked-off static medium shot, fix the stable three-character composition, west window stays at the back, fabric sofa stays on the right. Mother Pig picks up the knitting needle again and resumes knitting, looking down at the half-finished sweater in her hand, Elder Brother Pig pulls his arm back to prop on the floor and looks at the back of the map, Little Brother Pig resumes wiggling his feet and turns his gaze back to the map in his brother's hand. Soft wind rustle and gentle knitting friction sounds continue consistently.
+景别:中景
+语音分镜:旁白
+音效:织毛衣的竹针碰撞的轻脆声响、猪哥哥指尖摩挲纸质探险地图的沙沙声、窗外晚风拂过树叶的簌簌声、远处归巢鸟类的细碎鸣叫声
+资产绑定:{"characters":["猪哥哥","猪弟弟","猪妈妈"],"scenes":["森林旁的家_客厅_傍晚"],"props":["探险地图","猪弟弟的布偶"]}
+资产绑定简写:猪哥哥,猪弟弟,猪妈妈,场景-森林旁的家_客厅_傍晚,探险地图,猪弟弟的布偶
+
+分镜2
+镜头文案:对话-向往:猪哥哥(画外音)：我勇敢又充满好奇心，总是喜欢到处探险。
+图片提示词:全局物理空间位置: 森林旁的家客厅，摄影机位于猪哥哥侧后方约1.5米处，平视朝向猪哥哥与西侧窗户方向；近景构图：猪哥哥位于画面中央，面向西侧窗户站立，手里举着拼好的探险地图；前景散落未用完的地图碎纸，背景是透光玻璃窗，窗外可见深绿色森林轮廓，画面左侧边缘露出半扇厨房木门。
+分镜图片布局：
+左上图片:近景，机位固定，镜头高度与猪哥哥胸口齐平，傍晚，暖橙色夕阳光从西侧窗户斜切而入。前景散落地图碎纸在画面下方，左侧露出半扇厨房木门，背景是透光玻璃窗，窗外是深绿色森林轮廓。猪哥哥举着刚拼好的探险地图，视线落在地图表面，表情放松。单人同框，空间关系清晰。
+右上图片:近景，机位稍向右侧平移并轻微推近，傍晚光线不变，前景散落地图碎纸在画面下方，左侧露出半扇厨房木门，背景是透光玻璃窗，窗外是深绿色森林轮廓。猪哥哥抬眼看向窗外森林方向，捏着地图边缘的手指微微收紧。单人同框，空间关系清晰，镜头高度保持与胸口齐平。
+左下图片:近景，机位从偏右缓慢回到更居中，并略微下压一点，光线不变，前景散落地图碎纸在画面下方，左侧露出半扇厨房木门，背景是透光玻璃窗，窗外是深绿色森林轮廓。猪哥哥晃了晃手里的地图，嘴角明显上扬，眼睛亮晶晶的。单人同框，空间关系清晰。
+右下图片:近景，机位轻微后撤回到更稳定的同框构图，傍晚光线持续，前景散落地图碎纸在画面下方，左侧露出半扇厨房木门，背景是透光玻璃窗，窗外是深绿色森林轮廓。猪哥哥保持看向窗外森林的姿态不动，画外音旁白触发。单人同框，空间关系清晰，镜头高度稳定。
+视频提示词:Shot 1: Fixed medium close-up shot positioned 1.5 meters behind Pig Brother’s side at eye level, kitchen half-door on the left edge of the frame, western window with dark green forest silhouette in the rear background, scattered map scraps on the lower foreground. Pig Brother presses the last piece of the puzzle map steady with his fingertip, lowering his head to look at the fully completed spread. Soft paper rustling sound is audible, warm orange sunset light slants through the window onto the map. Shot 2: Truck right slightly then dolly in slowly, keeping camera height level with Pig Brother’s chest, kitchen half-door stays on the left, forest-view window remains in the rear background, map scraps are still visible on the lower foreground. Pig Brother lifts the whole assembled map up to his chest, moving his gaze slowly up toward the window direction. Faint sound of his woolen sweater fabric rubbing as he moves is audible, warm sunset light stays consistent. Shot 3: Pan back to center then tilt down slightly, push into close-up focusing on Pig Brother’s upper body, kitchen half-door remains on left edge, window with forest in the background, map scraps still on the lower foreground. Pig Brother shakes the map in his hand lightly, locking his eyes on the forest outside the window, with a bright smile lifting the corner of his mouth. Soft rustle of wind blowing through forest leaves from outside the window is audible. Shot 4: Dolly back slightly to return to stable medium close-up composition, locked-off static shot, kitchen half-door on left edge, forest-view window in rear background, scattered map scraps on lower foreground, warm sunset light remains unchanged. Pig Brother folds the map in half and tucks it to his side, leaning his upper body forward slightly, keeping his gaze fixed on the forest outside. Gentle ambient hum of the quiet living room mixed with faint wind 
+
+... (15022 more chars)
+
+========== STAGE 5: finalFilmContent ==========
+finalFilmContent length: 24622 chars
+  version: 1
+  videoRatio: 16:9
+  artStyle: american-comic
+  gridPromptPrefix: DEFAULT
+  videoSeed: undefined
+  rows count: 7
+
+--- Shot 0 ---
+  label: 分镜1
+  shotType: 中景
+  copyText: 旁白-平静:画外音(旁白)：在一片茂密的森林旁边，住着温柔的猪妈妈和她的两个儿子，猪哥哥和猪弟弟。
+  imagePrompt: 全局物理空间位置: 森林旁的家客厅，摄影机位于客厅入户门内侧，平视对准客厅核心活动区；中景构图：猪妈妈在画面右侧布艺沙发上，朝向左侧客厅中央，坐姿端正织毛衣；猪哥哥在画面中央地面，朝向身下的探险地图，趴卧姿态；猪弟弟在画面中央偏右猪哥哥身侧，朝向哥哥手中的地图，抱布偶坐地。
+分镜图片布局：
+左上图片:中景，机位初始固定在入户门内侧，傍晚，暖橙色斜阳从西侧落地窗斜照入内，西侧落地窗在画面后方、窗外可
+  videoPrompt: Shot 1: Static medium shot positioned inside the front door of the forest-side cottage living room, west-facing floor-to-ceiling window at the back of the frame with dark green forest crown and orange
+  imageUrl: /api/storage/sign?key=images%2Flxt%2Ffinal-film-grid-f9ac2fb0-026a-4afa-93ce-cd1
+  gridImageUrl: /api/storage/sign?key=images%2Flxt%2Ffinal-film-grid-f9ac2fb0-026a-4afa-93ce-cd1
+  videoUrl: EMPTY
+  videoEndFrameUrl: /api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-c
+  splitImageUrls: 4 non-null
+  bindings: chars=3 | scenes=1 | props=2
+
+--- Shot 1 ---
+  label: 分镜2
+  shotType: 近景
+  copyText: 对话-向往:猪哥哥(画外音)：我勇敢又充满好奇心，总是喜欢到处探险。
+  imagePrompt: 全局物理空间位置: 森林旁的家客厅，摄影机位于猪哥哥侧后方约1.5米处，平视朝向猪哥哥与西侧窗户方向；近景构图：猪哥哥位于画面中央，面向西侧窗户站立，手里举着拼好的探险地图；前景散落未用完的地图碎纸，背景是透光玻璃窗，窗外可见深绿色森林轮廓，画面左侧边缘露出半扇厨房木门。
+分镜图片布局：
+左上图片:近景，机位固定，镜头高度与猪哥哥胸口齐平，傍晚，暖橙色夕阳光从西侧窗户斜切而入。前景散落地图碎纸在画
+  videoPrompt: Shot 1: Fixed medium close-up shot positioned 1.5 meters behind Pig Brother’s side at eye level, kitchen half-door on the left edge of the frame, western window with dark green forest silhouette in th
+  imageUrl: EMPTY
+  gridImageUrl: EMPTY
+  videoUrl: EMPTY
+  videoEndFrameUrl: EMPTY
+  bindings: chars=1 | scenes=1 | props=1
+
+--- Shot 2 ---
+  label: 分镜3
+  shotType: 近景
+  copyText: 对话-怯生生:猪弟弟(画外音)：我却很胆小，小小的风吹草动都会让我紧张起来。
+  imagePrompt: 全局物理空间位置: 森林旁的家_客厅，摄影机位于客厅入口方向，正对猪弟弟所在的沙发区域，高度与坐着的猪弟弟视线齐平；近景构图：猪弟弟在画面中央偏右位置半靠在浅灰布艺沙发上，面向西侧落地窗方向，手里攥着兔子布偶的耳朵；后景是半开的玻璃窗、随风晃动的树叶，远景是深绿色森林轮廓；前景是猪弟弟攥住的布偶耳朵。
+分镜图片布局：
+左上图片:近景，固定机位初始位，傍晚，暖黄色夕阳光从西侧落地窗斜射入内，光线柔和
+  videoPrompt: Shot 1: Static medium close-up shot positioned at the living room entrance, half-open French window on the left of frame, dark forest silhouette in far background behind the window, fabric sofa cushio
+  imageUrl: EMPTY
+  gridImageUrl: EMPTY
+  videoUrl: EMPTY
+  videoEndFrameUrl: EMPTY
+  bindings: chars=1 | scenes=1 | props=1
+
+--- Shot 3 ---
+  label: 分镜4
+  shotType: 中景
+  copyText: 旁白-平静:画外音(旁白)：每天傍晚太阳下山时，猪妈妈都会再三叮嘱两个孩子：
+对话-猪妈妈:猪妈妈(普通对话)：孩子们，千万不可以走进旁边的森林喔，里面黑漆漆的，非常危险。
+旁白-平静:画外音(旁白)
+  imagePrompt: 全局物理空间位置: 森林旁的家客厅，摄影机位于客厅入口处，水平朝向窗边的三人拍摄，机位高度与猪妈妈胸口齐平；中景构图：猪妈妈在画面中央站立，面向身前的两个孩子，双手牵着兄弟俩的手；猪哥哥在猪妈妈左侧，仰头看向猪妈妈，身体站直；猪弟弟在猪妈妈右侧，同样仰头看向猪妈妈，站得比哥哥稍近一点。
+分镜图片布局：
+左上图片:中景，机位固定于初始位置，傍晚，暖橙色夕阳从西侧窗户斜射入客厅光线柔和，木框半开窗户与
+  videoPrompt: Shot 1: Static medium shot positioned at the living room entrance, eye level with Mother Pig's chest, half-open wooden framed window with off-white curtains sits at the back, dark green forest canopie
+  imageUrl: EMPTY
+  gridImageUrl: EMPTY
+  videoUrl: EMPTY
+  videoEndFrameUrl: EMPTY
+  bindings: chars=3 | scenes=1 | props=0
+
+--- Shot 4 ---
+  label: 分镜5
+  shotType: 近景
+  copyText: 内心-期待:猪哥哥(独白)：可是，我心里一直对森林充满了好奇。
+  imagePrompt: 全局物理空间位置: 森林旁的家客厅，摄影机位于客厅侧方，平视对准猪哥哥侧脸；近景构图：猪哥哥在画面中央偏右，侧脸朝向西侧窗户，上半身完全入镜；猪妈妈在画面左侧靠近厨房门沿位置，背向镜头朝向厨房方向站立；背景可见木质方桌与窗外渐暗的森林轮廓。
+分镜图片布局：
+左上图片:近景，机位固定镜头高度与猪哥哥胸口齐平，傍晚，暖黄色夕阳光从西侧窗户斜射入内光线柔和，画面左侧是厨房门沿，右侧背景是窗外渐暗的森林，
+  videoPrompt: Shot 1: Medium close-up dolly in slowly at Pig Brother's chest height, kitchen door frame sits on the left of the frame, darkening forest silhouette outside the west window on the right, wooden square
+  imageUrl: EMPTY
+  gridImageUrl: EMPTY
+  videoUrl: EMPTY
+  videoEndFrameUrl: EMPTY
+  bindings: chars=1 | scenes=1 | props=0
+
+--- Shot 5 ---
+  label: 分镜6
+  shotType: 中景
+  copyText: 旁白-平缓:画外音(旁白)：到了半夜，趁着妈妈熟睡，猪哥哥悄悄地摇醒了猪弟弟，小声地说：
+对话-猪哥哥:猪哥哥(普通对话)：弟弟，快醒醒。我们趁现在去森林里探险吧，一定很好玩。
+  imagePrompt: 全局物理空间位置: 森林旁的家卧室，摄影机位于卧室进门处平视朝向室内床铺方向；中景构图：猪妈妈在画面左侧单人小床上躺着熟睡，朝向天花板；猪弟弟在画面右侧双人床中部躺着，闭着眼朝向斜上方；猪哥哥在右侧双人床边缘半伏在猪弟弟枕边，朝向猪弟弟。；分镜图片布局：左上图片:中景，固定机位，半夜冷调月光从窗户斜向射入质感清冷柔和，左侧是猪妈妈单人小床，右侧是兄弟俩双人床，后景是木框玻璃窗，前景是卧室门框边缘。
+  videoPrompt: Shot 1: Fixed medium shot from bedroom entrance, eye level aligned with bed surface, cold blue moonlight slants through the rear wooden window casting pale blue shadows, left side of frame holds Mama 
+  imageUrl: EMPTY
+  gridImageUrl: EMPTY
+  videoUrl: EMPTY
+  videoEndFrameUrl: EMPTY
+  bindings: chars=3 | scenes=1 | props=0
+
+--- Shot 6 ---
+  label: 分镜7
+  shotType: 中景
+  copyText: 旁白-平缓略带悬念:画外音(旁白)：猪弟弟揉揉惺忪的睡眼，虽然觉得有点害怕，但还是跟着哥哥轻手轻脚地溜出了家门。
+  imagePrompt: 全局物理空间位置: 森林旁的家_家门口，摄影机位于门外空地处正对家门入口，水平机位与角色腰部齐平；中景构图：猪哥哥在画面中央偏前的台阶上，面向后方家门方向，一只脚朝森林方向探出；猪弟弟在画面中央偏后的门槛处，穿睡衣抱布偶，面向台阶上的猪哥哥；前景为粗糙石板台阶，背景是半敞木屋门与远处黑黝黝森林轮廓。
+分镜图片布局：
+左上图片:中景，机位初始固定，半夜，清冷月光从斜上方洒落，前景是粗糙石板台阶，背景
+  videoPrompt: Shot 1: Medium shot, slow handheld push in from waist height level with the characters, spatial axis fixed with dark forest on the far right background, half-open wooden cabin door on the left backgro
+  imageUrl: EMPTY
+  gridImageUrl: EMPTY
+  videoUrl: EMPTY
+  videoEndFrameUrl: EMPTY
+  bindings: chars=2 | scenes=1 | props=1
+
+========== SHOT 1 FULL DETAIL ==========
+{
+  "shotIndex": 0,
+  "label": "分镜1",
+  "copyText": "旁白-平静:画外音(旁白)：在一片茂密的森林旁边，住着温柔的猪妈妈和她的两个儿子，猪哥哥和猪弟弟。",
+  "imagePrompt": "全局物理空间位置: 森林旁的家客厅，摄影机位于客厅入户门内侧，平视对准客厅核心活动区；中景构图：猪妈妈在画面右侧布艺沙发上，朝向左侧客厅中央，坐姿端正织毛衣；猪哥哥在画面中央地面，朝向身下的探险地图，趴卧姿态；猪弟弟在画面中央偏右猪哥哥身侧，朝向哥哥手中的地图，抱布偶坐地。\n分镜图片布局：\n左上图片:中景，机位初始固定在入户门内侧，傍晚，暖橙色斜阳从西侧落地窗斜照入内，西侧落地窗在画面后方、窗外可见深绿林冠与橙红色晚霞，右侧布艺沙发在画面右，中央地面在画面中。猪妈妈坐在沙发上指尖勾着毛线准备落针，猪哥哥趴在地上指尖刚触到地图边缘，猪弟弟抱布偶坐直身体脚未晃动。三人同框，空间关系清晰，镜头高度与坐立的猪妈妈胸口齐平。\n右上图片:中景，机位稍向右侧平移并轻微推近，傍晚暖橙色斜阳从西侧落地窗斜照入内，西侧落地窗在画面后方、窗外可见深绿林冠与橙红色晚霞，右侧布艺沙发在画面右，中央地面在画面中。猪妈妈指尖勾着毛线落下第一针，猪哥哥指尖点在地图上的森林标识处，猪弟弟抱布偶开始小幅度晃脚。三人同框，空间关系清晰，镜头高度不变。\n左下图片:中景，机位从偏右缓慢回到更居中位置并略微下压一点，暖橙色斜阳持续从西侧落地窗斜照入内，西侧落地窗在画面后方、窗外可见深绿林冠与橙红色晚霞，右侧布艺沙发在画面右，中央地面在画面中。猪妈妈织毛衣的手匀速动作拉出毛线弧度，猪哥哥指尖沿地图路径慢慢滑动，猪弟弟晃脚幅度变大、头靠向哥哥肩膀。三人同框，空间关系清晰。\n右下图片:中景，机位轻微后撤回到更稳定的同框构图，暖橙色斜阳持续从西侧落地窗斜照入内，西侧落地窗在画面后方、窗外可见深绿林冠与橙红色晚霞，右侧布艺沙发在画面右，中央地面在画面中。猪妈妈织毛衣动作不停，猪哥哥指尖停在地图路径终点仍低头看地图，猪弟弟抱布偶晃脚靠在哥哥身侧保持姿态。三人同框，空间关系清晰，镜头高度不变，衔接下一段叙事。",
+  "imageUrl": "/api/storage/sign?key=images%2Flxt%2Ffinal-film-grid-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-1777447190746-1zf94n.jpg&expires=259200",
+  "gridImageUrl": "/api/storage/sign?key=images%2Flxt%2Ffinal-film-grid-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-1777447190746-1zf94n.jpg&expires=259200",
+  "splitImageUrls": [
+    "/api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-0-1777447190987-cbma11.jpg&expires=259200",
+    "/api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-1-1777447190988-jpcs1u.jpg&expires=259200",
+    "/api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-2-1777447190988-vb100g.jpg&expires=259200",
+    "/api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-3-1777447190988-686oli.jpg&expires=259200"
+  ],
+  "imageSets": [
+    {
+      "gridImageUrl": "/api/storage/sign?key=images%2Flxt%2Ffinal-film-grid-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-1777447190746-1zf94n.jpg&expires=259200",
+      "splitImageUrls": [
+        "/api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-0-1777447190987-cbma11.jpg&expires=259200",
+        "/api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-1-1777447190988-jpcs1u.jpg&expires=259200",
+        "/api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-2-1777447190988-vb100g.jpg&expires=259200",
+        "/api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-3-1777447190988-686oli.jpg&expires=259200"
+      ],
+      "videoEndFrameUrl": "/api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-3-1777447190988-686oli.jpg&expires=259200",
+      "createdAt": "2026-04-29T07:19:51.037Z"
+    }
+  ],
+  "videoEndFrameUrl": "/api/storage/sign?key=images%2Flxt%2Ffinal-film-splits-f9ac2fb0-026a-4afa-93ce-cd19230664d5-0-3-1777447190988-686oli.jpg&expires=259200",
+  "videoPrompt": "Shot 1: Static medium shot positioned inside the front door of the forest-side cottage living room, west-facing floor-to-ceiling window at the back of the frame with dark green forest crown and orange sunset outside, fabric sofa on the right, central open floor area in the middle of the frame. Mother Pig hooks yarn with her fingertips and gazes at the knitting needle in her hand, Elder Brother Pig touches the edge of the adventure map with his fingertip and glances across the map's color blocks, Little Brother Pig holds his plush doll and wiggles his feet while staring at his brother's hand. Soft rustle of yarn and faint wind blowing through forest leaves are audible.\nShot 2: Truck Right slightly then Dolly In slowly, keep all three characters in full frame, maintain spatial alignment with west window at the back and fabric sofa on the right. Mother Pig continues knitting with interlaced needles and occasionally glances at her two children, Elder Brother Pig taps the forest mark on the map and turns his head to look at Little Brother Pig, Little Brother Pig stops wiggling his feet and fixes his gaze on his brother's fingertip. Faint clicking sound of knitting needles colliding can be heard.\nShot 3: Pan back to center slowly then Tilt Down slightly, Push into medium close-up, keep spatial relationship unchanged with west window at the back and sofa on the right. Mother Pig pauses knitting, rests the needle on her lap and watches her two kids, Elder Brother Pig raises his finger pointing toward the floor-to-ceiling window and looks out at the forest, Little Brother Pig hugs his plush doll tightly, leans forward and follows his brother's gaze to the outside forest. Faint cricket chirps from the outside forest drift into the room.\nShot 4: Dolly Out slightly then Locked-off static medium shot, fix the stable three-character composition, west window stays at the back, fabric sofa stays on the right. Mother Pig picks up the knitting needle again and resumes knitting, looking down at the half-finished sweater in her hand, Elder Brother Pig pulls his arm back to prop on the floor and looks at the back of the map, Little Brother Pig resumes wiggling his feet and turns his gaze back to the map in his brother's hand. Soft wind rustle and gentle knitting friction sounds continue consistently.",
+  "videoUrl": null,
+  "shotType": "中景",
+  "bindings": {
+    "characterAssetIds": [
+      "ad2c75b7-3563-45a8-9152-a38642b80bdf",
+      "1cfb3606-b61c-42ff-bb82-9c2bd4099ba1",
+      "92aaa077-33d7-4859-baff-bd34ec94b595"
+    ],
+    "sceneAssetId": "6be21fc1-9c8e-492f-a01c-627106ccc522",
+    "propAssetIds": [
+      "1661088c-ae5f-4a59-8d27-94aed69e5ac8",
+      "36279faa-eb62-48c3-b9e2-466c0ab07ea6"
+    ]
+  },
+  "reviewResult": null
+}
+
+Done.

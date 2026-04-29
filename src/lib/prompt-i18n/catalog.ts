@@ -202,6 +202,14 @@ export const PROMPT_CATALOG: Record<PromptId, PromptCatalogEntry> = {
     pathStem: 'lxt-script/shot_phase3_video_refine',
     variableKeys: ['acting_arc_json', 'spatial_context_json', 'scene_type', 'image_prompt'],
   },
+  [PROMPT_IDS.LXT_SHOT_CRITIC]: {
+    pathStem: 'lxt-script/shot_critic',
+    variableKeys: ['video_prompt', 'shot_type'],
+  },
+  [PROMPT_IDS.LXT_SHOT_REPAIR]: {
+    pathStem: 'lxt-script/shot_repair',
+    variableKeys: ['video_prompt', 'weaknesses', 'repair_advice', 'shot_type'],
+  },
   // IP 角色模式
   [PROMPT_IDS.IP_FACE_DESCRIBE]: {
     pathStem: 'ip-mode/face_describe',

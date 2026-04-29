@@ -6,7 +6,8 @@ import { submitTask } from '@/lib/task/submitter'
 import { resolveRequiredTaskLocale } from '@/lib/task/resolve-locale'
 import { TASK_TYPE } from '@/lib/task/types'
 import { buildDefaultTaskBillingInfo } from '@/lib/billing'
-import { getUserModelConfig } from '@/lib/config-service'
+import { getUserModelConfig, parseModelKey } from '@/lib/config-service'
+import { findBuiltinCapabilities } from '@/lib/model-capabilities/catalog'
 import {
   FINAL_FILM_TARGET_TYPE,
   buildFinalFilmTargetId,
@@ -60,7 +61,12 @@ export const POST = apiHandler(async (
     || 'doubao-seedance-2-0-260128'
 
   const hasEndFrame = !!row.videoEndFrameUrl
-  const generationMode = hasEndFrame ? 'firstlastframe' : 'normal'
+
+  // 根据模型能力自动选择生成模式：仅当模型支持 firstlastframe 且有尾帧时才用
+  const parsed = parseModelKey(resolvedVideoModel)
+  const caps = parsed ? findBuiltinCapabilities('video', parsed.provider, parsed.modelId) : undefined
+  const modelSupportFirstLastFrame = caps?.video?.firstlastframe === true
+  const generationMode = (modelSupportFirstLastFrame && hasEndFrame) ? 'firstlastframe' : 'normal'
 
   const targetId = buildFinalFilmTargetId(episodeId, shotIndex)
   const payload = {
@@ -68,7 +74,7 @@ export const POST = apiHandler(async (
     shotIndex,
     videoPrompt,
     videoModel: resolvedVideoModel,
-    firstFrameUrl: row.imageUrl,
+    firstFrameUrl: row.splitImageUrls?.[0] ?? row.imageUrl,
     lastFrameUrl: row.videoEndFrameUrl || null,
     generationMode,
     displayMode: 'detail' as const,
@@ -90,5 +96,5 @@ export const POST = apiHandler(async (
     billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.LXT_FINAL_FILM_VIDEO, payload),
   })
 
-  return NextResponse.json(result)
+  return NextResponse.json({ ...result, generationMode })
 })

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { executeAiTextStep } from '@/lib/ai-runtime'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
-import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { getPromptTemplate, buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
 import { mapWithConcurrency } from '@/lib/async/map-with-concurrency'
 import { parseLxtShots } from '@/lib/lxt/parse-shots'
 import { buildLxtAssetPromptContext } from '@/lib/lxt/project-assets'
@@ -11,8 +11,16 @@ import { resolveAnalysisModel } from './resolve-analysis-model'
 import { createWorkerLLMStreamContext, createWorkerLLMStreamCallbacks } from './llm-stream'
 import { withInternalLLMStreamCallbacks, type InternalLLMStreamCallbacks, type InternalLLMStreamStepMeta } from '@/lib/llm-observe/internal-stream-context'
 import type { TaskJobData } from '@/lib/task/types'
+import { scoreCriticResponse, isPassing } from '@/lib/lxt/quality-scorer'
+import {
+  applyRowPatch,
+  parseFinalFilmContent,
+  serializeFinalFilmContent,
+} from '@/lib/lxt/final-film'
 
 const CONCURRENCY = 5
+const CRITIC_PASS_THRESHOLD = 0.7
+const CRITIC_MAX_RETRY = 2
 
 type JsonRecord = Record<string, unknown>
 
@@ -320,8 +328,81 @@ export async function handleLxtStoryboardToScriptTask(job: Job<TaskJobData>) {
       meta: { stepId: `p3:${i + 1}`, stepTitle: '视频合成', stepIndex: 3 * totalShots + i + 1, stepTotal: totalShots * 4 },
     }))
 
-    const videoPrompt = res3.text?.trim() ?? ''
+    let videoPrompt = res3.text?.trim() ?? ''
     const shotType = extractShotType(shot.raw)
+
+    // P1-15: Critic+Repair — 在 videoPrompt 生成后、视频提交前审查 prompt 质量
+    let reviewResult: Record<string, unknown> | null = null
+    for (let retry = 0; retry <= CRITIC_MAX_RETRY; retry++) {
+      const criticPrompt = buildPrompt({
+        promptId: PROMPT_IDS.LXT_SHOT_CRITIC,
+        locale: job.data.locale,
+        variables: { video_prompt: videoPrompt, shot_type: shotType },
+      })
+      const criticRes = await executeAiTextStep({
+        userId: job.data.userId,
+        model: analysisModel,
+        messages: [{ role: 'user', content: criticPrompt }],
+        reasoning: true,
+        projectId,
+        action: 'lxt_shot_critic',
+        meta: { stepId: `critic:${i + 1}`, stepTitle: 'Critic评审', stepIndex: 3 * totalShots + i + 1, stepTotal: totalShots * 4 },
+      })
+      const criticResult = scoreCriticResponse(criticRes.text)
+      if (!criticResult) break
+
+      const passing = isPassing(criticResult.scores, CRITIC_PASS_THRESHOLD)
+      if (passing) {
+        reviewResult = { status: 'pass', scores: criticResult.scores, retryCount: retry, reviewedAt: new Date().toISOString() }
+        break
+      }
+      if (retry >= CRITIC_MAX_RETRY) {
+        reviewResult = { status: 'failed', scores: criticResult.scores, retryCount: retry, reviewedAt: new Date().toISOString() }
+        break
+      }
+
+      // Repair
+      const repairPrompt = buildPrompt({
+        promptId: PROMPT_IDS.LXT_SHOT_REPAIR,
+        locale: job.data.locale,
+        variables: {
+          video_prompt: videoPrompt,
+          weaknesses: criticResult.weaknesses.join('；'),
+          repair_advice: criticResult.repairAdvice,
+          shot_type: shotType,
+        },
+      })
+      const repairRes = await executeAiTextStep({
+        userId: job.data.userId,
+        model: analysisModel,
+        messages: [{ role: 'user', content: repairPrompt }],
+        reasoning: true,
+        projectId,
+        action: 'lxt_shot_repair',
+        meta: { stepId: `repair:${i + 1}`, stepTitle: 'Repair修复', stepIndex: 3 * totalShots + i + 1, stepTotal: totalShots * 4 },
+      })
+      const repaired = repairRes.text?.trim()
+      if (repaired) videoPrompt = repaired
+      reviewResult = { status: 'repairing', scores: criticResult.scores, retryCount: retry, reviewedAt: new Date().toISOString() }
+    }
+
+    // 将 reviewResult 写入 finalFilmContent 行数据
+    if (reviewResult && episodeId) {
+      try {
+        const current = await prisma.lxtEpisode.findUnique({
+          where: { id: episodeId },
+          select: { finalFilmContent: true },
+        })
+        const ffContent = parseFinalFilmContent(current?.finalFilmContent)
+        const next = applyRowPatch(ffContent, shot.index, {
+          reviewResult: reviewResult as Record<string, unknown> as never,
+        })
+        await prisma.lxtEpisode.update({
+          where: { id: episodeId },
+          data: { finalFilmContent: serializeFinalFilmContent(next) },
+        })
+      } catch { /* 不阻塞主流程 */ }
+    }
 
     const assembledOutput = assembleShotOutput(shot.label, phase1Json, imagePrompt, videoPrompt, shotType)
 

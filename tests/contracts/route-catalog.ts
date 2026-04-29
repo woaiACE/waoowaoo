@@ -210,6 +210,8 @@ const ROUTE_FILES = [
   'src/app/api/lxt/[projectId]/final-film/[episodeId]/route.ts',
   'src/app/api/lxt/[projectId]/final-film/[episodeId]/[shotIndex]/generate-image/route.ts',
   'src/app/api/lxt/[projectId]/final-film/[episodeId]/[shotIndex]/generate-video/route.ts',
+  'src/app/api/lxt/[projectId]/final-film/[episodeId]/[shotIndex]/generate-audio/route.ts',
+  'src/app/api/lxt/[projectId]/final-film/[episodeId]/design-narrator-voice/route.ts',
   'src/app/api/lxt-script/[projectId]/generate-stream/route.ts',
   'src/app/api/lxt-script/[projectId]/novel-to-script-stream/route.ts',
   'src/app/api/lxt-script/generate-final-script/route.ts',

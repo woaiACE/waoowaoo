@@ -15,6 +15,7 @@ const prismaMock = vi.hoisted(() => ({
     create: vi.fn(async () => ({})),
     createMany: vi.fn(async () => ({ count: 1 })),
   },
+  userPreference: { findUnique: vi.fn() },
 }))
 
 const llmMock = vi.hoisted(() => ({
@@ -91,6 +92,7 @@ describe('worker analyze-novel behavior', () => {
     prismaMock.project.findUnique.mockResolvedValue({
       id: 'project-1',
     })
+    prismaMock.userPreference.findUnique.mockResolvedValue(null)
 
     prismaMock.novelPromotionProject.findUnique.mockResolvedValue({
       id: 'np-project-1',

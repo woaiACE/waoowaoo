@@ -61,6 +61,7 @@ const BILLABLE_TASK_TYPES = new Set<TaskType>([
   TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT,
   TASK_TYPE.LXT_ASSET_VOICE_PROMPT_INFER,
   TASK_TYPE.LXT_FINAL_FILM_VIDEO,
+  TASK_TYPE.LXT_FINAL_FILM_AUDIO,
 ])
 
 function toNumber(value: unknown, fallback: number) {
@@ -315,6 +316,8 @@ export function buildDefaultTaskBillingInfo(taskType: TaskType, payload: AnyPayl
     case TASK_TYPE.LXT_STORYBOARD_TO_SCRIPT:
     case TASK_TYPE.LXT_ASSET_VOICE_PROMPT_INFER:
       return buildTextTaskInfo(taskType, payload)
+    case TASK_TYPE.LXT_FINAL_FILM_AUDIO:
+      return buildVoiceTaskInfo(taskType, payload)
     case TASK_TYPE.PANEL_VARIANT:
       return buildImageTaskInfo(taskType, payload)
     default:

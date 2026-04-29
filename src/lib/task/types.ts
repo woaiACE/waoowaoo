@@ -101,6 +101,8 @@ export const TASK_TYPE = {
   LXT_ASSET_IMAGE: 'lxt_asset_image',
   LXT_FINAL_FILM_IMAGE: 'lxt_final_film_image',
   LXT_FINAL_FILM_VIDEO: 'lxt_final_film_video',
+  LXT_SHOT_REVIEW: 'lxt_shot_review',
+  LXT_FINAL_FILM_AUDIO: 'lxt_final_film_audio',
 } as const
 
 export type TaskType = (typeof TASK_TYPE)[keyof typeof TASK_TYPE]

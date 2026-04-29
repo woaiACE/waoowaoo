@@ -6,6 +6,7 @@ const prismaMock = vi.hoisted(() => ({
   project: { findUnique: vi.fn() },
   novelPromotionProject: { findUnique: vi.fn() },
   characterRelation: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+  userPreference: { findUnique: vi.fn() },
 }))
 
 const llmMock = vi.hoisted(() => ({
@@ -108,6 +109,7 @@ describe('worker analyze-global behavior', () => {
     vi.clearAllMocks()
 
     prismaMock.project.findUnique.mockResolvedValue({ id: 'project-1' })
+    prismaMock.userPreference.findUnique.mockResolvedValue(null)
 
     prismaMock.novelPromotionProject.findUnique.mockResolvedValue({
       id: 'np-project-1',
